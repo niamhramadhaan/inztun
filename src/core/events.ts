@@ -1,6 +1,6 @@
 import type { EventCallback } from '../types/index';
 
-class EventBus {
+export class EventBus {
   private listeners: Map<string, Set<EventCallback>>;
 
   constructor() {

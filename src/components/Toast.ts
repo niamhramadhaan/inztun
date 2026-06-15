@@ -97,6 +97,17 @@ export class Toast {
           transform: translateY(12px) scale(0.95);
         }
       }
+
+      @media (prefers-reduced-motion: reduce) {
+        .toast {
+          animation: none !important;
+          opacity: 1;
+        }
+        .toast--exit {
+          animation: none !important;
+          opacity: 0;
+        }
+      }
     `;
     document.head.appendChild(style);
   }

@@ -7,11 +7,18 @@ import { Cosmos } from './core/cosmos';
 import { events, EVENTS } from './core/events';
 import { router, ROUTES } from './core/router';
 import { db } from './core/db';
-import { CommandPalette, PALETTE_EVENTS } from './components/CommandPalette';
+import { CommandPalette } from './components/CommandPalette';
 import { FloatingOrb } from './components/FloatingOrb';
 import { SettingsPanel } from './components/SettingsPanel';
+import { ShortcutGuide } from './components/ShortcutGuide';
+import { TopBar } from './components/TopBar';
+import { BottomNav } from './components/BottomNav';
+import { Home } from './modules/home/index';
 import { WorkerSuite } from './modules/workers-suite/index';
 import { Playground } from './modules/playground/index';
+import { DesignStudio } from './modules/design-studio/index';
+import { MarketingLab } from './modules/marketing-lab/index';
+import { FreelanceCore } from './modules/freelance-core/index';
 import type { Accent } from './types/index';
 
 class Inztun {
@@ -19,8 +26,11 @@ class Inztun {
   private commandPalette: CommandPalette | null = null;
   private floatingOrb: FloatingOrb | null = null;
   private settingsPanel: SettingsPanel | null = null;
-  private activeModule: WorkerSuite | Playground | null = null;
-  private modules = new Map<string, typeof WorkerSuite | typeof Playground>();
+  private shortcutGuide: ShortcutGuide | null = null;
+  private topBar: TopBar | null = null;
+  private bottomNav: BottomNav | null = null;
+  private activeModule: Home | WorkerSuite | Playground | DesignStudio | MarketingLab | FreelanceCore | null = null;
+  private modules = new Map<string, typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore>();
   private workspace: HTMLElement;
 
   constructor() {
@@ -38,16 +48,26 @@ class Inztun {
     this.commandPalette = new CommandPalette();
     this.floatingOrb = new FloatingOrb(this.commandPalette);
     this.settingsPanel = new SettingsPanel();
+    this.shortcutGuide = new ShortcutGuide();
 
+    const topbarEl = document.getElementById('topbar')!;
+    this.topBar = new TopBar(topbarEl);
+
+    this.bottomNav = new BottomNav(this.commandPalette);
+
+    this.registerModule('home', Home);
     this.registerModule('workers-suite', WorkerSuite);
     this.registerModule('playground', Playground);
+    this.registerModule('design-studio', DesignStudio);
+    this.registerModule('marketing-lab', MarketingLab);
+    this.registerModule('freelance-core', FreelanceCore);
     this.bindEvents();
 
     const route = router.getRoute();
     if (route.module) {
       this.loadModule(route.module);
     } else {
-      const lastModule = await db.getPreference('activeModule', 'workers-suite') as string;
+      const lastModule = await db.getPreference('activeModule', 'home') as string;
       router.navigate(lastModule);
     }
 
@@ -66,20 +86,41 @@ class Inztun {
     }
   }
 
-  private registerModule(id: string, ModuleClass: typeof WorkerSuite | typeof Playground): void {
+  private registerModule(id: string, ModuleClass: typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore): void {
     this.modules.set(id, ModuleClass);
   }
 
   private bindEvents(): void {
-    events.on(ROUTES.CHANGE, ({ current, prev }: { current: { module: string | null }; prev: { module: string | null } }) => {
+    events.on(ROUTES.CHANGE, ({ current, prev }: { current: { module: string | null; tool: string | null }; prev: { module: string | null } }) => {
       if (current.module !== prev.module && current.module) this.loadModule(current.module);
+      if (current.tool) db.trackToolUse(current.tool);
     });
 
     events.on(EVENTS.MODULE_CHANGE, (moduleId) => router.navigate(moduleId as string));
     events.on(EVENTS.TOOL_SELECT, ({ moduleId, toolId }: { moduleId: string; toolId: string }) => router.navigate(moduleId, toolId));
     events.on(EVENTS.NOTIFICATION, ({ message, type }: { message: string; type?: string }) => this.showNotification(message, type));
 
-    events.on(PALETTE_EVENTS.OPEN_SETTINGS, () => this.settingsPanel?.open());
+    events.on('palette:open-settings', () => this.settingsPanel?.open());
+    events.on('shortcuts:open', () => this.shortcutGuide?.open());
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const primary = document.querySelector('.tool-view:not([style*="display: none"]) .btn--primary') as HTMLButtonElement;
+        primary?.click();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        const output = document.querySelector('.tool-view:not([style*="display: none"]) .input--textarea, .tool-view:not([style*="display: none"]) [id$="-output"]') as HTMLElement;
+        if (output) {
+          navigator.clipboard.writeText(output.textContent || '');
+        }
+      }
+      if (e.key === '?' && !e.defaultPrevented && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'SELECT') {
+        e.preventDefault();
+        this.shortcutGuide?.open();
+      }
+    });
   }
 
   private loadModule(moduleId: string): void {
@@ -89,7 +130,7 @@ class Inztun {
     if (this.activeModule) this.activeModule.destroy?.();
     this.workspace.innerHTML = '';
 
-    this.activeModule = new (ModuleClass as typeof WorkerSuite | typeof Playground)(this.workspace);
+    this.activeModule = new (ModuleClass as typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore)(this.workspace);
     if ('render' in this.activeModule) {
       (this.activeModule as WorkerSuite).render();
     }

@@ -1,33 +1,29 @@
-import { Tile } from '../../components/Tile';
 import { ToolView } from '../../components/ToolView';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
+import { createToolCard, createTipsPanel } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
+import { db } from '../../core/db';
 import { getPlaygroundToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, ToolViewOptions, ToolInfo } from '../../types/index';
+import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
 
 import { TypingTest } from './tools/typing-test';
-import { ZalgoText } from './tools/zalgo-text';
-import { FlipText } from './tools/flip-text';
-import { LeetSpeak } from './tools/leet-speak';
 import { MorseCode } from './tools/morse-code';
 import { AsciiArt } from './tools/ascii-art';
+import { PixelArt } from './tools/pixel-art';
 
 const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { id: 'typing-test', Tool: TypingTest, span: { col: 6, row: 1 }, featured: true },
   { id: 'ascii-art', Tool: AsciiArt, span: { col: 6, row: 1 } },
-  { id: 'zalgo-text', Tool: ZalgoText, span: { col: 4, row: 1 } },
-  { id: 'flip-text', Tool: FlipText, span: { col: 4, row: 1 } },
-  { id: 'leet-speak', Tool: LeetSpeak, span: { col: 4, row: 1 } },
   { id: 'morse-code', Tool: MorseCode, span: { col: 6, row: 1 } },
+  { id: 'pixel-art', Tool: PixelArt, span: { col: 8, row: 2 } },
 ];
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'typing-test': 'Test your typing speed with WPM and accuracy tracking.',
-  'zalgo-text': 'Generate creepy zalgo text with adjustable intensity.',
-  'flip-text': 'Flip text upside down for fun social media posts.',
-  'leet-speak': 'Convert text to 1337 speak in simple or advanced mode.',
   'morse-code': 'Encode and decode Morse code with audio playback.',
   'ascii-art': 'Generate ASCII art text banners.',
+  'pixel-art': 'Draw pixel art on a grid and export as PNG.',
 };
 
 interface ToolInstance {
@@ -43,13 +39,18 @@ export class Playground {
   private activeToolId: string | null = null;
   private gridView: HTMLDivElement | null = null;
   private container: HTMLDivElement | null = null;
+  private searchQuery = '';
+  private sortMode: SortMode = 'alpha';
+  private favorites = new Set<string>();
+  private toolsGrid: HTMLDivElement | null = null;
   private _routeHandler: ((data: any) => void) | null = null;
+  private toolbar: ModuleToolbar | null = null;
 
   constructor(workspace: HTMLElement) {
     this.workspace = workspace;
   }
 
-  render(): void {
+  async render(): Promise<void> {
     this.workspace.className = 'workspace';
     this.addModuleStyles();
 
@@ -57,6 +58,9 @@ export class Playground {
     this.container.className = 'module-container';
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
+
+    const saved = await db.getPreference('pg-favorites', []) as string[];
+    this.favorites = new Set(saved);
 
     this.renderGrid();
 
@@ -88,31 +92,103 @@ export class Playground {
     `;
     this.gridView.appendChild(header);
 
-    const grid = document.createElement('div');
-    grid.className = 'bento-grid';
-    TOOL_REGISTRY.forEach(({ id, Tool, span, featured }, index) => {
-      const tool = new Tool();
-      grid.appendChild(this.createToolCard(id, tool, span, featured, index));
+    this.toolbar = new ModuleToolbar({
+      moduleId: this.moduleId,
+      showHome: true,
+      initialSort: this.sortMode,
+      onHome: () => router.navigate('home'),
+      onSearch: (query) => {
+        this.searchQuery = query;
+        this.renderTools();
+      },
+      onSortChange: (mode) => {
+        this.sortMode = mode;
+        this.renderTools();
+      },
     });
-    this.gridView.appendChild(grid);
+    this.gridView.appendChild(this.toolbar.render());
+
+    this.toolsGrid = document.createElement('div');
+    this.toolsGrid.className = 'bento-grid';
+    this.gridView.appendChild(this.toolsGrid);
+
     this.container!.appendChild(this.gridView);
+    this.renderTools();
   }
 
-  private createToolCard(toolId: string, tool: Tool, span: { col: number; row: number }, featured: boolean | undefined, index: number): HTMLElement {
-    const card = new Tile({
-      title: tool.name,
-      icon: tool.icon,
-      badge: tool.badge || '',
-      content: `<p class="tile__desc">${TOOL_DESCRIPTIONS[toolId] || ''}</p><div class="tile__spacer"></div><span class="tile__open-label">Open →</span>`,
-      span,
-      featured,
-    });
+  private renderTools(): void {
+    if (!this.toolsGrid) return;
+    this.toolsGrid.innerHTML = '';
 
-    const element = card.render();
-    element.classList.add('tile--clickable');
-    element.style.animationDelay = `${index * 60}ms`;
-    element.addEventListener('click', () => router.navigate(this.moduleId, toolId));
-    return element;
+    let tools = [...TOOL_REGISTRY];
+
+    if (this.sortMode === 'favorites' && !this.searchQuery) {
+      tools = tools.filter(t => this.favorites.has(t.id));
+      if (tools.length === 0) {
+        this.toolsGrid.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <p>No favorites yet. Click the star on any tool card to add it.</p>
+          </div>
+        `;
+        return;
+      }
+    }
+
+    if (this.searchQuery) {
+      tools = tools.filter(t => {
+        const tool = new t.Tool();
+        const name = tool.name.toLowerCase();
+        const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
+        return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+      });
+    }
+
+    if (this.sortMode === 'alpha') {
+      tools.sort((a, b) => new a.Tool().name.localeCompare(new b.Tool().name));
+    } else if (this.sortMode === 'favorites') {
+      tools.sort((a, b) => {
+        const af = this.favorites.has(a.id) ? 0 : 1;
+        const bf = this.favorites.has(b.id) ? 0 : 1;
+        return af - bf || new a.Tool().name.localeCompare(new b.Tool().name);
+      });
+    }
+
+    if (tools.length === 0) {
+      this.toolsGrid.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <p>No tools match "${this.searchQuery}".</p>
+        </div>
+      `;
+      return;
+    }
+
+    tools.forEach((entry, index) => {
+      const tool = new entry.Tool();
+      this.toolsGrid!.appendChild(createToolCard({
+        toolId: entry.id,
+        tool,
+        span: entry.span,
+        featured: entry.featured,
+        index,
+        moduleId: this.moduleId,
+        isFavorite: this.favorites.has(entry.id),
+        description: TOOL_DESCRIPTIONS[entry.id] || '',
+        onToggleFavorite: (id) => this.toggleFavorite(id),
+        onNavigate: (modId, toolId) => router.navigate(modId, toolId),
+      }));
+    });
+  }
+
+  private toggleFavorite(toolId: string): void {
+    if (this.favorites.has(toolId)) {
+      this.favorites.delete(toolId);
+    } else {
+      this.favorites.add(toolId);
+    }
+    db.setPreference('pg-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
@@ -129,8 +205,13 @@ export class Playground {
 
     const instance = this.toolInstances.get(toolId)!;
     if (!instance.initialized) {
-      requestAnimationFrame(() => instance.tool.init?.(instance.view.contentEl!));
+      requestAnimationFrame(() => {
+        instance.tool.init?.(instance.view.contentEl!);
+        instance.view.focusFirstInput();
+      });
       instance.initialized = true;
+    } else {
+      instance.view.focusFirstInput();
     }
 
     this.activeToolId = toolId;
@@ -160,57 +241,16 @@ export class Playground {
 
     const tipsData = getPlaygroundToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      const tipsPanel = this.createTipsPanel(toolId, tipsData);
-      contentEl.appendChild(tipsPanel);
+      contentEl.appendChild(createTipsPanel({
+        toolId,
+        data: tipsData,
+        moduleId: this.moduleId,
+        allTools: TOOL_REGISTRY,
+        onNavigate: (modId, tId) => router.navigate(modId, tId),
+      }));
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
-  }
-
-  private createTipsPanel(toolId: string, data: ToolInfo): HTMLElement {
-    const panel = document.createElement('div');
-    panel.className = 'tips-panel';
-
-    const relatedTools = TOOL_REGISTRY
-      .filter(t => data.related.includes(t.id))
-      .map(t => `<a class="tips-related__link" data-tool="${t.id}">${new t.Tool().name}</a>`)
-      .join('');
-
-    panel.innerHTML = `
-      <button class="tips-toggle" aria-expanded="false">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 16v-4M12 8h.01"/>
-        </svg>
-        <span>Tips & Use Cases</span>
-        <svg class="tips-toggle__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      <div class="tips-content">
-        ${data.useCases.length ? `<div class="tips-section"><h4 class="tips-section__title">Use Cases</h4><ul class="tips-list">${data.useCases.map(uc => `<li>${uc}</li>`).join('')}</ul></div>` : ''}
-        ${data.tips.length ? `<div class="tips-section"><h4 class="tips-section__title">Pro Tips</h4><ul class="tips-list">${data.tips.map(tip => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
-        ${relatedTools ? `<div class="tips-section tips-related"><h4 class="tips-section__title">Related Tools</h4><div class="tips-related__links">${relatedTools}</div></div>` : ''}
-      </div>
-    `;
-
-    const toggle = panel.querySelector('.tips-toggle')!;
-    const content = panel.querySelector('.tips-content') as HTMLElement;
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      content.style.display = expanded ? 'none' : '';
-      panel.classList.toggle('tips-panel--expanded', !expanded);
-    });
-
-    panel.querySelectorAll('.tips-related__link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        router.navigate(this.moduleId, (link as HTMLElement).dataset.tool);
-      });
-    });
-
-    return panel;
   }
 
   private hideTool(): void {
@@ -228,6 +268,7 @@ export class Playground {
         display: flex;
         gap: var(--space-3);
         justify-content: center;
+        flex-wrap: wrap;
       }
 
       .typing-stat {
@@ -238,6 +279,10 @@ export class Playground {
         background: var(--bg-deep);
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-md);
+      }
+
+      .typing-stat--main {
+        min-width: 100px;
       }
 
       .typing-stat__value {
@@ -251,6 +296,144 @@ export class Playground {
         font-size: var(--text-xs);
         color: var(--text-muted);
         text-transform: uppercase;
+      }
+
+      .typing-stat__target {
+        font-size: var(--text-xs);
+        color: var(--text-ghost);
+        font-family: var(--font-mono);
+      }
+
+      .tt-controls {
+        display: flex;
+        gap: var(--space-3);
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: var(--space-4);
+      }
+
+      .tt-segment {
+        display: flex;
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+
+      .tt-seg-btn {
+        padding: var(--space-1) var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+
+      .tt-seg-btn:hover {
+        color: var(--text-primary);
+        background: var(--bg-glass);
+      }
+
+      .tt-seg-btn--active {
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
+
+      .tt-timed-select {
+        display: flex;
+        gap: var(--space-1);
+      }
+
+      .tt-time-btn {
+        padding: var(--space-1) var(--space-2);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+
+      .tt-time-btn:hover {
+        color: var(--text-primary);
+        border-color: var(--border-subtle);
+      }
+
+      .tt-time-btn--active {
+        color: var(--accent);
+        border-color: var(--accent-border);
+        background: var(--accent-dim);
+      }
+
+      .tt-progress {
+        height: 4px;
+        background: var(--bg-deep);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: var(--space-3);
+      }
+
+      .tt-progress__bar {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 2px;
+        transition: width 100ms linear;
+        width: 0%;
+      }
+
+      .tt-results {
+        margin-top: var(--space-4);
+      }
+
+      .tt-results__card {
+        padding: var(--space-6);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-lg);
+        text-align: center;
+      }
+
+      .tt-results__wpm {
+        font-family: var(--font-mono);
+        font-size: var(--text-4xl);
+        font-weight: 500;
+        color: var(--text-primary);
+        line-height: 1;
+      }
+
+      .tt-results__wpm--hit {
+        color: var(--color-success);
+      }
+
+      .tt-results__label {
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        margin-top: var(--space-2);
+      }
+
+      .tt-results__row {
+        display: flex;
+        justify-content: center;
+        gap: var(--space-6);
+        margin-top: var(--space-4);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+
+      .tt-results__row strong {
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+      }
+
+      .tt-results__actions {
+        display: flex;
+        justify-content: center;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
       }
 
       .typing-display {
@@ -338,6 +521,19 @@ export class Playground {
         border-radius: 50%;
         cursor: pointer;
       }
+
+      .px-controls { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-4); }
+      .px-tools { display: flex; gap: var(--space-1); }
+      .px-tool { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg-surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); cursor: pointer; font-size: 16px; transition: all 150ms ease; }
+      .px-tool:hover { border-color: var(--border-subtle); }
+      .px-tool--active { border-color: var(--accent); background: var(--accent-dim); }
+      .px-palette { display: flex; gap: var(--space-1); flex-wrap: wrap; align-items: center; }
+      .px-swatch { width: 24px; height: 24px; border: 2px solid var(--border-hairline); border-radius: var(--radius-sm); cursor: pointer; transition: all 150ms ease; padding: 0; }
+      .px-swatch:hover { transform: scale(1.15); }
+      .px-swatch--active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+      .px-custom-color { width: 24px; height: 24px; border: none; border-radius: var(--radius-sm); cursor: pointer; padding: 0; }
+      .px-canvas-wrap { display: flex; justify-content: center; margin-bottom: var(--space-4); }
+      #px-canvas { border: 1px solid var(--border-hairline); border-radius: var(--radius-md); cursor: crosshair; image-rendering: pixelated; }
     `;
     document.head.appendChild(style);
   }
@@ -346,6 +542,7 @@ export class Playground {
     if (this._routeHandler) {
       events.off('route:change', this._routeHandler);
     }
+    this.toolbar?.destroy();
     this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';

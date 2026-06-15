@@ -40,6 +40,11 @@ body {
   pointer-events: none;
 }
 
+#topbar {
+  position: relative;
+  z-index: 100;
+}
+
 #workspace {
   position: relative;
   z-index: 1;
@@ -158,3 +163,13 @@ pre {
 .stagger-6 { animation-delay: 600ms; }
 .stagger-7 { animation-delay: 700ms; }
 .stagger-8 { animation-delay: 800ms; }
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

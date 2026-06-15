@@ -144,6 +144,16 @@ class Database {
       request.onerror = () => reject(request.error);
     });
   }
+
+  async trackToolUse(toolId: string): Promise<void> {
+    const usage = (await this.getPreference('toolUsage', {})) as Record<string, number>;
+    usage[toolId] = (usage[toolId] || 0) + 1;
+    await this.setPreference('toolUsage', usage);
+  }
+
+  async getToolUsage(): Promise<Record<string, number>> {
+    return (await this.getPreference('toolUsage', {})) as Record<string, number>;
+  }
 }
 
 export const db = new Database();

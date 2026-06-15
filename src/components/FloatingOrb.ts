@@ -1,4 +1,3 @@
-import { events, EVENTS } from '../core/events';
 import type { CommandPalette } from './CommandPalette';
 
 export class FloatingOrb {
@@ -143,10 +142,18 @@ export class FloatingOrb {
 
       @media (max-width: 768px) {
         .orb {
-          bottom: var(--space-4);
-          right: var(--space-4);
-          width: 44px;
-          height: 44px;
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .orb__ring,
+        .orb__ring--outer {
+          animation: none !important;
+        }
+        .orb__core,
+        .orb__tooltip {
+          transition: none !important;
         }
       }
     `;
@@ -233,10 +240,6 @@ export class FloatingOrb {
 
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onMouseUp);
-    });
-
-    events.on('keyboard:cmd+k', () => {
-      this.commandPalette.toggle();
     });
   }
 

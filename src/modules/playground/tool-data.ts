@@ -2,34 +2,24 @@ import type { ToolInfo } from '../../types/index';
 
 export const PLAYGROUND_TOOL_DATA: Record<string, ToolInfo> = {
   'typing-test': {
-    useCases: ['Improve your typing speed and accuracy', 'Practice for coding interviews', 'Test your WPM for job applications', 'Fun competitive challenge with friends'],
-    tips: ['Focus on accuracy first, speed will follow', 'Use all 10 fingers for best results', 'The test ends when you complete the text', 'Try different texts for variety'],
+    useCases: ['Want to know your actual WPM? This tells you', 'Practicing for a coding interview that involves live typing', 'Testing your speed before adding it to your resume', 'Challenging your friends to a typing showdown'],
+    tips: ['Accuracy first — speed comes naturally once you stop making mistakes', 'Touch typing with all 10 fingers is the real unlock', 'The test ends when you finish the text — no timer pressure', 'Different texts each time so you can\'t memorize the pattern'],
     related: ['ascii-art', 'morse-code'],
   },
-  'zalgo-text': {
-    useCases: ['Create spooky Halloween messages', 'Add dramatic effect to social media posts', 'Generate glitch-style text for designs', 'Fun way to obfuscate text'],
-    tips: ['Lower intensity (1-3) for readable glitch', 'Higher intensity (7-10) for maximum chaos', 'May not display correctly on all platforms', 'Copy and paste into social media'],
-    related: ['flip-text', 'leet-speak'],
-  },
-  'flip-text': {
-    useCases: ['Create upside-down text for social media', 'Fun way to confuse friends', 'Add visual interest to messages', 'Create puzzle-style text'],
-    tips: ['Works best with simple letters and numbers', 'Some characters may not flip perfectly', 'Paste directly into Twitter, Discord, etc.', 'Combine with Zalgo for extra effect'],
-    related: ['zalgo-text', 'leet-speak'],
-  },
-  'leet-speak': {
-    useCases: ['Classic hacker/nerd culture text', 'Gaming usernames and profiles', 'Fun way to write messages', 'Nostalgic internet culture'],
-    tips: ['Simple mode: single character substitution', 'Advanced mode: multi-character substitution', 'Not all letters have leet equivalents', 'Great for gaming tags'],
-    related: ['flip-text', 'morse-code'],
-  },
   'morse-code': {
-    useCases: ['Learn Morse code basics', 'Send secret messages', 'Emergency communication practice', 'Fun encoding challenge'],
-    tips: ['Use / to separate words', 'Dots (.) and dashes (-) are the basics', 'Play Sound to hear the morse code', 'International Morse standard used'],
-    related: ['leet-speak', 'ascii-art'],
+    useCases: ['Learning Morse code the hands-on way', 'Sending secret messages that most people can\'t read', 'Practicing emergency communication basics', 'A fun encoding challenge for curious minds'],
+    tips: ['Use / to separate words in your message', 'Dots (.) and dashes (-) — that\'s the whole alphabet', 'Hit Play Sound to actually hear the Morse code', 'Uses the international Morse standard, not the old American one'],
+    related: ['ascii-art', 'typing-test'],
   },
   'ascii-art': {
-    useCases: ['Create text-based banners', 'Add flair to terminal applications', 'Retro-style headers for documents', 'Fun way to display text'],
-    tips: ['Keep text short for best results', 'Works best with uppercase letters', 'Copy output for use in terminals', 'Numbers and basic punctuation supported'],
-    related: ['typing-test', 'morse-code'],
+    useCases: ['Creating text-based banners for terminal applications', 'Adding retro flair to documents or presentations', 'Building headers for CLI tools that look intentional', 'Making text that stands out in plain-text environments'],
+    tips: ['Short text works best — long words get stretched and hard to read', 'Uppercase letters render the cleanest', 'Copy output and drop it straight into your terminal or README', 'Numbers and basic punctuation are supported'],
+    related: ['typing-test', 'pixel-art'],
+  },
+  'pixel-art': {
+    useCases: ['Creating retro-style sprites for games', 'Designing pixel-perfect icons by hand', 'Making fun avatars or profile pictures', 'Learning color theory through constrained art'],
+    tips: ['Start with 16×16 — it\'s easier to manage and looks more intentional', 'Flood fill (bucket) is great for quickly coloring backgrounds', 'Undo supports up to 30 steps — experiment freely', 'Export scales up automatically so your art looks crisp at any size'],
+    related: ['ascii-art', 'css-gradient'],
   },
 };
 

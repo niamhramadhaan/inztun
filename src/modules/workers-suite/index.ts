@@ -1,37 +1,24 @@
-import { Tile } from '../../components/Tile';
 import { ToolView } from '../../components/ToolView';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
+import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
+import type { Category } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
 import { getToolInfo } from './tool-data';
-import { Toast } from '../../components/Toast';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions } from '../../types/index';
 
 import { JsonFormatter } from './tools/json-formatter';
 import { Base64Tool } from './tools/base64';
-import { ColorConverter } from './tools/color-converter';
-import { RegexTester } from './tools/regex-tester';
 import { HashGenerator } from './tools/hash-generator';
 import { UuidGenerator } from './tools/uuid-generator';
-import { TimestampTool } from './tools/timestamp';
 import { LoremIpsum } from './tools/lorem-ipsum';
-import { TextCaseConverter } from './tools/text-case';
 import { CharacterCounter } from './tools/char-counter';
-import { HtmlEntityEncoder } from './tools/html-entity';
 import { UrlEncoder } from './tools/url-encoder';
-import { JwtDecoder } from './tools/jwt-decoder';
 import { MarkdownPreview } from './tools/markdown-preview';
 import { MarkdownToHtml } from './tools/markdown-html';
 import { PasswordGenerator } from './tools/password-gen';
-import { NumberBaseConverter } from './tools/number-base';
 import { CssUnitConverter } from './tools/css-unit';
-
-interface Category {
-  id: string;
-  name: string;
-  tooltip: string;
-  tools: ToolRegistryEntry[];
-}
 
 const CATEGORIES: Category[] = [
   {
@@ -40,7 +27,6 @@ const CATEGORIES: Category[] = [
     tooltip: 'Text manipulation, case conversion, and writing utilities',
     tools: [
       { id: 'lorem-ipsum', Tool: LoremIpsum, span: { col: 4, row: 1 } },
-      { id: 'text-case', Tool: TextCaseConverter, span: { col: 4, row: 1 } },
       { id: 'char-counter', Tool: CharacterCounter, span: { col: 4, row: 1 } },
     ],
   },
@@ -50,9 +36,7 @@ const CATEGORIES: Category[] = [
     tooltip: 'Encode and decode data in various formats',
     tools: [
       { id: 'base64', Tool: Base64Tool, span: { col: 4, row: 1 } },
-      { id: 'html-entity', Tool: HtmlEntityEncoder, span: { col: 4, row: 1 } },
       { id: 'url-encoder', Tool: UrlEncoder, span: { col: 4, row: 1 } },
-      { id: 'jwt-decoder', Tool: JwtDecoder, span: { col: 6, row: 1 } },
     ],
   },
   {
@@ -85,12 +69,8 @@ const CATEGORIES: Category[] = [
   {
     id: 'devtools',
     name: 'Developer Utilities',
-    tooltip: 'Regex, colors, timestamps, and unit conversions',
+    tooltip: 'Unit conversions and CSS tools',
     tools: [
-      { id: 'regex-tester', Tool: RegexTester, span: { col: 6, row: 1 } },
-      { id: 'color-converter', Tool: ColorConverter, span: { col: 3, row: 1 } },
-      { id: 'timestamp', Tool: TimestampTool, span: { col: 3, row: 1 } },
-      { id: 'number-base', Tool: NumberBaseConverter, span: { col: 4, row: 1 } },
       { id: 'css-unit', Tool: CssUnitConverter, span: { col: 4, row: 1 } },
     ],
   },
@@ -103,21 +83,14 @@ const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'json-formatter': 'Pretty-print, minify, and validate JSON data.',
   'base64': 'Encode and decode Base64 strings.',
-  'color-converter': 'Convert between HEX, RGB, and HSL color formats.',
-  'regex-tester': 'Test regular expressions with live matching.',
   'hash-generator': 'Generate SHA-256, SHA-1, and MD5 hashes.',
   'uuid-generator': 'Generate v4 UUIDs in bulk.',
-  'timestamp': 'Convert between Unix timestamps and human-readable dates.',
   'lorem-ipsum': 'Generate placeholder text for designs.',
-  'text-case': 'Convert text between camelCase, snake_case, kebab-case, and more.',
   'char-counter': 'Count characters, words, lines, sentences, reading time.',
-  'html-entity': 'Encode and decode HTML entities.',
   'url-encoder': 'Encode/decode URLs and parse URL structure.',
-  'jwt-decoder': 'Decode JWT tokens and inspect header/payload.',
   'markdown-preview': 'Live markdown preview with GFM support.',
   'markdown-html': 'Convert markdown to clean HTML.',
   'password-gen': 'Generate secure passwords with customizable options.',
-  'number-base': 'Convert between binary, octal, decimal, hex.',
   'css-unit': 'Convert between px, rem, em, vw, vh, and more.',
 };
 
@@ -140,6 +113,7 @@ export class WorkerSuite {
   private collapsedCategories = new Set<string>();
   private categoriesContainer: HTMLDivElement | null = null;
   private _routeHandler: ((data: any) => void) | null = null;
+  private toolbar: ModuleToolbar | null = null;
 
   constructor(workspace: HTMLElement) {
     this.workspace = workspace;
@@ -154,7 +128,7 @@ export class WorkerSuite {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('favorites', []) as string[];
+    const saved = await db.getPreference('ws-favorites', []) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -187,45 +161,21 @@ export class WorkerSuite {
     `;
     this.gridView.appendChild(header);
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'module-toolbar fade-in';
-    toolbar.innerHTML = `
-      <div class="search-bar">
-        <svg class="search-bar__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input class="search-bar__input" type="text" placeholder="Search tools... ( / )" id="tool-search">
-        <kbd class="search-bar__kbd">/</kbd>
-      </div>
-      <div class="sort-group">
-        <button class="sort-btn ${this.sortMode === 'alpha' ? 'sort-btn--active' : ''}" data-sort="alpha">A-Z</button>
-        <button class="sort-btn ${this.sortMode === 'favorites' ? 'sort-btn--active' : ''}" data-sort="favorites">★ Favorites</button>
-      </div>
-    `;
-    this.gridView.appendChild(toolbar);
-
-    const searchInput = toolbar.querySelector('#tool-search') as HTMLInputElement;
-    searchInput?.addEventListener('input', (e) => {
-      this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase().trim();
-      this.renderCategories();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && !e.defaultPrevented && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        searchInput?.focus();
-      }
-    });
-
-    toolbar.querySelectorAll('.sort-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.sortMode = (btn as HTMLElement).dataset.sort as SortMode;
-        toolbar.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('sort-btn--active'));
-        btn.classList.add('sort-btn--active');
+    this.toolbar = new ModuleToolbar({
+      moduleId: this.moduleId,
+      showHome: true,
+      initialSort: this.sortMode,
+      onHome: () => router.navigate('home'),
+      onSearch: (query) => {
+        this.searchQuery = query;
         this.renderCategories();
-      });
+      },
+      onSortChange: (mode) => {
+        this.sortMode = mode;
+        this.renderCategories();
+      },
     });
+    this.gridView.appendChild(this.toolbar.render());
 
     this.categoriesContainer = document.createElement('div');
     this.categoriesContainer.className = 'categories-container';
@@ -253,7 +203,12 @@ export class WorkerSuite {
         return;
       }
 
-      const section = this.createCategorySection({ id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools });
+      const section = createCategorySection({
+        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        collapsed: false,
+        onToggleCollapse: () => {},
+        createCard: (entry, index) => this.makeToolCard(entry, index),
+      });
       this.categoriesContainer!.appendChild(section);
       return;
     }
@@ -270,92 +225,33 @@ export class WorkerSuite {
         if (tools.length === 0) return;
       }
 
-      const section = this.createCategorySection({ ...cat, tools });
+      const section = createCategorySection({
+        category: { ...cat, tools },
+        collapsed: this.collapsedCategories.has(cat.id),
+        onToggleCollapse: (catId, expanded) => {
+          if (expanded) this.collapsedCategories.delete(catId);
+          else this.collapsedCategories.add(catId);
+        },
+        createCard: (entry, index) => this.makeToolCard(entry, index),
+      });
       this.categoriesContainer!.appendChild(section);
     });
   }
 
-  private createCategorySection(cat: Category): HTMLElement {
-    const section = document.createElement('div');
-    section.className = 'category-section fade-in';
-    section.dataset.category = cat.id;
-
-    const isCollapsed = this.collapsedCategories.has(cat.id);
-
-    section.innerHTML = `
-      <button class="category-header" aria-expanded="${!isCollapsed}" title="${cat.tooltip || ''}">
-        <span class="category-header__name">${cat.name}</span>
-        <span class="category-header__count">${cat.tools.length}</span>
-        <svg class="category-header__arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      <div class="category-grid" style="${isCollapsed ? 'display: none' : ''}"></div>
-    `;
-
-    const header = section.querySelector('.category-header')!;
-    const grid = section.querySelector('.category-grid') as HTMLDivElement;
-
-    header.addEventListener('click', () => {
-      const expanded = header.getAttribute('aria-expanded') === 'true';
-      header.setAttribute('aria-expanded', String(!expanded));
-      grid.style.display = expanded ? 'none' : '';
-      if (expanded) {
-        this.collapsedCategories.add(cat.id);
-      } else {
-        this.collapsedCategories.delete(cat.id);
-      }
+  private makeToolCard(entry: ToolRegistryEntry, index: number): HTMLElement {
+    const tool = new entry.Tool();
+    return createToolCard({
+      toolId: entry.id,
+      tool,
+      span: entry.span,
+      featured: entry.featured,
+      index,
+      moduleId: this.moduleId,
+      isFavorite: this.favorites.has(entry.id),
+      description: TOOL_DESCRIPTIONS[entry.id] || '',
+      onToggleFavorite: (id) => this.toggleFavorite(id),
+      onNavigate: (modId, toolId) => router.navigate(modId, toolId),
     });
-
-    cat.tools.forEach(({ id, Tool, span, featured }, index) => {
-      const tool = new Tool();
-      const card = this.createToolCard(id, tool, span, featured, index);
-      grid.appendChild(card);
-    });
-
-    return section;
-  }
-
-  private createToolCard(toolId: string, tool: Tool, span: { col: number; row: number }, featured: boolean | undefined, index: number): HTMLElement {
-    const isFavorite = this.favorites.has(toolId);
-
-    const card = new Tile({
-      title: tool.name,
-      icon: tool.icon,
-      badge: tool.badge || '',
-      content: `
-        <p class="tile__desc">${TOOL_DESCRIPTIONS[toolId] || ''}</p>
-        <div class="tile__spacer"></div>
-        <div class="tile__footer-row">
-          <button class="tile__fav-btn ${isFavorite ? 'tile__fav-btn--active' : ''}" data-tool="${toolId}" title="Toggle favorite">
-            ${isFavorite ? '★' : '☆'}
-          </button>
-          <span class="tile__open-label">Open →</span>
-        </div>
-      `,
-      span,
-      featured,
-    });
-
-    const element = card.render();
-    element.classList.add('tile--clickable');
-    element.style.animationDelay = `${index * 60}ms`;
-
-    element.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.tile__fav-btn')) return;
-      router.navigate(this.moduleId, toolId);
-    });
-
-    const favBtn = element.querySelector('.tile__fav-btn');
-    favBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.toggleFavorite(toolId);
-      favBtn.classList.toggle('tile__fav-btn--active');
-      favBtn.textContent = this.favorites.has(toolId) ? '★' : '☆';
-      Toast.info(this.favorites.has(toolId) ? 'Added to favorites' : 'Removed from favorites');
-    });
-
-    return element;
   }
 
   private toggleFavorite(toolId: string): void {
@@ -364,7 +260,7 @@ export class WorkerSuite {
     } else {
       this.favorites.add(toolId);
     }
-    db.setPreference('favorites', Array.from(this.favorites));
+    db.setPreference('ws-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
@@ -412,72 +308,16 @@ export class WorkerSuite {
 
     const tipsData = getToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      const tipsPanel = this.createTipsPanel(toolId, tipsData);
-      contentEl.appendChild(tipsPanel);
+      contentEl.appendChild(createTipsPanel({
+        toolId,
+        data: tipsData,
+        moduleId: this.moduleId,
+        allTools: ALL_TOOLS,
+        onNavigate: (modId, tId) => router.navigate(modId, tId),
+      }));
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
-  }
-
-  private createTipsPanel(toolId: string, data: { useCases: string[]; tips: string[]; related: string[] }): HTMLElement {
-    const panel = document.createElement('div');
-    panel.className = 'tips-panel';
-
-    const relatedTools = ALL_TOOLS
-      .filter(t => data.related.includes(t.id))
-      .map(t => `<a class="tips-related__link" data-tool="${t.id}">${new t.Tool().name}</a>`)
-      .join('');
-
-    panel.innerHTML = `
-      <button class="tips-toggle" aria-expanded="false">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 16v-4M12 8h.01"/>
-        </svg>
-        <span>Tips & Use Cases</span>
-        <svg class="tips-toggle__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      <div class="tips-content">
-        ${data.useCases.length ? `
-          <div class="tips-section">
-            <h4 class="tips-section__title">Use Cases</h4>
-            <ul class="tips-list">${data.useCases.map(uc => `<li>${uc}</li>`).join('')}</ul>
-          </div>
-        ` : ''}
-        ${data.tips.length ? `
-          <div class="tips-section">
-            <h4 class="tips-section__title">Pro Tips</h4>
-            <ul class="tips-list">${data.tips.map(tip => `<li>${tip}</li>`).join('')}</ul>
-          </div>
-        ` : ''}
-        ${relatedTools ? `
-          <div class="tips-section tips-related">
-            <h4 class="tips-section__title">Related Tools</h4>
-            <div class="tips-related__links">${relatedTools}</div>
-          </div>
-        ` : ''}
-      </div>
-    `;
-
-    const toggle = panel.querySelector('.tips-toggle')!;
-    const content = panel.querySelector('.tips-content') as HTMLElement;
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      content.style.display = expanded ? 'none' : '';
-      panel.classList.toggle('tips-panel--expanded', !expanded);
-    });
-
-    panel.querySelectorAll('.tips-related__link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        router.navigate(this.moduleId, (link as HTMLElement).dataset.tool);
-      });
-    });
-
-    return panel;
   }
 
   private hideTool(): void {
@@ -491,239 +331,6 @@ export class WorkerSuite {
     const style = document.createElement('style');
     style.id = 'module-styles';
     style.textContent = `
-      .module-container { position: relative; }
-      .module-grid { display: contents; }
-      
-      .module-header {
-        grid-column: 1 / -1;
-        padding: var(--space-8) 0 var(--space-4);
-      }
-
-      .module-banner {
-        width: 100%;
-        max-height: 160px;
-        border-radius: var(--radius-xl);
-        overflow: hidden;
-        margin-bottom: var(--space-4);
-        border: 1px solid var(--border-hairline);
-      }
-
-      .module-banner__img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-
-      .module-header__content {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-
-      .module-header__title {
-        font-family: var(--font-display);
-        font-size: var(--text-3xl);
-        font-weight: 400;
-        color: var(--text-primary);
-        letter-spacing: 0.02em;
-      }
-
-      .module-header__desc {
-        font-size: var(--text-sm);
-        color: var(--text-muted);
-        max-width: 50ch;
-      }
-
-      .module-toolbar {
-        grid-column: 1 / -1;
-        display: flex;
-        gap: var(--space-3);
-        align-items: center;
-        padding: var(--space-3) 0;
-      }
-
-      .search-bar {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        background: var(--bg-surface);
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-md);
-        transition: border-color 150ms ease;
-      }
-
-      .search-bar:focus-within {
-        border-color: var(--accent);
-      }
-
-      .search-bar__icon {
-        color: var(--text-muted);
-        flex-shrink: 0;
-      }
-
-      .search-bar__input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        outline: none;
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        color: var(--text-primary);
-      }
-
-      .search-bar__input::placeholder {
-        color: var(--text-ghost);
-      }
-
-      .search-bar__kbd {
-        padding: 2px 6px;
-        font-size: var(--text-xs);
-        font-family: var(--font-mono);
-        color: var(--text-ghost);
-        background: var(--bg-glass);
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-sm);
-      }
-
-      .sort-group {
-        display: flex;
-        gap: var(--space-1);
-      }
-
-      .sort-btn {
-        padding: var(--space-2) var(--space-3);
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        color: var(--text-muted);
-        background: var(--bg-surface);
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .sort-btn:hover {
-        color: var(--text-primary);
-        border-color: var(--border-subtle);
-      }
-
-      .sort-btn--active {
-        color: var(--accent);
-        border-color: var(--accent-border);
-        background: var(--accent-dim);
-      }
-
-      .categories-container {
-        grid-column: 1 / -1;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-      }
-
-      .category-section {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-
-      .category-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-1) 0;
-        background: transparent;
-        border: none;
-        border-bottom: 1px solid var(--border-hairline);
-        color: var(--text-primary);
-        cursor: pointer;
-        transition: color 150ms ease;
-      }
-
-      .category-header:hover {
-        color: var(--accent);
-      }
-
-      .category-header__name {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        flex: 1;
-        text-align: left;
-        color: var(--text-muted);
-      }
-
-      .category-header:hover .category-header__name {
-        color: var(--accent);
-      }
-
-      .category-header__count {
-        font-size: var(--text-xs);
-        color: var(--text-ghost);
-        font-family: var(--font-mono);
-      }
-
-      .category-header__arrow {
-        transition: transform 200ms ease;
-        color: var(--text-ghost);
-      }
-
-      .category-header[aria-expanded="true"] .category-header__arrow {
-        transform: rotate(180deg);
-      }
-
-      .category-grid {
-        display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        gap: var(--space-3);
-      }
-
-      .bento-grid {
-        display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        gap: var(--space-4);
-      }
-
-      .tile__desc { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.5; }
-      .tile__spacer { flex: 1; }
-
-      .tile__footer-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: var(--space-2);
-      }
-
-      .tile__fav-btn {
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-sm);
-        color: var(--text-ghost);
-        font-size: var(--text-base);
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .tile__fav-btn:hover {
-        color: var(--accent);
-        border-color: var(--accent-border);
-      }
-
-      .tile__fav-btn--active {
-        color: var(--accent);
-        background: var(--accent-dim);
-        border-color: var(--accent-border);
-      }
-
       .tool-workspace {
         display: flex;
         flex-direction: column;
@@ -757,9 +364,7 @@ export class WorkerSuite {
       }
 
       @media (max-width: 768px) {
-        .category-grid { grid-template-columns: 1fr; }
         .tool-split { grid-template-columns: 1fr; }
-        .module-toolbar { flex-direction: column; }
       }
 
       .color-preview {
@@ -784,19 +389,6 @@ export class WorkerSuite {
 
       .color-value__label { color: var(--text-muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; }
       .color-value__text { font-family: var(--font-mono); color: var(--text-primary); }
-
-      .regex-matches {
-        padding: var(--space-3);
-        background: var(--bg-deep);
-        border-radius: var(--radius-md);
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        line-height: 1.8;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-
-      .regex-match { background: var(--accent-dim); color: var(--accent); padding: 1px 4px; border-radius: 2px; }
 
       .hash-result { display: flex; flex-direction: column; gap: var(--space-2); }
 
@@ -1348,96 +940,45 @@ export class WorkerSuite {
         opacity: 0.3;
       }
 
-      .tips-panel {
-        margin-top: var(--space-6);
+      .tdiff-output {
         border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        background: var(--bg-surface);
-      }
-
-      .tips-toggle {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        width: 100%;
-        padding: var(--space-3) var(--space-4);
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .tips-toggle:hover { color: var(--text-primary); background: var(--bg-glass); }
-      .tips-toggle__arrow { margin-left: auto; transition: transform 200ms ease; }
-      .tips-panel--expanded .tips-toggle__arrow { transform: rotate(180deg); }
-
-      .tips-content {
-        display: none;
-        padding: var(--space-4);
-        border-top: 1px solid var(--border-hairline);
-      }
-
-      .tips-section { margin-bottom: var(--space-4); }
-      .tips-section:last-child { margin-bottom: 0; }
-
-      .tips-section__title {
+        border-radius: var(--radius-md);
+        overflow: auto;
+        max-height: 400px;
         font-family: var(--font-mono);
         font-size: var(--text-xs);
-        font-weight: 600;
-        color: var(--accent);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: var(--space-2);
+        line-height: 1.6;
+        margin-top: var(--space-4);
       }
+      .tdiff-line { padding: 2px var(--space-3); white-space: pre-wrap; word-break: break-all; }
+      .tdiff-line--added { background: rgba(74, 222, 128, 0.1); color: var(--color-success); }
+      .tdiff-line--removed { background: rgba(248, 113, 113, 0.1); color: var(--color-error); }
+      .tdiff-line--unchanged { color: var(--text-ghost); }
+      .tdiff-prefix { display: inline-block; width: 1.5em; text-align: center; color: var(--text-ghost); user-select: none; }
 
-      .tips-list {
-        list-style: none;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
+      .cron-fields {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
         gap: var(--space-2);
+        margin-bottom: var(--space-4);
       }
-
-      .tips-list li {
+      .cron-desc {
+        padding: var(--space-3);
+        background: var(--bg-deep);
+        border-radius: var(--radius-md);
         font-size: var(--text-sm);
+        color: var(--accent);
+        text-align: center;
+        margin-bottom: var(--space-4);
+      }
+      .cron-next-item {
+        padding: var(--space-2) var(--space-3);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
         color: var(--text-secondary);
-        line-height: 1.5;
-        padding-left: var(--space-4);
-        position: relative;
+        border-bottom: 1px solid var(--border-hairline);
       }
-
-      .tips-list li::before {
-        content: '•';
-        position: absolute;
-        left: 0;
-        color: var(--text-muted);
-      }
-
-      .tips-related__links {
-        display: flex;
-        gap: var(--space-2);
-        flex-wrap: wrap;
-      }
-
-      .tips-related__link {
-        font-size: var(--text-sm);
-        color: var(--accent);
-        background: var(--accent-dim);
-        padding: var(--space-1) var(--space-3);
-        border-radius: var(--radius-pill);
-        cursor: pointer;
-        transition: all 150ms ease;
-        border: 1px solid transparent;
-      }
-
-      .tips-related__link:hover {
-        border-color: var(--accent-border);
-        background: var(--accent-glow);
-      }
+      .cron-next-item:last-child { border-bottom: none; }
     `;
     document.head.appendChild(style);
   }
@@ -1446,6 +987,7 @@ export class WorkerSuite {
     if (this._routeHandler) {
       events.off('route:change', this._routeHandler);
     }
+    this.toolbar?.destroy();
     this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';

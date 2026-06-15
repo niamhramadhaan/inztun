@@ -1,6 +1,7 @@
 import { router } from '../core/router';
 import { events } from '../core/events';
-import type { EventCallback } from '../types/index';
+import { db } from '../core/db';
+import { ICONS } from '../core/icons';
 
 export const PALETTE_EVENTS = {
   OPEN_SETTINGS: 'palette:open-settings',
@@ -13,45 +14,72 @@ interface Command {
   icon: string;
   action: (() => void) | null;
   disabled?: boolean;
+  isTool?: boolean;
+  moduleKey?: string;
 }
 
-const COMMANDS: Command[] = [
-  { id: 'nav:workers-suite', label: "Worker's Suite", category: 'Modules', icon: '⚡', action: () => router.navigate('workers-suite') },
-  { id: 'nav:playground', label: "Playground", category: 'Modules', icon: '🎮', action: () => router.navigate('playground') },
-  { id: 'nav:freelance-core', label: 'Freelance Core', category: 'Modules', icon: '💼', action: null, disabled: true },
-  { id: 'nav:marketing-lab', label: 'Marketing Lab', category: 'Modules', icon: '📊', action: null, disabled: true },
-  { id: 'nav:design-studio', label: 'Design Studio', category: 'Modules', icon: '🎨', action: null, disabled: true },
-
-  { id: 'tool:json-formatter', label: 'JSON Formatter', category: "Worker's Suite", icon: '{ }', action: () => router.navigate('workers-suite', 'json-formatter') },
-  { id: 'tool:base64', label: 'Base64 Encoder/Decoder', category: "Worker's Suite", icon: '01', action: () => router.navigate('workers-suite', 'base64') },
-  { id: 'tool:color-converter', label: 'Color Converter', category: "Worker's Suite", icon: '◎', action: () => router.navigate('workers-suite', 'color-converter') },
-  { id: 'tool:regex-tester', label: 'Regex Tester', category: "Worker's Suite", icon: '.*', action: () => router.navigate('workers-suite', 'regex-tester') },
-  { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: '#', action: () => router.navigate('workers-suite', 'hash-generator') },
-  { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: '⊕', action: () => router.navigate('workers-suite', 'uuid-generator') },
-  { id: 'tool:timestamp', label: 'Timestamp Converter', category: "Worker's Suite", icon: '⏱', action: () => router.navigate('workers-suite', 'timestamp') },
-  { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: '¶', action: () => router.navigate('workers-suite', 'lorem-ipsum') },
-
-  { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: '⌨', action: () => router.navigate('playground', 'typing-test') },
-  { id: 'tool:ascii-art', label: 'ASCII Art Generator', category: 'Playground', icon: 'A', action: () => router.navigate('playground', 'ascii-art') },
-  { id: 'tool:zalgo-text', label: 'Zalgo Text Generator', category: 'Playground', icon: 'Z', action: () => router.navigate('playground', 'zalgo-text') },
-  { id: 'tool:flip-text', label: 'Flip Text', category: 'Playground', icon: '↕', action: () => router.navigate('playground', 'flip-text') },
-  { id: 'tool:leet-speak', label: 'Leet Speak Converter', category: 'Playground', icon: '1', action: () => router.navigate('playground', 'leet-speak') },
-  { id: 'tool:morse-code', label: 'Morse Code', category: 'Playground', icon: '•', action: () => router.navigate('playground', 'morse-code') },
-
-  { id: 'settings:accent', label: 'Change Accent Color', category: 'Settings', icon: '◉', action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS) },
+const MODULE_COMMANDS: Command[] = [
+  { id: 'nav:home', label: 'Home', category: 'Modules', icon: ICONS.home, action: () => router.navigate('home') },
+  { id: 'nav:workers-suite', label: "Worker's Suite", category: 'Modules', icon: ICONS.workers, action: () => router.navigate('workers-suite'), moduleKey: 'workers-suite' },
+  { id: 'nav:playground', label: "Playground", category: 'Modules', icon: ICONS.play, action: () => router.navigate('playground'), moduleKey: 'playground' },
+  { id: 'nav:freelance-core', label: 'Freelance Core', category: 'Modules', icon: ICONS.freelance, action: () => router.navigate('freelance-core'), moduleKey: 'freelance-core' },
+  { id: 'nav:marketing-lab', label: 'Marketing Lab', category: 'Modules', icon: ICONS.marketing, action: () => router.navigate('marketing-lab'), moduleKey: 'marketing-lab' },
+  { id: 'nav:design-studio', label: 'Design Studio', category: 'Modules', icon: ICONS.design, action: () => router.navigate('design-studio'), moduleKey: 'design-studio' },
 ];
+
+const TOOL_COMMANDS: Command[] = [
+  { id: 'tool:json-formatter', label: 'JSON Formatter', category: "Worker's Suite", icon: ICONS.json, action: () => router.navigate('workers-suite', 'json-formatter'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:base64', label: 'Base64 Encoder/Decoder', category: "Worker's Suite", icon: ICONS.base64, action: () => router.navigate('workers-suite', 'base64'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: ICONS.hash, action: () => router.navigate('workers-suite', 'hash-generator'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: ICONS.uuid, action: () => router.navigate('workers-suite', 'uuid-generator'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: ICONS.lorem, action: () => router.navigate('workers-suite', 'lorem-ipsum'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: ICONS.keyboard, action: () => router.navigate('playground', 'typing-test'), isTool: true, moduleKey: 'playground' },
+  { id: 'tool:ascii-art', label: 'ASCII Art Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'ascii-art'), isTool: true, moduleKey: 'playground' },
+  { id: 'tool:morse-code', label: 'Morse Code', category: 'Playground', icon: ICONS.morse, action: () => router.navigate('playground', 'morse-code'), isTool: true, moduleKey: 'playground' },
+  { id: 'tool:css-gradient', label: 'CSS Gradient Builder', category: 'Design Studio', icon: ICONS.gradient, action: () => router.navigate('design-studio', 'css-gradient'), isTool: true, moduleKey: 'design-studio' },
+  { id: 'tool:border-radius', label: 'Border Radius Previewer', category: 'Design Studio', icon: ICONS.borderRadius, action: () => router.navigate('design-studio', 'border-radius'), isTool: true, moduleKey: 'design-studio' },
+  { id: 'tool:typography-scale', label: 'Typography Scale', category: 'Design Studio', icon: ICONS.typeScale, action: () => router.navigate('design-studio', 'typography-scale'), isTool: true, moduleKey: 'design-studio' },
+  { id: 'tool:spacing-system', label: 'Spacing System', category: 'Design Studio', icon: ICONS.spacing, action: () => router.navigate('design-studio', 'spacing-system'), isTool: true, moduleKey: 'design-studio' },
+  { id: 'tool:utm-builder', label: 'UTM Builder', category: 'Marketing Lab', icon: ICONS.utm, action: () => router.navigate('marketing-lab', 'utm-builder'), isTool: true, moduleKey: 'marketing-lab' },
+  { id: 'tool:seo-meta', label: 'SEO Meta Generator', category: 'Marketing Lab', icon: ICONS.seo, action: () => router.navigate('marketing-lab', 'seo-meta'), isTool: true, moduleKey: 'marketing-lab' },
+  { id: 'tool:social-counter', label: 'Social Media Counter', category: 'Marketing Lab', icon: ICONS.social, action: () => router.navigate('marketing-lab', 'social-counter'), isTool: true, moduleKey: 'marketing-lab' },
+  { id: 'tool:color-palette', label: 'Color Palette Extractor', category: 'Marketing Lab', icon: ICONS.palette, action: () => router.navigate('marketing-lab', 'color-palette'), isTool: true, moduleKey: 'marketing-lab' },
+  { id: 'tool:invoice-generator', label: 'Invoice Generator', category: 'Freelance Core', icon: ICONS.invoice, action: () => router.navigate('freelance-core', 'invoice-generator'), isTool: true, moduleKey: 'freelance-core' },
+  { id: 'tool:rate-calculator', label: 'Rate Calculator', category: 'Freelance Core', icon: ICONS.rate, action: () => router.navigate('freelance-core', 'rate-calculator'), isTool: true, moduleKey: 'freelance-core' },
+  { id: 'tool:time-tracker', label: 'Time Tracker', category: 'Freelance Core', icon: ICONS.timeTracker, action: () => router.navigate('freelance-core', 'time-tracker'), isTool: true, moduleKey: 'freelance-core' },
+  { id: 'tool:expense-tracker', label: 'Expense Tracker', category: 'Freelance Core', icon: ICONS.expense, action: () => router.navigate('freelance-core', 'expense-tracker'), isTool: true, moduleKey: 'freelance-core' },
+  { id: 'tool:contract-templates', label: 'Contract Templates', category: 'Freelance Core', icon: ICONS.contract, action: () => router.navigate('freelance-core', 'contract-templates'), isTool: true, moduleKey: 'freelance-core' },
+  { id: 'tool:client-manager', label: 'Client Manager', category: 'Freelance Core', icon: ICONS.clients, action: () => router.navigate('freelance-core', 'client-manager'), isTool: true, moduleKey: 'freelance-core' },
+];
+
+const ALL_COMMANDS: Command[] = [
+  ...MODULE_COMMANDS,
+  ...TOOL_COMMANDS,
+  { id: 'settings:accent', label: 'Change Accent Color', category: 'Settings', icon: ICONS.settings, action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS) },
+  { id: 'help:shortcuts', label: 'Keyboard Shortcuts', category: 'Help', icon: ICONS.settings, action: () => events.emit('shortcuts:open') },
+];
+
+const MODULE_ORDER = ['workers-suite', 'playground', 'design-studio', 'marketing-lab', 'freelance-core'];
 
 export class CommandPalette {
   private isOpen = false;
   private selectedIndex = 0;
-  private filteredCommands: Command[] = [...COMMANDS];
+  private filteredCommands: Command[] = [];
   private overlay: HTMLDivElement | null = null;
   private input: HTMLInputElement | null = null;
   private resultsList: HTMLDivElement | null = null;
+  private usageCache: Record<string, number> = {};
+  private expandedModules = new Set<string>();
+  private moduleViewData: Array<{ module: Command; tools: Command[] }> = [];
 
   constructor() {
     this.addStyles();
     this.bindKeyboard();
+    events.on('palette:open', () => this.open());
+  }
+
+  private async loadUsage(): Promise<void> {
+    this.usageCache = await db.getToolUsage();
   }
 
   private addStyles(): void {
@@ -81,7 +109,7 @@ export class CommandPalette {
       .cmd-palette {
         width: 560px;
         max-width: 90vw;
-        max-height: 420px;
+        max-height: 480px;
         background: var(--bg-elevated);
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-xl);
@@ -141,7 +169,7 @@ export class CommandPalette {
       }
 
       .cmd-results {
-        max-height: 320px;
+        max-height: 380px;
         overflow-y: auto;
         padding: var(--space-2);
       }
@@ -185,12 +213,15 @@ export class CommandPalette {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: var(--text-sm);
         color: var(--accent);
         background: var(--bg-glass);
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-sm);
         flex-shrink: 0;
+      }
+      .cmd-item__icon svg {
+        width: 16px;
+        height: 16px;
       }
 
       .cmd-item__label {
@@ -205,9 +236,11 @@ export class CommandPalette {
         font-weight: 500;
       }
 
-      .cmd-item__category {
+      .cmd-item__meta {
         font-size: var(--text-xs);
         color: var(--text-ghost);
+        font-family: var(--font-mono);
+        flex-shrink: 0;
       }
 
       .cmd-item__kbd {
@@ -242,6 +275,94 @@ export class CommandPalette {
         display: flex;
         align-items: center;
         gap: var(--space-1);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .cmd-overlay,
+        .cmd-palette,
+        .cmd-item,
+        .cmd-module__children {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+
+      .cmd-module {
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+
+      .cmd-module__header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        cursor: pointer;
+        border-radius: var(--radius-md);
+        transition: background 100ms ease;
+        user-select: none;
+      }
+
+      .cmd-module__header:hover,
+      .cmd-module__header--selected {
+        background: var(--bg-glass-hover);
+      }
+
+      .cmd-module__header--selected {
+        background: var(--accent-dim);
+      }
+
+      .cmd-module__header-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        flex-shrink: 0;
+      }
+
+      .cmd-module__header-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .cmd-module__header-label {
+        flex: 1;
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      .cmd-module__header-count {
+        font-size: var(--text-xs);
+        color: var(--text-ghost);
+        font-family: var(--font-mono);
+        flex-shrink: 0;
+      }
+
+      .cmd-module__header-chevron {
+        width: 14px;
+        height: 14px;
+        color: var(--text-ghost);
+        transition: transform 200ms ease;
+        flex-shrink: 0;
+      }
+
+      .cmd-module--expanded .cmd-module__header-chevron {
+        transform: rotate(180deg);
+      }
+
+      .cmd-module__children {
+        display: none;
+        padding-left: var(--space-4);
+        border-left: 1px solid var(--border-hairline);
+        margin-left: var(--space-5);
+        margin-bottom: var(--space-1);
+      }
+
+      .cmd-module--expanded .cmd-module__children {
+        display: block;
       }
     `;
     document.head.appendChild(style);
@@ -322,11 +443,37 @@ export class CommandPalette {
     this.isOpen = true;
     this.overlay!.classList.add('cmd-overlay--open');
     this.input!.value = '';
-    this.filter();
+
+    this.loadUsage().then(() => {
+      this.determineDefaultExpanded();
+      this.filter();
+    });
 
     requestAnimationFrame(() => {
       this.input?.focus();
     });
+  }
+
+  private determineDefaultExpanded(): void {
+    if (this.expandedModules.size > 0) return;
+
+    let bestModule = MODULE_ORDER[0];
+    let bestScore = 0;
+
+    for (const modKey of MODULE_ORDER) {
+      const tools = TOOL_COMMANDS.filter(c => c.moduleKey === modKey);
+      let score = 0;
+      for (const t of tools) {
+        const id = t.id.replace('tool:', '');
+        score += this.usageCache[id] || 0;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestModule = modKey;
+      }
+    }
+
+    this.expandedModules.add(bestModule);
   }
 
   close(): void {
@@ -339,9 +486,11 @@ export class CommandPalette {
     const query = this.input!.value.toLowerCase().trim();
 
     if (!query) {
-      this.filteredCommands = [...COMMANDS];
+      this.moduleViewData = this.buildModuleView();
+      this.filteredCommands = this.flattenModuleView();
     } else {
-      this.filteredCommands = COMMANDS.filter(cmd => {
+      this.moduleViewData = [];
+      this.filteredCommands = ALL_COMMANDS.filter(cmd => {
         const searchText = `${cmd.label} ${cmd.category}`.toLowerCase();
         return this.fuzzyMatch(query, searchText);
       });
@@ -349,6 +498,44 @@ export class CommandPalette {
 
     this.selectedIndex = 0;
     this.renderResults(query);
+  }
+
+  private buildModuleView(): Array<{ module: Command; tools: Command[] }> {
+    const result: Array<{ module: Command; tools: Command[] }> = [];
+
+    for (const modKey of MODULE_ORDER) {
+      const modCmd = MODULE_COMMANDS.find(c => c.moduleKey === modKey);
+      if (!modCmd) continue;
+
+      const tools = TOOL_COMMANDS
+        .filter(c => c.moduleKey === modKey)
+        .sort((a, b) => {
+          const aId = a.id.replace('tool:', '');
+          const bId = b.id.replace('tool:', '');
+          return (this.usageCache[bId] || 0) - (this.usageCache[aId] || 0);
+        });
+
+      result.push({ module: modCmd, tools });
+    }
+
+    return result;
+  }
+
+  private flattenModuleView(): Command[] {
+    const result: Command[] = [];
+    result.push(MODULE_COMMANDS[0]);
+
+    for (const { module, tools } of this.moduleViewData) {
+      result.push(module);
+      if (this.expandedModules.has(module.moduleKey!)) {
+        result.push(...tools);
+      }
+    }
+
+    result.push(ALL_COMMANDS[ALL_COMMANDS.length - 2]);
+    result.push(ALL_COMMANDS[ALL_COMMANDS.length - 1]);
+
+    return result;
   }
 
   private fuzzyMatch(query: string, text: string): boolean {
@@ -376,6 +563,11 @@ export class CommandPalette {
   }
 
   private renderResults(query: string): void {
+    if (!query && this.moduleViewData.length > 0) {
+      this.renderAccordion();
+      return;
+    }
+
     if (this.filteredCommands.length === 0) {
       this.resultsList!.innerHTML = `<div class="cmd-empty">No results for "${query}"</div>`;
       return;
@@ -395,12 +587,16 @@ export class CommandPalette {
       for (const cmd of commands) {
         const isSelected = globalIndex === this.selectedIndex;
         const isDisabled = cmd.disabled;
+        const toolId = cmd.id.replace('tool:', '');
+        const count = this.usageCache[toolId];
+        const meta = (!query && count && cmd.isTool) ? `<span class="cmd-item__meta">${count}×</span>` : '';
         html += `
           <div class="cmd-item ${isSelected ? 'cmd-item--selected' : ''} ${isDisabled ? 'cmd-item--disabled' : ''}" 
                data-index="${globalIndex}" 
                data-id="${cmd.id}">
             <span class="cmd-item__icon">${cmd.icon}</span>
             <span class="cmd-item__label">${this.highlightMatch(cmd.label, query)}</span>
+            ${meta}
             ${isDisabled ? '<span class="cmd-item__kbd">Soon</span>' : ''}
           </div>
         `;
@@ -409,11 +605,99 @@ export class CommandPalette {
     }
 
     this.resultsList!.innerHTML = html;
+    this.bindResultItems();
+  }
 
+  private renderAccordion(): void {
+    let html = '';
+    let globalIndex = 0;
+
+    // Home item
+    const homeCmd = MODULE_COMMANDS[0];
+    const isHomeSelected = globalIndex === this.selectedIndex;
+    html += `
+      <div class="cmd-item ${isHomeSelected ? 'cmd-item--selected' : ''}" data-index="${globalIndex}" data-id="${homeCmd.id}">
+        <span class="cmd-item__icon">${homeCmd.icon}</span>
+        <span class="cmd-item__label">${homeCmd.label}</span>
+      </div>
+    `;
+    globalIndex++;
+
+    for (const { module, tools } of this.moduleViewData) {
+      const isExpanded = this.expandedModules.has(module.moduleKey!);
+      const isSelected = globalIndex === this.selectedIndex;
+
+      html += `<div class="cmd-module ${isExpanded ? 'cmd-module--expanded' : ''}" data-module="${module.moduleKey}">`;
+      html += `
+        <div class="cmd-module__header ${isSelected ? 'cmd-module__header--selected' : ''}" data-index="${globalIndex}" data-id="${module.id}">
+          <span class="cmd-module__header-icon">${module.icon}</span>
+          <span class="cmd-module__header-label">${module.label}</span>
+          <span class="cmd-module__header-count">${tools.length}</span>
+          <svg class="cmd-module__header-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      `;
+      globalIndex++;
+
+      html += `<div class="cmd-module__children">`;
+      for (const cmd of tools) {
+        const isChildSelected = globalIndex === this.selectedIndex;
+        const toolId = cmd.id.replace('tool:', '');
+        const count = this.usageCache[toolId];
+        const meta = count ? `<span class="cmd-item__meta">${count}×</span>` : '';
+        html += `
+          <div class="cmd-item ${isChildSelected ? 'cmd-item--selected' : ''}" data-index="${globalIndex}" data-id="${cmd.id}">
+            <span class="cmd-item__icon">${cmd.icon}</span>
+            <span class="cmd-item__label">${cmd.label}</span>
+            ${meta}
+          </div>
+        `;
+        globalIndex++;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    }
+
+    // Settings and Shortcuts
+    for (const cmd of [ALL_COMMANDS[ALL_COMMANDS.length - 2], ALL_COMMANDS[ALL_COMMANDS.length - 1]]) {
+      const isSelected = globalIndex === this.selectedIndex;
+      html += `
+        <div class="cmd-item ${isSelected ? 'cmd-item--selected' : ''}" data-index="${globalIndex}" data-id="${cmd.id}">
+          <span class="cmd-item__icon">${cmd.icon}</span>
+          <span class="cmd-item__label">${cmd.label}</span>
+        </div>
+      `;
+      globalIndex++;
+    }
+
+    this.resultsList!.innerHTML = html;
+    this.bindAccordionEvents();
+    this.bindResultItems();
+  }
+
+  private bindAccordionEvents(): void {
+    this.resultsList!.querySelectorAll('.cmd-module__header').forEach(header => {
+      header.addEventListener('click', () => {
+        const modKey = (header.closest('.cmd-module') as HTMLElement)?.dataset.module;
+        if (!modKey) return;
+
+        if (this.expandedModules.has(modKey)) {
+          this.expandedModules.delete(modKey);
+        } else {
+          this.expandedModules.add(modKey);
+        }
+
+        this.filter();
+      });
+    });
+  }
+
+  private bindResultItems(): void {
     this.resultsList!.querySelectorAll('.cmd-item:not(.cmd-item--disabled)').forEach(item => {
       item.addEventListener('click', () => {
         const cmdId = (item as HTMLElement).dataset.id;
-        const cmd = this.filteredCommands.find(c => c.id === cmdId);
+        const cmd = this.filteredCommands.find(c => c.id === cmdId)
+          || MODULE_COMMANDS.find(c => c.id === cmdId)
+          || ALL_COMMANDS.find(c => c.id === cmdId);
         if (cmd?.action) {
           this.close();
           cmd.action();
@@ -430,37 +714,88 @@ export class CommandPalette {
 
   private moveSelection(delta: number): void {
     const maxIndex = this.filteredCommands.length - 1;
+    const isAccordion = this.moduleViewData.length > 0 && !(this.input?.value.trim());
 
-    let newIndex = this.selectedIndex + delta;
-    while (newIndex >= 0 && newIndex <= maxIndex && this.filteredCommands[newIndex]?.disabled) {
-      newIndex += delta;
-    }
-
-    if (newIndex >= 0 && newIndex <= maxIndex) {
-      this.selectedIndex = newIndex;
+    if (isAccordion) {
+      const visibleIndices = this.getVisibleIndices();
+      const currentPos = visibleIndices.indexOf(this.selectedIndex);
+      if (currentPos < 0) {
+        this.selectedIndex = visibleIndices[0] ?? 0;
+      } else {
+        const newPos = Math.max(0, Math.min(visibleIndices.length - 1, currentPos + delta));
+        this.selectedIndex = visibleIndices[newPos];
+      }
+    } else {
+      let newIndex = this.selectedIndex + delta;
+      while (newIndex >= 0 && newIndex <= maxIndex && this.filteredCommands[newIndex]?.disabled) {
+        newIndex += delta;
+      }
+      if (newIndex >= 0 && newIndex <= maxIndex) {
+        this.selectedIndex = newIndex;
+      }
     }
 
     this.updateSelection();
     this.scrollToSelected();
   }
 
+  private getVisibleIndices(): number[] {
+    const indices: number[] = [];
+    const items = this.resultsList!.querySelectorAll('.cmd-item, .cmd-module__header');
+    items.forEach(el => {
+      if (el.closest('.cmd-module__children') && !el.closest('.cmd-module--expanded')) return;
+      const idx = parseInt((el as HTMLElement).dataset.index!);
+      if (!isNaN(idx)) indices.push(idx);
+    });
+    return indices;
+  }
+
   private updateSelection(): void {
-    this.resultsList!.querySelectorAll('.cmd-item').forEach((item) => {
+    this.resultsList!.querySelectorAll('.cmd-item, .cmd-module__header').forEach((item) => {
       const index = parseInt((item as HTMLElement).dataset.index!);
-      item.classList.toggle('cmd-item--selected', index === this.selectedIndex);
+      const isSelected = index === this.selectedIndex;
+      item.classList.toggle('cmd-item--selected', isSelected && item.classList.contains('cmd-item'));
+      item.classList.toggle('cmd-module__header--selected', isSelected && item.classList.contains('cmd-module__header'));
     });
   }
 
   private scrollToSelected(): void {
-    const selected = this.resultsList!.querySelector('.cmd-item--selected');
+    const selected = this.resultsList!.querySelector('.cmd-item--selected, .cmd-module__header--selected');
     if (selected) {
       selected.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }
 
   private executeSelected(): void {
-    const cmd = this.filteredCommands[this.selectedIndex];
+    const isAccordion = this.moduleViewData.length > 0 && !(this.input?.value.trim());
 
+    if (isAccordion) {
+      const selectedEl = this.resultsList!.querySelector(`[data-index="${this.selectedIndex}"]`) as HTMLElement;
+      if (!selectedEl) return;
+
+      if (selectedEl.classList.contains('cmd-module__header')) {
+        const modKey = selectedEl.closest('.cmd-module')?.getAttribute('data-module');
+        if (modKey) {
+          if (this.expandedModules.has(modKey)) {
+            this.expandedModules.delete(modKey);
+          } else {
+            this.expandedModules.add(modKey);
+          }
+          this.filter();
+        }
+        return;
+      }
+
+      const cmdId = selectedEl.dataset.id;
+      const cmd = ALL_COMMANDS.find(c => c.id === cmdId);
+      if (cmd && !cmd.disabled && cmd.action) {
+        this.close();
+        cmd.action();
+      }
+      return;
+    }
+
+    const cmd = this.filteredCommands[this.selectedIndex];
     if (cmd && !cmd.disabled && cmd.action) {
       this.close();
       cmd.action();
