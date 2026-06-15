@@ -232,6 +232,7 @@ export class MarketingLab {
       toolId,
       toolName: tool.name,
       toolIcon: tool.icon,
+      toolDescription: TOOL_DESCRIPTIONS[toolId] || '',
       moduleId: this.moduleId,
       tools: toolsList,
       currentIndex,

@@ -62,6 +62,7 @@ export interface ToolViewOptions {
   toolId: string;
   toolName: string;
   toolIcon: string;
+  toolDescription?: string;
   moduleId: string;
   tools: Array<{ id: string; name: string }>;
   currentIndex: number;

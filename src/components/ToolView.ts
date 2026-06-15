@@ -6,6 +6,7 @@ export class ToolView {
   private toolId: string;
   private toolName: string;
   private toolIcon: string;
+  private toolDescription: string;
   private moduleId: string;
   private tools: Array<{ id: string; name: string }>;
   private currentIndex: number;
@@ -19,6 +20,7 @@ export class ToolView {
     this.toolId = options.toolId;
     this.toolName = options.toolName || '';
     this.toolIcon = options.toolIcon || '';
+    this.toolDescription = options.toolDescription || '';
     this.moduleId = options.moduleId;
     this.tools = options.tools || [];
     this.currentIndex = options.currentIndex || 0;
@@ -40,7 +42,10 @@ export class ToolView {
         </button>
         <div class="tool-view__title">
           <span class="tool-view__icon">${this.toolIcon}</span>
-          <h2>${this.toolName}</h2>
+          <div class="tool-view__title-text">
+            <h2>${this.toolName}</h2>
+            ${this.toolDescription ? `<p class="tool-view__desc">${this.toolDescription}</p>` : ''}
+          </div>
         </div>
         <div class="tool-view__actions">
           <kbd class="tool-view__kbd">ESC</kbd>
