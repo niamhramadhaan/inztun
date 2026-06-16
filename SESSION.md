@@ -1,119 +1,114 @@
 # ✦ inztun — Session Summary
 
-**Date:** June 14, 2026
+**Date:** June 16, 2026
 
 ---
 
-## ◈ Progress Summary
+## ◈ Platform State
 
-### What We Built
-
-A complete **Artisan's Operating System** — a privacy-first, client-side workspace with:
-
-| Component | Details |
-|-----------|---------|
-| **2 Modules** | Worker's Suite (18 tools), Playground (6 tools) |
-| **24 Tools** | All client-side, zero data exfiltration |
-| **Navigation** | Command Palette (⌘K), Floating Orb, Search/Sort |
-| **Theming** | 6 accent color presets + custom HEX, persisted |
-| **UX** | Toast notifications, character counts, tips panels |
-
-### Architecture
-
-```
-src/
-├── core/           # Router, Events, DB, Cosmos
-├── components/     # CommandPalette, FloatingOrb, ToolView, SettingsPanel, Toast
-├── modules/
-│   ├── workers-suite/   # 18 tools in 6 categories
-│   └── playground/      # 6 fun tools
-├── styles/         # Design tokens, grid, components
-└── types/          # Shared TypeScript interfaces
-```
-
-### Key Technical Decisions
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Framework | None (Vanilla TypeScript) | Zero overhead, full control, type safety |
-| Build | Vite | Fast HMR, simple config |
-| Routing | Hash-based | Shareable URLs, no server needed |
-| Storage | IndexedDB | Structured data, large capacity |
-| Theming | CSS Custom Properties | Dynamic, no JS overhead |
-| Type System | TypeScript strict mode | Catch errors at compile time |
+| Metric | Value |
+|--------|-------|
+| **Modules** | 6 (Home, Worker's Suite, Playground, Design Studio, Marketing Lab, Freelance Core) |
+| **Tools** | 39 total |
+| **Runtime dependencies** | 3 (fflate, pdf-lib, pdfjs-dist) |
+| **Dev dependencies** | 5 (vite, typescript, vitest, jsdom, vite-plugin-pwa) |
+| **IndexedDB stores** | 8 (preferences, history, saved, timeEntries, expenses, clients, projects, notes, activity) |
+| **Tests** | 7 files, 48 tests, all passing |
+| **Build** | ~470KB JS gzip, ~5.3KB CSS gzip |
 
 ---
 
-## ◈ TypeScript Migration (Current Session)
+## ◈ What Was Built This Session
 
-### What Was Done
+### 1. Project Layer (Client → Projects → Work Items)
 
-Migrated the entire codebase from JavaScript to TypeScript with strict mode enabled:
+Added a `projects` IndexedDB store with full CRUD. Each project links to a client via `clientId`. Tools now support project-level organization:
 
-| Category | Files Migrated |
-|----------|----------------|
-| **Core** | `events.ts`, `router.ts`, `db.ts`, `cosmos.ts` |
-| **Components** | `Toast.ts`, `Tile.ts`, `ToolView.ts`, `CommandPalette.ts`, `FloatingOrb.ts`, `SettingsPanel.ts` |
-| **Workers Suite** | `index.ts`, `tool-data.ts`, + 18 tool files |
-| **Playground** | `index.ts`, `tool-data.ts`, + 6 tool files |
-| **Entry** | `main.ts`, `vite.config.ts` |
-| **Config** | `tsconfig.json`, `vite-env.d.ts` |
-| **Types** | `src/types/index.ts` (shared interfaces) |
+- **Client Manager** — expandable project cards per client, inline create/edit/delete project form with name, description, status, budget, currency, deadline
+- **Time Tracker** — project selector dropdown, `projectId` stored on each entry, "Send to Invoice" carries projectId
+- **Expense Tracker** — same project selector pattern, `projectId` stored on each expense
+- **Invoice Generator** — client autocomplete via `<datalist>` from `db.getAllClients()`, auto-fills email on selection. Pending items from Time Tracker / Expense Tracker grouped by project name as non-editable header rows
 
-### Type Definitions Created
+### 2. Tool Cleanup
 
-```typescript
-// src/types/index.ts
-interface Route { module: string | null; tool: string | null }
-interface Accent { hex: string; rgb: string }
-interface TileSpan { col: number; row: number }
-interface Tool { name: string; icon: string; badge?: string; render(): string; init?(root: HTMLElement): void; destroy?(): void }
-interface ToolClass { new(): Tool }
-interface ToolRegistryEntry { id: string; Tool: ToolClass; span: TileSpan; featured?: boolean; ... }
-interface ToolInfo { useCases: string[]; tips: string[]; related: string[] }
-type EventCallback = (data?: any) => void
-```
+- **Deleted** Morse Code tool (file + all references across 6 files)
+- **Renamed** ASCII Art → Banner Generator
+- **Purged** dead icon definitions: zalgo, flip, leet, morse, abTest, link
+- Updated README to match actual tool count
 
-### TypeScript Configuration
+### 3. Logo Builder (new tool — Design Studio)
 
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler"
-  }
-}
-```
+Shape canvas (rect/circle/triangle) with fill/stroke colors, icon picker from inztun ICONS set or custom text mode, size slider, transparent BG toggle, live composite preview, PNG download. Imports saved colors from color palette tool.
 
-### Verification
+### 4. Lock Screen
 
-- `npx tsc --noEmit` — zero type errors
-- `npm run build` — successful production build (175KB JS, 15KB CSS)
+New `LockScreen` component — full-screen split overlay. Left panel: branding with cosmic canvas bleeding through. Right panel: glass card with 4-digit PIN pad. SHA-256 hashed via `crypto.subtle.digest`. Visual feedback: dot fill, shake on wrong PIN, green on success. "Skip →" link for forgotten PINs. Keyboard support (0-9, Backspace, Escape). Settings Panel has Security section to enable/disable.
 
----
+### 5. Home Dashboard Overhaul
 
-## ◈ What's Next (Next Session)
+Complete rebuild of the Home page into a real command center:
 
-### Immediate Tasks
+- **Dynamic greeting** — time-of-day + user name from preferences
+- **Stats row** — 5 widgets in a row: Active Timer (live ticking), Invoices (count + total), Quick Notes (2×2 scrollable grid), Usage Chart (horizontal bar, top 5 tools), Active Projects (deadline countdown, click to start timer)
+- **Quick Actions bar** — New Invoice, Start Timer, New Note, New Client, Settings, Shortcuts
+- **Activity Feed** — last 10 actions, clickable (navigates to relevant tool)
+- **Favorites grid** — merged from all 5 modules' favorites
+- **Empty states** with CTAs for every widget
 
-1. **Playground Expansion** — Add Matrix Rain, Particle Playground (canvas-based)
-2. **More Tests** — Add tests for Freelance Core, Design Studio, and Marketing Lab tools
-3. **Integration Tests** — Test router + event bus + tool registry together
-4. **Performance** — Lazy load tool modules for faster initial load
+Bug fixed: favorites key mismatch (`ws-favorites` vs `favorites`) — workers-suite favorites now appear on Home.
 
-### Open Questions
+### 6. Settings Panel Expansion
 
-- Which module to build next: Freelance Core, Marketing Lab, or Design Studio?
-- Should we add more Playground games (Memory, Reaction Time)?
-- Any specific tools missing from Worker's Suite?
+New "Defaults" section: Currency (select from 16 currencies), Locale, Email, Company, Tax Rate %, Payment Terms (days). All tools read defaults from preferences instead of hardcoding `$`, `en-US`, etc.
 
-### Technical Debt
+Exported `CURRENCIES` array and `getCurrencySymbol()` helper from SettingsPanel for shared use.
 
-- Tool views keep-alive could be optimized for memory
-- Some tools could share common components (copy button, char count)
-- Canvas background could use requestAnimationFrame throttling
+### 7. Toast System Extended
+
+- Added `Toast.progress(message, current, total)` with visual progress bar
+- Added `Toast.updateProgress(toast, current, total)` for updating
+- Fixed 10 missing toast notifications across tools
+- Fixed 2 silent error catches
+- Added progress counter to PDF-to-Images for large files
+- Added favorite toggle toasts to all 5 modules
+
+### 8. Micro-Interaction Fixes
+
+- Back button in all tools navigates to Home (not module)
+- Topbar hidden when any tool is open
+- Tips accordion expanded by default
+- Fixed cut-off content in tips panel (`overflow: hidden` removed, `flex-shrink: 0` added)
+- Bottom nav hidden in print/PDF output
+- Typing test: text overflow fix (`overflow-wrap: break-word`)
+- PDF tools: page previews for all 7 tools, page navigation for PDF Sign
+
+### 9. Module Layout Standardization
+
+All 3 non-category modules refactored to use `createCategorySection` pattern:
+
+- **Playground** — 2 categories: Testing & Games, Creative
+- **Design Studio** — 4 categories: Layout & Shape, Typography & Color, Image Processing, Branding
+- **Marketing Lab** — 3 categories: Campaign Tracking, SEO & Social, Color
+
+### 10. PDF Tools (7 new tools — Worker's Suite)
+
+New category "PDF Tools" with 7 tools using pdf-lib + pdfjs-dist:
+
+| Tool | Description |
+|------|-------------|
+| PDF Merge | Multi-file drag-drop with reorder, page thumbnails, merge to single PDF |
+| PDF Split | Page thumbnails, checkbox/range selection, extract selected or split all to ZIP |
+| PDF Compress | Strip metadata + unused objects, before/after size comparison |
+| PDF Protect | Add/remove user/owner password |
+| PDF Sign | Draw/type/upload signature, drag-to-position on any page, embed as PNG |
+| PDF to Images | Render each page to canvas, DPI selector (72/96/150/300), ZIP download |
+| PDF Metadata | View/edit title/author/subject/keywords, strip all metadata |
+
+All have page previews. Registered in CommandPalette, TopBar, and Home ALL_TOOLS.
+
+### 11. Scratchpad (new tool — Worker's Suite)
+
+Markdown notes with auto-save (500ms debounce), sidebar list, search, edit/preview toggle, toolbar (Bold/Italic/Code/Checklist/HR), "Link to Client/Project" dropdown. Notes stored in IndexedDB. Client Manager shows linked notes per client.
 
 ---
 
@@ -121,85 +116,83 @@ type EventCallback = (data?: any) => void
 
 | File | Action |
 |------|--------|
-| `vite.config.ts` | Added vitest config with jsdom environment |
-| `package.json` | Added vitest, jsdom, test scripts |
-| `src/core/events.ts` | Exported EventBus class for testing |
-| `src/core/__tests__/events.test.ts` | New — 8 EventBus tests |
-| `src/core/__tests__/router.test.ts` | New — 7 hash parsing tests |
-| `src/modules/workers-suite/tools/__tests__/base64.test.ts` | New — 6 encode/decode tests |
-| `src/modules/workers-suite/tools/__tests__/json-formatter.test.ts` | New — 8 format/minify/validate tests |
-| `src/modules/workers-suite/tools/__tests__/hash-generator.test.ts` | New — 6 hash tests |
-| `src/modules/workers-suite/tools/__tests__/password-gen.test.ts` | New — 5 generation tests |
-| `src/modules/workers-suite/tools/__tests__/url-encoder.test.ts` | New — 8 encode/decode/parse tests |
-| `src/styles/base.css` | Added prefers-reduced-motion support |
-| `src/styles/grid.css` | Improved mobile breakpoints (375px, 768px) |
-| `src/components/CommandPalette.ts` | Added prefers-reduced-motion support |
-| `src/components/FloatingOrb.ts` | Added prefers-reduced-motion support |
-| `src/components/Toast.ts` | Added prefers-reduced-motion support |
-| `src/modules/design-studio/index.ts` | New — module class (6 tools) |
-| `src/modules/design-studio/tool-data.ts` | New — tips/use-cases data |
-| `src/modules/design-studio/tools/css-gradient.ts` | New — gradient builder |
-| `src/modules/design-studio/tools/box-shadow.ts` | New — shadow generator |
-| `src/modules/design-studio/tools/border-radius.ts` | New — radius previewer |
-| `src/modules/design-studio/tools/typography-scale.ts` | New — type scale calc |
-| `src/modules/design-studio/tools/spacing-system.ts` | New — spacing generator |
-| `src/modules/design-studio/tools/icon-grid.ts` | New — icon grid overlay |
-| `public/banners/design-studio.svg` | New — module banner |
-| `src/main.ts` | Registered DesignStudio module |
-| `src/components/CommandPalette.ts` | Added Design Studio + 6 tool entries |
-| `src/modules/marketing-lab/index.ts` | New — module class (6 tools) |
-| `src/modules/marketing-lab/tool-data.ts` | New — tips/use-cases data |
-| `src/modules/marketing-lab/tools/utm-builder.ts` | New — UTM parameter builder |
-| `src/modules/marketing-lab/tools/seo-meta.ts` | New — SEO meta tag generator |
-| `src/modules/marketing-lab/tools/social-counter.ts` | New — social media character counter |
-| `src/modules/marketing-lab/tools/color-palette.ts` | New — color palette extractor |
-| `src/modules/marketing-lab/tools/ab-calculator.ts` | New — A/B test significance calculator |
-| `src/modules/marketing-lab/tools/link-shortener.ts` | New — link shortener preview |
-| `public/banners/marketing-lab.svg` | New — module banner |
-| `src/main.ts` | Registered MarketingLab module |
-| `src/components/CommandPalette.ts` | Added Marketing Lab + 6 tool entries |
-| `src/modules/freelance-core/index.ts` | New — module class with categories, search, sort, favorites |
-| `src/modules/freelance-core/tool-data.ts` | New — tips/use-cases data |
-| `src/modules/freelance-core/tools/invoice-generator.ts` | New — line items, totals, tax, copy |
-| `src/modules/freelance-core/tools/rate-calculator.ts` | New — hourly/daily rate with overhead |
-| `src/modules/freelance-core/tools/time-tracker.ts` | New — live timer, manual entry, log |
-| `src/modules/freelance-core/tools/expense-tracker.ts` | New — category expenses, breakdown |
-| `src/modules/freelance-core/tools/contract-templates.ts` | New — 4 templates with variables |
-| `src/modules/freelance-core/tools/client-manager.ts` | New — client list, notes, status |
-| `public/banners/freelance-core.svg` | New — module banner |
-| `src/main.ts` | Registered FreelanceCore module |
-| `src/components/CommandPalette.ts` | Added Freelance Core + 6 tool entries |
-| `src/components/TopBar.ts` | New — persistent top bar with tabs, search, quick access |
-| `src/modules/home/index.ts` | New — personalized homepage with favorites from all modules |
-| `index.html` | Added `<header id="topbar">` element |
-| `src/styles/base.css` | Added `#topbar` z-index styling |
-| `src/main.ts` | Added TopBar + Home module registration |
-| `src/components/CommandPalette.ts` | Added Home entry + palette:open event listener |
+| `package.json` | Added fflate, pdf-lib, pdfjs-dist, vite-plugin-pwa |
+| `vite.config.ts` | Added VitePWA plugin config |
+| `index.html` | Added theme-color meta |
+| `src/core/db.ts` | DB v1→v5, added Project/Note/Activity interfaces, 9 new stores, 20+ CRUD methods, export/import all stores |
+| `src/core/icons.ts` | Added pdf, scratchpad, logoBuilder, imageCrop, imageFilters, imageMetadata icons. Removed dead icons |
+| `src/core/events.ts` | No changes |
+| `src/types/index.ts` | No changes |
+| `src/components/SettingsPanel.ts` | Added Defaults section (6 fields), Security section (PIN lock), exported CURRENCIES + getCurrencySymbol |
+| `src/components/CommandPalette.ts` | Added 7 PDF tools + Settings/Shortcuts at top, fixed renderAccordion to use ID-based lookup |
+| `src/components/TopBar.ts` | Added 7 PDF tool entries |
+| `src/components/ModuleHelpers.ts` | Tips panel expanded by default |
+| `src/components/Toast.ts` | Added progress() and updateProgress() methods |
+| `src/components/LockScreen.ts` | New — PIN lock screen component |
+| `src/components/ToolView.ts` | Back button → Home, ESC → Home, hide topbar on show |
+| `src/styles/components.css` | Print CSS: hide bottom-nav, topbar, cosmos. Added lock screen CSS |
+| `src/modules/home/index.ts` | Full dashboard rebuild: greeting, stats row (5 widgets), quick actions, activity feed, favorites. Fixed favorites keys. Added 10 missing tools to ALL_TOOLS |
+| `src/modules/workers-suite/index.ts` | Added PDF category (7 tools), Scratchpad tool. CSS for PDF tools + scratchpad |
+| `src/modules/workers-suite/tools/scratchpad.ts` | New — markdown notes tool |
+| `src/modules/workers-suite/tools/pdf-merge.ts` | New |
+| `src/modules/workers-suite/tools/pdf-split.ts` | New |
+| `src/modules/workers-suite/tools/pdf-compress.ts` | New |
+| `src/modules/workers-suite/tools/pdf-protect.ts` | New |
+| `src/modules/workers-suite/tools/pdf-sign.ts` | New |
+| `src/modules/workers-suite/tools/pdf-to-images.ts` | New |
+| `src/modules/workers-suite/tools/pdf-metadata.ts` | New |
+| `src/modules/workers-suite/tool-data.ts` | Added scratchpad + 7 PDF tool tips |
+| `src/modules/playground/index.ts` | Refactored to categories (Testing & Games, Creative). Typing display overflow fix |
+| `src/modules/playground/tool-data.ts` | Updated banner-generator entry |
+| `src/modules/playground/tools/ascii-art.ts` | Renamed class to BannerGenerator, id to banner-generator |
+| `src/modules/design-studio/index.ts` | Added 3 image tools + Logo Builder. Refactored to categories |
+| `src/modules/design-studio/tool-data.ts` | Added tips for image-crop, image-filters, image-metadata, logo-builder |
+| `src/modules/design-studio/tools/logo-builder.ts` | New |
+| `src/modules/design-studio/tools/image-crop.ts` | New |
+| `src/modules/design-studio/tools/image-filters.ts` | New |
+| `src/modules/design-studio/tools/image-metadata.ts` | New |
+| `src/modules/marketing-lab/index.ts` | Refactored to categories (Campaign Tracking, SEO & Social, Color) |
+| `src/modules/freelance-core/index.ts` | CSS for project cards, notes sections, print fix |
+| `src/modules/freelance-core/tools/invoice-generator.ts` | Client autocomplete, project grouping, defaults from settings |
+| `src/modules/freelance-core/tools/time-tracker.ts` | Project selector, projectId, timer state persistence |
+| `src/modules/freelance-core/tools/expense-tracker.ts` | Project selector, dynamic currency |
+| `src/modules/freelance-core/tools/client-manager.ts` | Expandable projects per client, inline project form, linked notes |
+| `src/modules/freelance-core/tools/rate-calculator.ts` | Dynamic currency + tax rate from settings |
+| `src/modules/freelance-core/tools/tax-estimator.ts` | Dynamic currency from settings |
+| `src/modules/freelance-core/tools/timezone-converter.ts` | Dynamic locale from settings |
+| `src/modules/freelance-core/tools/contract-templates.ts` | Dynamic currency from settings |
+| `src/utils/image.ts` | Added getFitSize, canvasToBlob, createMultiDropZone, bindClipboardPaste, downloadZip, getExtFromMime |
+| `public/icons/favicon.svg` | Changed to Home icon |
+| `README.md` | Updated Playground tool list |
+| `src/vite-env.d.ts` | Added BeforeInstallPromptEvent type |
 
 ---
 
-## ◈ Commands for Next Session
+## ◈ What's Next
+
+### High Priority
+1. **Lazy load tool modules** — dynamic import() per tool to cut initial bundle size
+2. **More tests** — Freelance Core, Design Studio, Marketing Lab tools
+3. **Tool view state persistence** — remember scroll position, form state when switching tools
+
+### Medium Priority
+4. **Theming system** — multiple built-in themes + custom theme builder
+5. **Keyboard-first navigation** — full Tab/Enter/Escape/Arrow key support
+6. **PDF tools: password encryption** — pdf-lib doesn't support native encryption, need Web Crypto approach
+
+### Low Priority
+7. **Plugin system** — let users add custom tools via JS paste
+8. **Cloud sync** — optional, behind user consent
+9. **Canvas background** — requestAnimationFrame throttling for performance
+
+---
+
+## ◈ Commands
 
 ```bash
-# Start development
-npm run dev
-
-# Build
-npm run build
-
-# Type check
-npx tsc --noEmit
-
-# Run tests
-npm test
-
-# Watch mode
-npm run test:watch
-
-# Open in browser
-http://localhost:3000
+npm run dev          # Start dev server
+npm run build        # Production build
+npm test             # Run 48 tests
+npm run test:watch   # Watch mode
+npx tsc --noEmit     # Type check
 ```
-
----
-
-*Session ended. Ready to continue.*
