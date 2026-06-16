@@ -1,4 +1,28 @@
 import { db } from '../core/db';
+import { Toast } from './Toast';
+
+export const CURRENCIES = [
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
+  { code: 'KRW', symbol: '₩', name: 'South Korean Won' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
+];
+
+export function getCurrencySymbol(code: string): string {
+  return CURRENCIES.find(c => c.code === code)?.symbol || '$';
+}
 
 const ACCENT_PRESETS = [
   { name: 'Gold', hex: '#c9a96e', rgb: '201, 169, 110' },
@@ -24,9 +48,9 @@ export class SettingsPanel {
         inset: 0;
         z-index: 300;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
-        padding-top: 18vh;
+        padding: 4vh 0;
         background: rgba(3, 3, 5, 0.7);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
@@ -43,11 +67,14 @@ export class SettingsPanel {
       .settings-panel {
         width: 420px;
         max-width: 90vw;
+        max-height: 88vh;
         background: var(--bg-elevated);
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-xl);
         box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
         transform: translateY(-8px) scale(0.98);
         transition: transform 200ms var(--ease-out);
       }
@@ -62,6 +89,7 @@ export class SettingsPanel {
         justify-content: space-between;
         padding: var(--space-4) var(--space-5);
         border-bottom: 1px solid var(--border-hairline);
+        flex-shrink: 0;
       }
 
       .settings-header__title {
@@ -91,6 +119,8 @@ export class SettingsPanel {
 
       .settings-body {
         padding: var(--space-5);
+        overflow-y: auto;
+        flex: 1;
       }
 
       .settings-section {
@@ -166,6 +196,22 @@ export class SettingsPanel {
         font-size: var(--text-xs);
         color: var(--text-ghost);
         text-align: center;
+        flex-shrink: 0;
+      }
+
+      .settings-data-actions {
+        display: flex;
+        gap: var(--space-2);
+      }
+
+      .settings-data-actions .btn {
+        flex: 1;
+      }
+
+      .settings-row-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-3);
       }
     `;
     document.head.appendChild(style);
@@ -187,6 +233,25 @@ export class SettingsPanel {
         </div>
         <div class="settings-body">
           <div class="settings-section">
+            <div class="settings-label">Profile</div>
+            <div class="form-group"><label class="label">Your Name</label><input type="text" class="input" id="settings-name" placeholder="What should we call you?"></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-label">Defaults</div>
+            <div class="form-group"><label class="label">Currency</label>
+              <select class="input" id="settings-currency">
+                ${CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.code} — ${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group"><label class="label">Locale</label><input type="text" class="input" id="settings-locale" placeholder="en-US"></div>
+            <div class="form-group"><label class="label">Email</label><input type="email" class="input" id="settings-email" placeholder="you@company.com"></div>
+            <div class="form-group"><label class="label">Company</label><input type="text" class="input" id="settings-company" placeholder="Your Company"></div>
+            <div class="settings-row-2col">
+              <div class="form-group"><label class="label">Tax Rate %</label><input type="number" class="input" id="settings-tax-rate" placeholder="0" min="0" max="100"></div>
+              <div class="form-group"><label class="label">Payment Terms (days)</label><input type="number" class="input" id="settings-payment-terms" placeholder="30" min="0"></div>
+            </div>
+          </div>
+          <div class="settings-section">
             <div class="settings-label">Accent Color</div>
             <div class="accent-grid" id="accent-grid">
               ${ACCENT_PRESETS.map(p => `
@@ -201,6 +266,18 @@ export class SettingsPanel {
               <button class="btn btn--primary" id="custom-apply">Apply</button>
             </div>
           </div>
+          <div class="settings-section">
+            <div class="settings-label">Data</div>
+            <div class="settings-data-actions">
+              <button class="btn btn--primary" id="settings-export">Export Backup</button>
+              <button class="btn btn--ghost" id="settings-import">Import</button>
+            </div>
+            <input type="file" id="settings-import-file" accept=".json" style="display:none">
+          </div>
+          <div class="settings-section" id="settings-install-section" style="display:none">
+            <div class="settings-label">App</div>
+            <button class="btn btn--primary" id="settings-install" style="width:100%">Install App</button>
+          </div>
         </div>
         <div class="settings-footer">
           Settings persist in your browser via IndexedDB
@@ -209,6 +286,52 @@ export class SettingsPanel {
     `;
 
     document.body.appendChild(this.overlay);
+
+    // Load saved name
+    db.getPreference('userName', '').then(name => {
+      const nameInput = this.overlay!.querySelector('#settings-name') as HTMLInputElement;
+      if (nameInput && name) nameInput.value = name;
+    });
+
+    // Save name on change
+    const nameInput = this.overlay.querySelector('#settings-name') as HTMLInputElement;
+    nameInput.addEventListener('input', () => {
+      db.setPreference('userName', nameInput.value.trim());
+    });
+
+    // Load and save defaults
+    const defaultsMap: [string, string, 'value' | 'checked'][] = [
+      ['defaultCurrency', '#settings-currency', 'value'],
+      ['defaultLocale', '#settings-locale', 'value'],
+      ['defaultEmail', '#settings-email', 'value'],
+      ['defaultCompany', '#settings-company', 'value'],
+      ['defaultTaxRate', '#settings-tax-rate', 'value'],
+      ['defaultPaymentTerms', '#settings-payment-terms', 'value'],
+    ];
+
+    defaultsMap.forEach(([key, selector, prop]) => {
+      const el = this.overlay!.querySelector(selector) as HTMLInputElement;
+      if (!el) return;
+      db.getPreference(key, '').then(val => {
+        if (val !== '' && val !== null && val !== undefined) (el as any)[prop] = val;
+      });
+      el.addEventListener('input', () => {
+        const raw = el.value.trim();
+        if (key === 'defaultTaxRate' || key === 'defaultPaymentTerms') {
+          db.setPreference(key, raw === '' ? '' : Number(raw));
+        } else {
+          db.setPreference(key, raw);
+        }
+      });
+      el.addEventListener('change', () => {
+        const raw = el.value.trim();
+        if (key === 'defaultTaxRate' || key === 'defaultPaymentTerms') {
+          db.setPreference(key, raw === '' ? '' : Number(raw));
+        } else {
+          db.setPreference(key, raw);
+        }
+      });
+    });
 
     this.overlay.querySelector('#settings-close')?.addEventListener('click', () => this.close());
     this.overlay.addEventListener('click', (e) => { if (e.target === this.overlay) this.close(); });
@@ -237,6 +360,52 @@ export class SettingsPanel {
         const b = parseInt(hex.slice(5, 7), 16);
         this.applyAccent(hex, `${r}, ${g}, ${b}`);
       }
+    });
+
+    this.overlay.querySelector('#settings-export')?.addEventListener('click', async () => {
+      const json = await db.exportAll();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `inztun-backup-${date}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Toast.success('Backup downloaded');
+    });
+
+    const fileInput = this.overlay.querySelector('#settings-import-file') as HTMLInputElement;
+    this.overlay.querySelector('#settings-import')?.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        await db.importAll(text);
+        Toast.success('Data restored — reloading');
+        setTimeout(() => location.reload(), 800);
+      } catch {
+        Toast.error('Invalid backup file');
+      }
+    });
+
+    // PWA install prompt
+    let deferredPrompt: BeforeInstallPromptEvent | null = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e as BeforeInstallPromptEvent;
+      const section = this.overlay!.querySelector('#settings-install-section') as HTMLElement;
+      if (section) section.style.display = '';
+    });
+    this.overlay.querySelector('#settings-install')?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      if (result.outcome === 'accepted') Toast.success('App installed');
+      deferredPrompt = null;
+      const section = this.overlay!.querySelector('#settings-install-section') as HTMLElement;
+      if (section) section.style.display = 'none';
     });
   }
 

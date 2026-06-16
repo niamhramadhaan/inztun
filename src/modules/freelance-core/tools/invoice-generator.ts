@@ -1,11 +1,15 @@
 import { Toast } from '../../../components/Toast';
-import { db } from '../../../core/db';
+import { db, type Client, type Project } from '../../../core/db';
+import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { CURRENCIES } from '../../../components/SettingsPanel';
 
 interface LineItem {
   description: string;
   quantity: number;
   rate: number;
+  projectId?: number;
+  _group?: boolean;
 }
 
 interface Currency {
@@ -13,25 +17,6 @@ interface Currency {
   symbol: string;
   name: string;
 }
-
-const CURRENCIES: Currency[] = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
-  { code: 'KRW', symbol: '₩', name: 'South Korean Won' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-  { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
-];
 
 export class InvoiceGenerator {
   id = 'invoice-generator';
@@ -74,7 +59,7 @@ export class InvoiceGenerator {
 
             <div class="fci-section-title">To</div>
             <div class="fci-row">
-              <div class="form-group"><label class="label" data-shared>Client Name</label><input type="text" class="input" id="fci-client" placeholder="Acme Corp"></div>
+              <div class="form-group"><label class="label" data-shared>Client Name</label><input type="text" class="input" id="fci-client" list="fci-clients-list" placeholder="Acme Corp"><datalist id="fci-clients-list"></datalist></div>
               <div class="form-group"><label class="label">Client Email</label><input type="email" class="input" id="fci-client-email" placeholder="client@acme.com"></div>
             </div>
 
@@ -85,7 +70,7 @@ export class InvoiceGenerator {
               <div class="form-group"><label class="label">Due Date</label><input type="date" class="input" id="fci-due-date" style="width:150px"></div>
               <div class="form-group"><label class="label">Currency</label>
                 <select class="input" id="fci-currency" style="width:140px">
-                  ${CURRENCIES.map(c => `<option value="${c.code}" ${c.code === 'USD' ? 'selected' : ''}>${c.symbol} ${c.code}</option>`).join('')}
+                  ${CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.code}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -127,7 +112,7 @@ export class InvoiceGenerator {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.itemsEl = root.querySelector('#fci-items')!;
     this.subtotalEl = root.querySelector('#fci-subtotal')!;
     this.taxEl = root.querySelector('#fci-tax-amt')!;
@@ -136,16 +121,46 @@ export class InvoiceGenerator {
     this.previewEl = root.querySelector('#fci-paper')!;
     this.historyEl = root.querySelector('#fci-history-list')!;
 
+    // Load defaults from settings
+    const [defaultCurrency, defaultEmail, defaultCompany, defaultTaxRate, defaultPaymentTerms] = await Promise.all([
+      db.getPreference('defaultCurrency', 'USD') as Promise<string>,
+      db.getPreference('defaultEmail', '') as Promise<string>,
+      db.getPreference('defaultCompany', '') as Promise<string>,
+      db.getPreference('defaultTaxRate', '') as Promise<number | string>,
+      db.getPreference('defaultPaymentTerms', 30) as Promise<number>,
+    ]);
+
     (root.querySelector('#fci-date') as HTMLInputElement).valueAsDate = new Date();
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    const terms = typeof defaultPaymentTerms === 'number' && defaultPaymentTerms > 0 ? defaultPaymentTerms : 30;
+    dueDate.setDate(dueDate.getDate() + terms);
     (root.querySelector('#fci-due-date') as HTMLInputElement).valueAsDate = dueDate;
 
+    // Apply default currency
     const currencySelect = root.querySelector('#fci-currency') as HTMLSelectElement;
+    if (defaultCurrency) {
+      currencySelect.value = defaultCurrency;
+      this.currency = CURRENCIES.find(c => c.code === defaultCurrency) || CURRENCIES[0];
+    }
     currencySelect.addEventListener('change', () => {
       this.currency = CURRENCIES.find(c => c.code === currencySelect.value) || CURRENCIES[0];
       this.update();
     });
+
+    // Apply default email and company (only if empty)
+    if (defaultEmail) {
+      const emailEl = root.querySelector('#fci-from-email') as HTMLInputElement;
+      if (emailEl && !emailEl.value) emailEl.value = defaultEmail;
+    }
+    if (defaultCompany) {
+      const companyEl = root.querySelector('#fci-from-company') as HTMLInputElement;
+      if (companyEl && !companyEl.value) companyEl.value = defaultCompany;
+    }
+
+    // Apply default tax rate
+    if (defaultTaxRate !== '' && defaultTaxRate !== null && defaultTaxRate !== undefined) {
+      this.taxInput.value = String(defaultTaxRate);
+    }
 
     const logoInput = root.querySelector('#fci-logo') as HTMLInputElement;
     logoInput.addEventListener('change', () => {
@@ -194,19 +209,31 @@ export class InvoiceGenerator {
     wireSharedInputs(root);
     this.renderItems();
     this.loadHistory();
+    this.populateClientList(root);
+    this.loadPendingItems();
   }
 
   private renderItems(): void {
     const sym = this.currency.symbol;
-    this.itemsEl.innerHTML = this.items.map((item, i) => `
-      <div class="fcinv-item">
-        <input type="text" class="input" placeholder="Description" value="${item.description}" data-i="${i}" data-field="description">
-        <input type="number" class="input" placeholder="Qty" value="${item.quantity}" min="1" style="width:70px" data-i="${i}" data-field="quantity">
-        <input type="number" class="input" placeholder="Rate" value="${item.rate || ''}" min="0" step="0.01" style="width:100px" data-i="${i}" data-field="rate">
-        <span class="fcinv-item__amount">${sym}${(item.quantity * item.rate).toFixed(2)}</span>
-        ${this.items.length > 1 ? `<button class="btn btn--ghost btn--sm fcinv-remove" data-i="${i}">×</button>` : ''}
-      </div>
-    `).join('');
+    this.itemsEl.innerHTML = this.items.map((item, i) => {
+      if (item._group) {
+        return `
+          <div class="fcinv-item fcinv-item--group">
+            <span class="fcinv-item__group-label">${item.description}</span>
+            <button class="btn btn--ghost btn--sm fcinv-remove" data-i="${i}">×</button>
+          </div>
+        `;
+      }
+      return `
+        <div class="fcinv-item">
+          <input type="text" class="input" placeholder="Description" value="${item.description}" data-i="${i}" data-field="description">
+          <input type="number" class="input" placeholder="Qty" value="${item.quantity}" min="1" style="width:70px" data-i="${i}" data-field="quantity">
+          <input type="number" class="input" placeholder="Rate" value="${item.rate || ''}" min="0" step="0.01" style="width:100px" data-i="${i}" data-field="rate">
+          <span class="fcinv-item__amount">${sym}${(item.quantity * item.rate).toFixed(2)}</span>
+          ${this.items.length > 1 ? `<button class="btn btn--ghost btn--sm fcinv-remove" data-i="${i}">×</button>` : ''}
+        </div>
+      `;
+    }).join('');
 
     this.itemsEl.querySelectorAll('input').forEach(el => {
       el.addEventListener('input', (e) => {
@@ -233,7 +260,7 @@ export class InvoiceGenerator {
   }
 
   private update(): void {
-    const subtotal = this.items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
     const taxRate = parseFloat(this.taxInput.value) || 0;
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
@@ -269,6 +296,11 @@ export class InvoiceGenerator {
       : '';
 
     const itemRows = this.items.map(item => {
+      if (item._group) {
+        return `<tr class="fci-paper__group-row">
+          <td colspan="4" style="font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--accent);padding-top:12px;">${item.description}</td>
+        </tr>`;
+      }
       const amt = (item.quantity * item.rate).toFixed(2);
       return `<tr>
         <td>${item.description || '—'}</td>
@@ -339,7 +371,7 @@ export class InvoiceGenerator {
 
   private buildPlainText(): string {
     const f = this.getFormValues();
-    const subtotal = this.items.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
     const taxRate = parseFloat(this.taxInput.value) || 0;
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
@@ -351,6 +383,10 @@ export class InvoiceGenerator {
     text += `DESCRIPTION          QTY    RATE    AMOUNT\n`;
     text += `${'─'.repeat(50)}\n`;
     this.items.forEach(item => {
+      if (item._group) {
+        text += `\n── ${item.description} ──\n`;
+        return;
+      }
       const amt = (item.quantity * item.rate).toFixed(2);
       text += `${(item.description || '').padEnd(20)} ${String(item.quantity).padStart(5)}  ${sym}${item.rate.toFixed(2).padStart(7)}  ${sym}${amt.padStart(8)}\n`;
     });
@@ -371,6 +407,8 @@ export class InvoiceGenerator {
       logoDataUrl: this.logoDataUrl,
     };
     await db.addHistory('invoice', data);
+    const clientName = this.getFormValues().client || 'Unknown';
+    db.logActivity('invoice', `Invoice saved for ${clientName}`, `INV-${this.getFormValues().number || '001'}`);
     Toast.success('Invoice saved to history');
     this.loadHistory();
   }
@@ -431,6 +469,68 @@ export class InvoiceGenerator {
     this.logoDataUrl = logo;
     this.renderItems();
     Toast.info('Invoice loaded from history');
+  }
+
+  private async populateClientList(root: HTMLElement): Promise<void> {
+    const datalist = root.querySelector('#fci-clients-list') as HTMLDataListElement;
+    const clientInput = root.querySelector('#fci-client') as HTMLInputElement;
+    const emailInput = root.querySelector('#fci-client-email') as HTMLInputElement;
+    let clients: Client[] = [];
+
+    const refresh = async () => {
+      clients = await db.getAllClients();
+      datalist.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
+    };
+
+    await refresh();
+    clientInput.addEventListener('focus', refresh);
+
+    clientInput.addEventListener('change', () => {
+      const match = clients.find(c => c.name === clientInput.value);
+      if (match && match.email && !emailInput.value) {
+        emailInput.value = match.email;
+        emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }
+
+  private async loadPendingItems(): Promise<void> {
+    const pending = await db.getPreference('fc-pending-invoice-items') as LineItem[] | null;
+    if (!pending || !Array.isArray(pending) || pending.length === 0) return;
+
+    // Group items by projectId
+    const withProject = pending.filter(item => item.projectId);
+    const withoutProject = pending.filter(item => !item.projectId);
+
+    const grouped: LineItem[] = [];
+    if (withProject.length > 0) {
+      const projects = await db.getAllProjects();
+      const projectMap = new Map(projects.map(p => [p.id, p.name]));
+
+      const byProject = new Map<number, LineItem[]>();
+      for (const item of withProject) {
+        const pid = item.projectId!;
+        if (!byProject.has(pid)) byProject.set(pid, []);
+        byProject.get(pid)!.push(item);
+      }
+
+      for (const [pid, items] of byProject) {
+        grouped.push({ description: projectMap.get(pid) || `Project #${pid}`, quantity: 0, rate: 0, _group: true });
+        grouped.push(...items);
+      }
+    }
+    grouped.push(...withoutProject);
+
+    const hasOnlyEmpty = this.items.length === 1 && !this.items[0].description && this.items[0].rate === 0;
+    if (hasOnlyEmpty) {
+      this.items = grouped;
+    } else {
+      this.items.push(...grouped);
+    }
+
+    await db.setPreference('fc-pending-invoice-items', null);
+    this.renderItems();
+    Toast.info(`${pending.length} item(s) imported`);
   }
 
   destroy(): void {}

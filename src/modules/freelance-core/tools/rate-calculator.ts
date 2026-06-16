@@ -1,5 +1,7 @@
 import { Toast } from '../../../components/Toast';
+import { db } from '../../../core/db';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 
 export class RateCalculator {
   id = 'rate-calculator';
@@ -9,6 +11,7 @@ export class RateCalculator {
       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>`;
   badge = '';
+  private currencySymbol = '$';
   private incomeInput!: HTMLInputElement;
   private weeksInput!: HTMLInputElement;
   private hoursInput!: HTMLInputElement;
@@ -20,7 +23,7 @@ export class RateCalculator {
     return `
       <div class="tool-area">
         <div class="fcr-grid">
-          <div class="form-group"><label class="label">Desired Annual Income ($)</label><input type="number" class="input" id="fcr-income" value="100000" min="0"></div>
+          <div class="form-group"><label class="label">Desired Annual Income (${this.currencySymbol})</label><input type="number" class="input" id="fcr-income" value="100000" min="0"></div>
           <div class="form-group"><label class="label">Working Weeks/Year</label><input type="number" class="input" id="fcr-weeks" value="48" min="1" max="52"></div>
           <div class="form-group"><label class="label">Hours/Week</label><input type="number" class="input" id="fcr-hours" value="40" min="1" max="80"></div>
           <div class="form-group"><label class="label">Overhead %</label><input type="number" class="input" id="fcr-overhead" value="25" min="0" max="100"></div>
@@ -31,13 +34,22 @@ export class RateCalculator {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.incomeInput = root.querySelector('#fcr-income')!;
     this.weeksInput = root.querySelector('#fcr-weeks')!;
     this.hoursInput = root.querySelector('#fcr-hours')!;
     this.overheadInput = root.querySelector('#fcr-overhead')!;
     this.taxInput = root.querySelector('#fcr-tax')!;
     this.resultEl = root.querySelector('#fcr-result')!;
+
+    const [defaultCurrency, defaultTaxRate] = await Promise.all([
+      db.getPreference('defaultCurrency', 'USD') as Promise<string>,
+      db.getPreference('defaultTaxRate', '') as Promise<number | string>,
+    ]);
+    this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
+    if (defaultTaxRate !== '' && defaultTaxRate !== null && defaultTaxRate !== undefined) {
+      this.taxInput.value = String(defaultTaxRate);
+    }
 
     wireSharedInputs(root);
 
@@ -67,15 +79,15 @@ export class RateCalculator {
       <div class="fcr-cards">
         <div class="fcr-card">
           <span class="fcr-card__label">Hourly Rate</span>
-          <span class="fcr-card__value">$${hourly.toFixed(2)}</span>
+          <span class="fcr-card__value">${this.currencySymbol}${hourly.toFixed(2)}</span>
         </div>
         <div class="fcr-card">
           <span class="fcr-card__label">Daily Rate</span>
-          <span class="fcr-card__value">$${daily.toFixed(2)}</span>
+          <span class="fcr-card__value">${this.currencySymbol}${daily.toFixed(2)}</span>
         </div>
         <div class="fcr-card">
           <span class="fcr-card__label">Weekly Rate</span>
-          <span class="fcr-card__value">$${weekly.toFixed(2)}</span>
+          <span class="fcr-card__value">${this.currencySymbol}${weekly.toFixed(2)}</span>
         </div>
         <div class="fcr-card">
           <span class="fcr-card__label">Billable Hours</span>

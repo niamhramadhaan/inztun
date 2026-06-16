@@ -58,7 +58,7 @@ export class ToolView {
     this.contentEl = this.element.querySelector('.tool-view__content');
 
     this.element.querySelector('#tool-back')?.addEventListener('click', () => {
-      router.navigate(this.moduleId);
+      router.navigate('home');
     });
 
     this.createSideNav();
@@ -140,7 +140,7 @@ export class ToolView {
   private _escHandler = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' && !e.defaultPrevented) {
       e.preventDefault();
-      router.navigate(this.moduleId);
+      router.navigate('home');
     }
   };
 
@@ -150,12 +150,14 @@ export class ToolView {
       this.element.style.opacity = '1';
       this.element.style.transform = 'none';
     }
+    document.getElementById('topbar')?.style.setProperty('display', 'none');
   }
 
   hide(): void {
     if (this.element) {
       this.element.style.display = 'none';
     }
+    document.getElementById('topbar')?.style.removeProperty('display');
   }
 
   destroy(): void {

@@ -1,5 +1,7 @@
 import { Toast } from '../../../components/Toast';
+import { db } from '../../../core/db';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 
 const TEMPLATES: Record<string, { name: string; text: string }> = {
   contractor: {
@@ -50,7 +52,7 @@ Start Date: {{date}}
 Estimated Completion: {{end_date}}
 
 4. COMPENSATION
-Total Project Fee: \${{total_fee}}
+Total Project Fee: {{currency}}{{total_fee}}
 Payment Schedule:
 - 50% upon signing
 - 50% upon completion
@@ -121,6 +123,7 @@ export class ContractTemplates {
   private previewEl!: HTMLPreElement;
   private varsContainer!: HTMLDivElement;
   private currentVars: Record<string, string> = {};
+  private currencySymbol = '$';
 
   render(): string {
     return `
@@ -140,13 +143,17 @@ export class ContractTemplates {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.templateSelect = root.querySelector('#fcct-template')!;
     this.previewEl = root.querySelector('#fcct-preview')!;
     this.varsContainer = root.querySelector('#fcct-vars')!;
 
+    const defaultCurrency = await db.getPreference('defaultCurrency', 'USD') as string;
+    this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
+    this.currentVars['currency'] = this.currencySymbol;
+
     this.templateSelect.addEventListener('change', () => {
-      this.currentVars = {};
+      this.currentVars = { currency: this.currencySymbol };
       this.renderVars();
       this.update();
     });
@@ -164,8 +171,7 @@ export class ContractTemplates {
   private renderVars(): void {
     const template = TEMPLATES[this.templateSelect.value];
     const matches = template.text.match(/\{\{(\w+)\}\}/g) || [];
-    const vars = [...new Set(matches.map(m => m.replace(/[{}]/g, '')))];
-
+    const vars = [...new Set(matches.map(m => m.replace(/[{}]/g, '')))].filter(v => v !== 'currency');
     this.varsContainer.innerHTML = vars.map(v => `
       <div class="form-group"><label class="label" data-shared>${v.replace(/_/g, ' ')}</label><input type="text" class="input" data-var="${v}" placeholder="${v}"></div>
     `).join('');

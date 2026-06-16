@@ -8,21 +8,18 @@ import { getPlaygroundToolInfo } from './tool-data';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
 
 import { TypingTest } from './tools/typing-test';
-import { MorseCode } from './tools/morse-code';
-import { AsciiArt } from './tools/ascii-art';
+import { BannerGenerator } from './tools/ascii-art';
 import { PixelArt } from './tools/pixel-art';
 
 const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { id: 'typing-test', Tool: TypingTest, span: { col: 6, row: 1 }, featured: true },
-  { id: 'ascii-art', Tool: AsciiArt, span: { col: 6, row: 1 } },
-  { id: 'morse-code', Tool: MorseCode, span: { col: 6, row: 1 } },
+  { id: 'banner-generator', Tool: BannerGenerator, span: { col: 6, row: 1 } },
   { id: 'pixel-art', Tool: PixelArt, span: { col: 8, row: 2 } },
 ];
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'typing-test': 'Test your typing speed with WPM and accuracy tracking.',
-  'morse-code': 'Encode and decode Morse code with audio playback.',
-  'ascii-art': 'Generate ASCII art text banners.',
+  'banner-generator': 'Generate text banners for terminal, README, and CLI headers.',
   'pixel-art': 'Draw pixel art on a grid and export as PNG.',
 };
 

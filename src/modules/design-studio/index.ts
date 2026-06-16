@@ -16,6 +16,7 @@ import { ImageResize } from './tools/image-resize';
 import { ImageConvert } from './tools/image-convert';
 import { ContrastChecker } from './tools/contrast-checker';
 import { FaviconGenerator } from './tools/favicon-generator';
+import { LogoBuilder } from './tools/logo-builder';
 
 const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { id: 'css-gradient', Tool: CssGradient, span: { col: 6, row: 1 } },
@@ -27,6 +28,7 @@ const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { id: 'image-convert', Tool: ImageConvert, span: { col: 6, row: 1 } },
   { id: 'contrast-checker', Tool: ContrastChecker, span: { col: 6, row: 1 } },
   { id: 'favicon-generator', Tool: FaviconGenerator, span: { col: 6, row: 1 } },
+  { id: 'logo-builder', Tool: LogoBuilder, span: { col: 6, row: 1 } },
 ];
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -39,6 +41,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'image-convert': 'Convert between PNG, JPEG, and WebP formats.',
   'contrast-checker': 'Check WCAG contrast ratios for accessible text on any background.',
   'favicon-generator': 'Generate favicons in all standard sizes from any image.',
+  'logo-builder': 'Build logos with shapes, icons, and text. Export as PNG.',
 };
 
 interface ToolInstance {
@@ -551,6 +554,192 @@ export class DesignStudio {
         }
         .imgc-preview { flex-direction: column; }
         .fav-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+      }
+
+      /* ── Logo Builder ── */
+      .lb-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: var(--space-4);
+        align-items: start;
+      }
+      .lb-controls {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .lb-section {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .lb-shape-picker {
+        display: flex;
+        gap: var(--space-1);
+      }
+      .lb-shape-btn {
+        width: 36px;
+        height: 36px;
+        font-size: var(--text-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lb-shape-btn--active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .lb-color-row {
+        display: flex;
+        gap: var(--space-3);
+        align-items: center;
+      }
+      .lb-color-field {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .lb-color-label {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .lb-color-input {
+        width: 36px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        background: transparent;
+      }
+      .lb-color-hex {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .lb-source-toggle {
+        display: flex;
+        gap: var(--space-1);
+      }
+      .lb-source-btn--active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .lb-icon-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .lb-icon-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lb-icon-btn--active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .lb-icon-preview {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lb-icon-preview svg {
+        width: 16px;
+        height: 16px;
+      }
+      .lb-text-input {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .lb-slider {
+        width: 100%;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--bg-deep);
+        border-radius: 3px;
+        outline: none;
+      }
+      .lb-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .lb-size-val {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .lb-saved-swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .lb-saved-swatch {
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: transform 150ms ease;
+        padding: 0;
+      }
+      .lb-saved-swatch:hover {
+        transform: scale(1.2);
+      }
+      .lb-preview-area {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .lb-canvas-stack {
+        position: relative;
+        width: 256px;
+        height: 256px;
+      }
+      .lb-canvas {
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        background-image: linear-gradient(45deg, var(--bg-deep) 25%, transparent 25%),
+          linear-gradient(-45deg, var(--bg-deep) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, var(--bg-deep) 75%),
+          linear-gradient(-45deg, transparent 75%, var(--bg-deep) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      }
+      .lb-canvas--overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+      .lb-preview-canvas {
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        background-image: linear-gradient(45deg, var(--bg-deep) 25%, transparent 25%),
+          linear-gradient(-45deg, var(--bg-deep) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, var(--bg-deep) 75%),
+          linear-gradient(-45deg, transparent 75%, var(--bg-deep) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      }
+      @media (max-width: 768px) {
+        .lb-layout {
+          grid-template-columns: 1fr;
+        }
       }
     `;
     document.head.appendChild(style);

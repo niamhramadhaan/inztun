@@ -1,3 +1,6 @@
+import { db } from '../../../core/db';
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
+
 const BRACKETS_2024 = [
   { rate: 0.10, min: 0, max: 11600 },
   { rate: 0.12, min: 11600, max: 47150 },
@@ -26,6 +29,7 @@ export class TaxEstimator {
       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>`;
 
+  private currencySymbol = '$';
   private incomeInput!: HTMLInputElement;
   private statusSelect!: HTMLSelectElement;
   private resultEl!: HTMLDivElement;
@@ -36,7 +40,7 @@ export class TaxEstimator {
       <div class="tool-area">
         <div class="tax-controls">
           <div class="form-group" style="flex:1;">
-            <label class="label">Annual Income ($)</label>
+            <label class="label">Annual Income (${this.currencySymbol})</label>
             <input type="number" class="input" id="tax-income" placeholder="75000" min="0" step="1000" style="font-family:var(--font-mono);">
           </div>
           <div class="form-group">
@@ -54,22 +58,26 @@ export class TaxEstimator {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.incomeInput = root.querySelector('#tax-income')!;
     this.statusSelect = root.querySelector('#tax-status')!;
     this.resultEl = root.querySelector('#tax-result')!;
     this.barEl = root.querySelector('#tax-bar')!;
     const breakdownEl = root.querySelector('#tax-breakdown')!;
 
+    const defaultCurrency = await db.getPreference('defaultCurrency', 'USD') as string;
+    this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
+
     const update = () => {
       const income = parseFloat(this.incomeInput.value) || 0;
       const brackets = this.statusSelect.value === 'married' ? BRACKETS_MARRIED : BRACKETS_2024;
       const result = this.calculate(income, brackets);
+      const s = this.currencySymbol;
 
       this.resultEl.innerHTML = `
         <div class="tax-stat">
           <span class="tax-stat__label">Total Tax</span>
-          <span class="tax-stat__value" style="color:var(--color-error);">$${result.totalTax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value" style="color:var(--color-error);">${s}${result.totalTax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Effective Rate</span>
@@ -77,11 +85,11 @@ export class TaxEstimator {
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Take-Home</span>
-          <span class="tax-stat__value" style="color:var(--color-success);">$${result.takeHome.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value" style="color:var(--color-success);">${s}${result.takeHome.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Monthly</span>
-          <span class="tax-stat__value">$${(result.takeHome / 12).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value">${s}${(result.takeHome / 12).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
       `;
 
@@ -89,7 +97,7 @@ export class TaxEstimator {
         .filter(b => b.amount > 0)
         .map(b => {
           const pct = (b.amount / income) * 100;
-          return `<div class="tax-bar__segment" style="width:${pct}%;background:${this.bracketColor(b.rate)};" title="${(b.rate * 100).toFixed(0)}%: $${b.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}"></div>`;
+          return `<div class="tax-bar__segment" style="width:${pct}%;background:${this.bracketColor(b.rate)};" title="${(b.rate * 100).toFixed(0)}%: ${s}${b.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}"></div>`;
         }).join('');
 
       breakdownEl.innerHTML = result.bracketBreakdown
@@ -97,8 +105,8 @@ export class TaxEstimator {
         .map(b => `
           <div class="tax-row">
             <span class="tax-row__rate">${(b.rate * 100).toFixed(0)}%</span>
-            <span class="tax-row__range">$${b.min.toLocaleString()} – ${b.max === Infinity ? '∞' : '$' + b.max.toLocaleString()}</span>
-            <span class="tax-row__amount">$${b.tax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            <span class="tax-row__range">${s}${b.min.toLocaleString()} – ${b.max === Infinity ? '∞' : s + b.max.toLocaleString()}</span>
+            <span class="tax-row__amount">${s}${b.tax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
           </div>
         `).join('');
     };

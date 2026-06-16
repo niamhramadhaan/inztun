@@ -5,7 +5,11 @@ dist/
 .DS_Store
 .env
 .env.local
-.env.*.local
-~/
+.env.*.local~
 skills-lock.json
 .agents/
+
+# Agent config (ponytail)
+hooks/
+skills/
+.opencode/

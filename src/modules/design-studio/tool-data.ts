@@ -46,6 +46,11 @@ export const DESIGN_STUDIO_TOOL_DATA: Record<string, ToolInfo> = {
     tips: ['Square images give the best results — crop beforehand if needed', 'Each size has its use case shown next to the preview', 'Downloads as transparent PNG', 'The 512×512 size works for PWA splash screens too'],
     related: ['image-compress', 'image-resize'],
   },
+  'logo-builder': {
+    useCases: ['Creating a quick logo for a side project', 'Building icon-based marks from the inztun icon set', 'Designing simple geometric logos with shapes and text', 'Exporting PNG logos for use in headers, favicons, or social'],
+    tips: ['Choose a shape background first, then layer your icon or text on top', 'Use the size slider to find the right balance between icon and shape', 'Import colors from your saved palette for brand consistency', 'Downloaded PNG is 256×256 — use Image Resize for other dimensions'],
+    related: ['favicon-generator', 'css-gradient'],
+  },
 };
 
 export function getDesignStudioToolInfo(toolId: string): ToolInfo {

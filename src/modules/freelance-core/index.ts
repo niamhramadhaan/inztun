@@ -539,6 +539,161 @@ export class FreelanceCore {
         gap: var(--space-1);
         margin-top: var(--space-2);
       }
+      .fccl-client--expanded {
+        border-color: var(--accent-border);
+      }
+      .fccl-client__header--clickable {
+        cursor: pointer;
+      }
+      .fccl-client__badges {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .fccl-client__project-count {
+        font-size: var(--text-xs);
+        padding: var(--space-1) var(--space-2);
+        background: var(--accent-dim);
+        color: var(--accent);
+        border-radius: var(--radius-pill);
+      }
+      .fccl-projects {
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-hairline);
+      }
+      .fccl-projects__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-2);
+      }
+      .fccl-projects__count {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .fccl-project-card {
+        padding: var(--space-2) var(--space-3);
+        background: var(--bg-glass);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--space-1);
+      }
+      .fccl-project-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .fccl-project-card__name {
+        font-size: var(--text-sm);
+        font-weight: 500;
+      }
+      .fccl-project-card__status {
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+      }
+      .fccl-project-card__meta {
+        display: flex;
+        gap: var(--space-3);
+        margin-top: var(--space-1);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .fccl-project-card__deadline {
+        color: var(--color-warning);
+      }
+      .fccl-project-card__budget {
+        font-family: var(--font-mono);
+      }
+      .fccl-project-card__desc {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        margin-top: var(--space-1);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .fccl-project-card__actions {
+        display: flex;
+        gap: var(--space-1);
+        margin-top: var(--space-2);
+      }
+      .fccl-project-form {
+        padding: var(--space-3);
+        background: var(--bg-glass);
+        border: 1px solid var(--accent-border);
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--space-2);
+      }
+      .fccl-project-form__row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+      }
+      .fccl-notes-section {
+        margin-top: var(--space-3);
+        padding-top: var(--space-2);
+        border-top: 1px solid var(--border-hairline);
+      }
+      .fccl-notes-section__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-1);
+      }
+      .fccl-notes-section__count {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+      }
+      .fccl-note-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background 150ms ease;
+        font-size: var(--text-xs);
+      }
+      .fccl-note-item:hover {
+        background: var(--bg-glass);
+      }
+      .fccl-note-item__title {
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .fccl-note-item__date {
+        color: var(--text-ghost);
+        font-family: var(--font-mono);
+        flex-shrink: 0;
+        margin-left: var(--space-2);
+      }
+      .fccl-notes-section__more {
+        font-size: var(--text-xs);
+        color: var(--text-ghost);
+        padding-left: var(--space-2);
+      }
+      .fcinv-item--group {
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid var(--border-hairline);
+      }
+      .fcinv-item__group-label {
+        flex: 1;
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .fctt-entry__linked,
+      .fce-item__linked {
+        font-size: var(--text-xs);
+        color: var(--accent);
+        opacity: 0.6;
+      }
       .fci-layout {
         display: grid;
         grid-template-columns: 1fr 420px;
@@ -654,6 +809,7 @@ export class FreelanceCore {
           print-color-adjust: exact;
         }
         #cosmos, #topbar, .orb, .side-nav,
+        .bottom-nav, .bottom-nav__backdrop, .bottom-nav__sheet,
         .tool-view__header, .tool-actions,
         .fci-form, .fci-history,
         .fci-preview-col > *:not(.fci-paper) {

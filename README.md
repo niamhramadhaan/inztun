@@ -43,16 +43,13 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 ### 🎮 Playground
 
-*6 fun & creative tools*
+*3 fun & creative tools*
 
 | Tool | Description |
 |------|-------------|
 | Typing Test | WPM & accuracy tracking |
-| ASCII Art | Text to ASCII banners |
-| Zalgo Text | Creepy zalgo generator |
-| Flip Text | Upside down text |
-| Leet Speak | 1337 5p34k converter |
-| Morse Code | Encode/decode with audio |
+| Banner Generator | Text banners for terminal & README |
+| Pixel Art | Draw pixel art on a grid |
 
 ---
 

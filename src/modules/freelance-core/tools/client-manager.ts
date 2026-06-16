@@ -1,15 +1,7 @@
 import { Toast } from '../../../components/Toast';
+import { db, type Client, type Project, type Note } from '../../../core/db';
+import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-
-interface Client {
-  id: number;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  notes: string;
-  status: 'active' | 'paused' | 'completed';
-}
 
 export class ClientManager {
   id = 'client-manager';
@@ -22,9 +14,15 @@ export class ClientManager {
     </svg>`;
   badge = '';
   private clients: Client[] = [];
+  private projects: Project[] = [];
+  private clientNotes: Map<number, Note[]> = new Map();
   private listEl!: HTMLDivElement;
   private formEl!: HTMLDivElement;
   private editingId: number | null = null;
+  private expandedClientId: number | null = null;
+  private projectFormClientId: number | null = null;
+  private editingProjectId: number | null = null;
+  private locale = 'en-US';
 
   render(): string {
     return `
@@ -54,12 +52,27 @@ export class ClientManager {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.listEl = root.querySelector('#fccl-list')!;
     this.formEl = root.querySelector('#fccl-form')!;
 
-    const stored = localStorage.getItem('fccl-clients');
-    if (stored) this.clients = JSON.parse(stored);
+    const [clients, projects, allNotes, defaultLocale] = await Promise.all([
+      db.getAllClients(),
+      db.getAllProjects(),
+      db.getAllNotes(),
+      db.getPreference('defaultLocale', 'en-US') as Promise<string>,
+    ]);
+    this.clients = clients;
+    this.projects = projects;
+    this.locale = defaultLocale || 'en-US';
+
+    this.clientNotes = new Map();
+    for (const note of allNotes) {
+      if (note.clientId) {
+        if (!this.clientNotes.has(note.clientId)) this.clientNotes.set(note.clientId, []);
+        this.clientNotes.get(note.clientId)!.push(note);
+      }
+    }
 
     root.querySelector('#fccl-save')!.addEventListener('click', () => this.saveClient());
     root.querySelector('#fccl-clear')!.addEventListener('click', () => this.clearForm());
@@ -89,7 +102,8 @@ export class ClientManager {
       this.clients.unshift(client);
     }
 
-    this.save();
+    db.putClient(client);
+    db.logActivity(this.editingId ? 'client-update' : 'client-add', `${this.editingId ? 'Updated' : 'Added'} client: ${client.name}`);
     this.renderList();
     this.clearForm();
     Toast.success(this.editingId ? 'Client updated' : 'Client added');
@@ -110,7 +124,7 @@ export class ClientManager {
 
   private deleteClient(id: number): void {
     this.clients = this.clients.filter(c => c.id !== id);
-    this.save();
+    db.deleteClient(id);
     this.renderList();
   }
 
@@ -123,6 +137,78 @@ export class ClientManager {
     (document.getElementById('fccl-status') as HTMLSelectElement).value = 'active';
   }
 
+  private toggleExpandClient(clientId: number): void {
+    this.expandedClientId = this.expandedClientId === clientId ? null : clientId;
+    this.projectFormClientId = null;
+    this.editingProjectId = null;
+    this.renderList();
+  }
+
+  private toggleProjectForm(clientId: number): void {
+    if (this.projectFormClientId === clientId) {
+      this.projectFormClientId = null;
+      this.editingProjectId = null;
+    } else {
+      this.projectFormClientId = clientId;
+      this.editingProjectId = null;
+    }
+    this.renderList();
+  }
+
+  private editProject(project: Project): void {
+    this.projectFormClientId = project.clientId;
+    this.editingProjectId = project.id;
+    this.expandedClientId = project.clientId;
+    this.renderList();
+  }
+
+  private async saveProject(clientId: number): Promise<void> {
+    const name = (document.getElementById(`fcpj-name-${clientId}`) as HTMLInputElement)?.value.trim();
+    if (!name) return;
+
+    const description = (document.getElementById(`fcpj-desc-${clientId}`) as HTMLTextAreaElement)?.value || '';
+    const status = (document.getElementById(`fcpj-status-${clientId}`) as HTMLSelectElement)?.value as Project['status'] || 'active';
+    const budgetStr = (document.getElementById(`fcpj-budget-${clientId}`) as HTMLInputElement)?.value;
+    const budget = budgetStr ? parseFloat(budgetStr) : undefined;
+    const currency = (document.getElementById(`fcpj-currency-${clientId}`) as HTMLInputElement)?.value || undefined;
+    const deadline = (document.getElementById(`fcpj-deadline-${clientId}`) as HTMLInputElement)?.value || undefined;
+
+    if (this.editingProjectId) {
+      const existing = this.projects.find(p => p.id === this.editingProjectId);
+      if (existing) {
+        existing.name = name;
+        existing.description = description;
+        existing.status = status;
+        existing.budget = budget;
+        existing.currency = currency;
+        existing.deadline = deadline;
+        await db.updateProject(existing);
+        db.logActivity('project-update', `Updated project: ${name}`);
+        Toast.success('Project updated');
+      }
+    } else {
+      const project = await db.createProject({ clientId, name, description, status, budget, currency, deadline });
+      this.projects.unshift(project);
+      db.logActivity('project-create', `Created project: ${name}`);
+      Toast.success('Project created');
+    }
+
+    this.projectFormClientId = null;
+    this.editingProjectId = null;
+    this.renderList();
+  }
+
+  private async deleteProject(projectId: number): Promise<void> {
+    this.projects = this.projects.filter(p => p.id !== projectId);
+    await db.deleteProject(projectId);
+    this.renderList();
+    Toast.success('Project deleted');
+  }
+
+  private getClientProjects(clientId: number): Project[] {
+    return this.projects.filter(p => p.clientId === clientId);
+  }
+
   private renderList(): void {
     const statusColors: Record<string, string> = {
       active: 'var(--color-success)',
@@ -130,35 +216,236 @@ export class ClientManager {
       completed: 'var(--text-muted)',
     };
 
+    const projectStatusColors: Record<string, string> = {
+      active: 'var(--color-success)',
+      completed: 'var(--accent)',
+      archived: 'var(--text-muted)',
+    };
+
     this.listEl.innerHTML = this.clients.length === 0
       ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No clients yet.</p>'
-      : this.clients.map(c => `
-        <div class="fccl-client">
-          <div class="fccl-client__header">
-            <span class="fccl-client__name">${c.name}</span>
-            <span class="fccl-client__status" style="color:${statusColors[c.status]}">${c.status}</span>
+      : this.clients.map(c => {
+        const isExpanded = this.expandedClientId === c.id;
+        const clientProjects = this.getClientProjects(c.id);
+        const activeCount = clientProjects.filter(p => p.status === 'active').length;
+
+        let projectsHtml = '';
+        if (isExpanded) {
+          const showProjectForm = this.projectFormClientId === c.id;
+          const editingProject = this.editingProjectId ? this.projects.find(p => p.id === this.editingProjectId) : null;
+
+          projectsHtml = `
+            <div class="fccl-projects">
+              <div class="fccl-projects__header">
+                <span class="fccl-projects__count">${clientProjects.length} project${clientProjects.length !== 1 ? 's' : ''}</span>
+                <button class="btn btn--ghost btn--sm fccl-new-project" data-client-id="${c.id}">+ New Project</button>
+              </div>
+              ${showProjectForm ? this.renderProjectForm(c.id, editingProject) : ''}
+              ${clientProjects.length === 0 && !showProjectForm
+                ? '<p style="color:var(--text-ghost);font-size:var(--text-xs);padding:var(--space-2) 0;">No projects yet.</p>'
+                : clientProjects.map(p => `
+                  <div class="fccl-project-card">
+                    <div class="fccl-project-card__header">
+                      <span class="fccl-project-card__name">${p.name}</span>
+                      <span class="fccl-project-card__status" style="color:${projectStatusColors[p.status]}">${p.status}</span>
+                    </div>
+                    <div class="fccl-project-card__meta">
+                      ${p.deadline ? `<span class="fccl-project-card__deadline">${this.formatDeadline(p.deadline)}</span>` : ''}
+                      ${p.budget ? `<span class="fccl-project-card__budget">${p.currency || '$'}${p.budget.toLocaleString()}</span>` : ''}
+                    </div>
+                    ${p.description ? `<p class="fccl-project-card__desc">${p.description}</p>` : ''}
+                    <div class="fccl-project-card__actions">
+                      <button class="btn btn--ghost btn--sm fccl-edit-project" data-project-id="${p.id}">Edit</button>
+                      <button class="btn btn--ghost btn--sm fccl-delete-project" data-project-id="${p.id}">×</button>
+                    </div>
+                  </div>
+                `).join('')}
+            </div>
+            ${this.renderClientNotes(c.id)}
+          `;
+        }
+
+        return `
+          <div class="fccl-client ${isExpanded ? 'fccl-client--expanded' : ''}">
+            <div class="fccl-client__header fccl-client__header--clickable" data-client-id="${c.id}">
+              <span class="fccl-client__name">${c.name}</span>
+              <span class="fccl-client__badges">
+                ${activeCount > 0 ? `<span class="fccl-client__project-count">${activeCount} active</span>` : ''}
+                <span class="fccl-client__status" style="color:${statusColors[c.status]}">${c.status}</span>
+              </span>
+            </div>
+            ${c.company ? `<span class="fccl-client__company">${c.company}</span>` : ''}
+            <div class="fccl-client__actions">
+              <button class="btn btn--ghost btn--sm fccl-edit" data-id="${c.id}">Edit</button>
+              <button class="btn btn--ghost btn--sm fccl-delete" data-id="${c.id}">×</button>
+            </div>
+            ${projectsHtml}
           </div>
-          ${c.company ? `<span class="fccl-client__company">${c.company}</span>` : ''}
-          <div class="fccl-client__actions">
-            <button class="btn btn--ghost btn--sm fccl-edit" data-id="${c.id}">Edit</button>
-            <button class="btn btn--ghost btn--sm fccl-delete" data-id="${c.id}">×</button>
+        `;
+      }).join('');
+
+    this.bindListEvents();
+  }
+
+  private renderProjectForm(clientId: number, existing: Project | null): string {
+    return `
+      <div class="fccl-project-form">
+        <div class="fccl-project-form__fields">
+          <div class="form-group"><label class="label">Project Name</label>
+            <input type="text" class="input" id="fcpj-name-${clientId}" placeholder="Website Redesign" value="${existing?.name || ''}">
+          </div>
+          <div class="form-group"><label class="label">Description</label>
+            <textarea class="input input--textarea" id="fcpj-desc-${clientId}" rows="2" placeholder="Project details...">${existing?.description || ''}</textarea>
+          </div>
+          <div class="fccl-project-form__row">
+            <div class="form-group"><label class="label">Status</label>
+              <select class="input" id="fcpj-status-${clientId}">
+                <option value="active" ${existing?.status === 'active' ? 'selected' : ''}>Active</option>
+                <option value="completed" ${existing?.status === 'completed' ? 'selected' : ''}>Completed</option>
+                <option value="archived" ${existing?.status === 'archived' ? 'selected' : ''}>Archived</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="label">Deadline</label>
+              <input type="date" class="input" id="fcpj-deadline-${clientId}" value="${existing?.deadline || ''}">
+            </div>
+          </div>
+          <div class="fccl-project-form__row">
+            <div class="form-group"><label class="label">Budget</label>
+              <input type="number" class="input" id="fcpj-budget-${clientId}" placeholder="0.00" min="0" step="0.01" value="${existing?.budget || ''}">
+            </div>
+            <div class="form-group"><label class="label">Currency</label>
+              <input type="text" class="input" id="fcpj-currency-${clientId}" placeholder="USD" maxlength="3" value="${existing?.currency || ''}">
+            </div>
+          </div>
+          <div class="tool-actions">
+            <button class="btn btn--primary btn--sm fccl-save-project" data-client-id="${clientId}">${existing ? 'Update' : 'Create'}</button>
+            <button class="btn btn--ghost btn--sm fccl-cancel-project" data-client-id="${clientId}">Cancel</button>
           </div>
         </div>
-      `).join('');
+      </div>
+    `;
+  }
+
+  private renderClientNotes(clientId: number): string {
+    const notes = this.clientNotes.get(clientId) || [];
+    if (notes.length === 0) return '';
+
+    return `
+      <div class="fccl-notes-section">
+        <div class="fccl-notes-section__header">
+          <span class="fccl-notes-section__count">${notes.length} note${notes.length !== 1 ? 's' : ''}</span>
+          <button class="btn btn--ghost btn--sm fccl-open-scratchpad" data-client-id="${clientId}">Open in Scratchpad</button>
+        </div>
+        ${notes.slice(0, 3).map(n => {
+          const date = new Date(n.updatedAt).toLocaleDateString(this.locale, { month: 'short', day: 'numeric' });
+          const preview = n.content.replace(/[#*`\[\]>_~-]/g, '').trim().slice(0, 50);
+          return `
+            <div class="fccl-note-item" data-note-id="${n.id}">
+              <span class="fccl-note-item__title">${n.title || 'Untitled'}</span>
+              <span class="fccl-note-item__date">${date}</span>
+            </div>
+          `;
+        }).join('')}
+        ${notes.length > 3 ? `<span class="fccl-notes-section__more">+${notes.length - 3} more</span>` : ''}
+      </div>
+    `;
+  }
+
+  private formatDeadline(deadline: string): string {
+    const d = new Date(deadline + 'T00:00:00');
+    const now = new Date();
+    const diffMs = d.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return `Overdue by ${Math.abs(diffDays)}d`;
+    if (diffDays === 0) return 'Due today';
+    if (diffDays === 1) return 'Due tomorrow';
+    if (diffDays <= 7) return `Due in ${diffDays}d`;
+    return d.toLocaleDateString(this.locale, { month: 'short', day: 'numeric' });
+  }
+
+  private bindListEvents(): void {
+    this.listEl.querySelectorAll('.fccl-client__header--clickable').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('.fccl-client__badges') || target.closest('.fccl-client__name')) {
+          this.toggleExpandClient(parseInt(target.closest('[data-client-id]')!.getAttribute('data-client-id')!));
+        }
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-client__header--clickable').forEach(el => {
+      el.addEventListener('click', () => {
+        this.toggleExpandClient(parseInt(el.getAttribute('data-client-id')!));
+      });
+    });
 
     this.listEl.querySelectorAll('.fccl-edit').forEach(btn => {
-      btn.addEventListener('click', (e) => this.editClient(parseInt((e.target as HTMLElement).dataset.id!)));
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.editClient(parseInt((e.target as HTMLElement).dataset.id!));
+      });
     });
 
     this.listEl.querySelectorAll('.fccl-delete').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.deleteClient(parseInt((e.target as HTMLElement).dataset.id!));
       });
     });
-  }
 
-  private save(): void {
-    localStorage.setItem('fccl-clients', JSON.stringify(this.clients));
+    this.listEl.querySelectorAll('.fccl-new-project').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleProjectForm(parseInt((e.target as HTMLElement).dataset.clientId!));
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-save-project').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.saveProject(parseInt((e.target as HTMLElement).dataset.clientId!));
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-cancel-project').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.projectFormClientId = null;
+        this.editingProjectId = null;
+        this.renderList();
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-edit-project').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const projectId = parseInt((e.target as HTMLElement).dataset.projectId!);
+        const project = this.projects.find(p => p.id === projectId);
+        if (project) this.editProject(project);
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-delete-project').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteProject(parseInt((e.target as HTMLElement).dataset.projectId!));
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-open-scratchpad').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        router.navigate('workers-suite', 'scratchpad');
+      });
+    });
+
+    this.listEl.querySelectorAll('.fccl-note-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        router.navigate('workers-suite', 'scratchpad');
+      });
+    });
   }
 
   destroy(): void {}

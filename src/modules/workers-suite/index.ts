@@ -19,6 +19,7 @@ import { MarkdownPreview } from './tools/markdown-preview';
 import { MarkdownToHtml } from './tools/markdown-html';
 import { PasswordGenerator } from './tools/password-gen';
 import { CssUnitConverter } from './tools/css-unit';
+import { Scratchpad } from './tools/scratchpad';
 
 const CATEGORIES: Category[] = [
   {
@@ -72,6 +73,7 @@ const CATEGORIES: Category[] = [
     tooltip: 'Unit conversions and CSS tools',
     tools: [
       { id: 'css-unit', Tool: CssUnitConverter, span: { col: 4, row: 1 } },
+      { id: 'scratchpad', Tool: Scratchpad, span: { col: 8, row: 2 } },
     ],
   },
 ];
@@ -92,6 +94,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'markdown-html': 'Convert markdown to clean HTML.',
   'password-gen': 'Generate secure passwords with customizable options.',
   'css-unit': 'Convert between px, rem, em, vw, vh, and more.',
+  'scratchpad': 'Markdown notes with auto-save, search, and client/project linking.',
 };
 
 interface ToolInstance {
@@ -337,6 +340,7 @@ export class WorkerSuite {
         flex-direction: column;
         gap: var(--space-3);
         flex: 1;
+        min-height: min-content;
       }
 
       .tool-area {
@@ -344,6 +348,7 @@ export class WorkerSuite {
         flex-direction: column;
         gap: var(--space-3);
         flex: 1;
+        min-height: min-content;
       }
 
       .tool-area__input, .tool-area__output { flex: 1; min-height: 0; }
@@ -980,6 +985,193 @@ export class WorkerSuite {
         border-bottom: 1px solid var(--border-hairline);
       }
       .cron-next-item:last-child { border-bottom: none; }
+
+      /* ── Scratchpad ── */
+      .sp-layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: var(--space-3);
+        min-height: 500px;
+      }
+      .sp-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        overflow: hidden;
+      }
+      .sp-sidebar__header {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .sp-search {
+        font-size: var(--text-xs) !important;
+        padding: var(--space-1) var(--space-2) !important;
+      }
+      .sp-list {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .sp-note-item {
+        padding: var(--space-2);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background 150ms ease;
+        border: 1px solid transparent;
+      }
+      .sp-note-item:hover {
+        background: var(--bg-glass);
+      }
+      .sp-note-item--active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+      }
+      .sp-note-item__title {
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sp-note-item__meta {
+        display: flex;
+        gap: var(--space-2);
+        font-size: var(--text-xs);
+        color: var(--text-ghost);
+        margin-top: 2px;
+      }
+      .sp-note-item__tag {
+        color: var(--accent);
+        font-size: 8px;
+      }
+      .sp-note-item__preview {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+      }
+      .sp-inline-rename {
+        font-size: var(--text-sm) !important;
+        padding: 0 var(--space-1) !important;
+        width: 100%;
+      }
+      .sp-editor {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        min-height: 500px;
+      }
+      .sp-editor__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        color: var(--text-muted);
+        gap: var(--space-3);
+      }
+      .sp-editor__active {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        flex: 1;
+      }
+      .sp-editor__toolbar {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .sp-title {
+        flex: 1;
+        font-weight: 500;
+      }
+      .sp-editor__actions {
+        display: flex;
+        gap: var(--space-1);
+        align-items: center;
+      }
+      .sp-saved {
+        font-size: var(--text-xs);
+        color: var(--color-success);
+        opacity: 0;
+        transition: opacity 300ms ease;
+      }
+      .sp-saved--visible {
+        opacity: 1;
+      }
+      .sp-insert-btns {
+        display: flex;
+        gap: 2px;
+      }
+      .sp-insert {
+        min-width: 28px;
+        padding: var(--space-1) !important;
+        font-family: var(--font-mono);
+        font-size: var(--text-xs) !important;
+      }
+      .sp-editor__link-row {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+      }
+      .sp-editor__link-row .label {
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .sp-link-select {
+        font-size: var(--text-xs) !important;
+        padding: var(--space-1) var(--space-2) !important;
+        max-width: 180px;
+      }
+      .sp-textarea {
+        flex: 1;
+        min-height: 300px;
+        resize: vertical;
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        line-height: 1.6;
+      }
+      .sp-preview {
+        flex: 1;
+        min-height: 300px;
+        overflow-y: auto;
+        padding: var(--space-3);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+      }
+      .sp-check {
+        padding: var(--space-1) 0;
+        color: var(--text-muted);
+      }
+      .sp-check--done {
+        color: var(--text-ghost);
+        text-decoration: line-through;
+      }
+      @media (max-width: 768px) {
+        .sp-layout {
+          grid-template-columns: 1fr;
+        }
+        .sp-sidebar {
+          max-height: 200px;
+        }
+      }
     `;
     document.head.appendChild(style);
   }

@@ -33,13 +33,14 @@ const TOOL_COMMANDS: Command[] = [
   { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: ICONS.hash, action: () => router.navigate('workers-suite', 'hash-generator'), isTool: true, moduleKey: 'workers-suite' },
   { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: ICONS.uuid, action: () => router.navigate('workers-suite', 'uuid-generator'), isTool: true, moduleKey: 'workers-suite' },
   { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: ICONS.lorem, action: () => router.navigate('workers-suite', 'lorem-ipsum'), isTool: true, moduleKey: 'workers-suite' },
+  { id: 'tool:scratchpad', label: 'Scratchpad', category: "Worker's Suite", icon: ICONS.scratchpad, action: () => router.navigate('workers-suite', 'scratchpad'), isTool: true, moduleKey: 'workers-suite' },
   { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: ICONS.keyboard, action: () => router.navigate('playground', 'typing-test'), isTool: true, moduleKey: 'playground' },
-  { id: 'tool:ascii-art', label: 'ASCII Art Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'ascii-art'), isTool: true, moduleKey: 'playground' },
-  { id: 'tool:morse-code', label: 'Morse Code', category: 'Playground', icon: ICONS.morse, action: () => router.navigate('playground', 'morse-code'), isTool: true, moduleKey: 'playground' },
+  { id: 'tool:banner-generator', label: 'Banner Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'banner-generator'), isTool: true, moduleKey: 'playground' },
   { id: 'tool:css-gradient', label: 'CSS Gradient Builder', category: 'Design Studio', icon: ICONS.gradient, action: () => router.navigate('design-studio', 'css-gradient'), isTool: true, moduleKey: 'design-studio' },
   { id: 'tool:border-radius', label: 'Border Radius Previewer', category: 'Design Studio', icon: ICONS.borderRadius, action: () => router.navigate('design-studio', 'border-radius'), isTool: true, moduleKey: 'design-studio' },
   { id: 'tool:typography-scale', label: 'Typography Scale', category: 'Design Studio', icon: ICONS.typeScale, action: () => router.navigate('design-studio', 'typography-scale'), isTool: true, moduleKey: 'design-studio' },
   { id: 'tool:spacing-system', label: 'Spacing System', category: 'Design Studio', icon: ICONS.spacing, action: () => router.navigate('design-studio', 'spacing-system'), isTool: true, moduleKey: 'design-studio' },
+  { id: 'tool:logo-builder', label: 'Logo Builder', category: 'Design Studio', icon: ICONS.logoBuilder, action: () => router.navigate('design-studio', 'logo-builder'), isTool: true, moduleKey: 'design-studio' },
   { id: 'tool:utm-builder', label: 'UTM Builder', category: 'Marketing Lab', icon: ICONS.utm, action: () => router.navigate('marketing-lab', 'utm-builder'), isTool: true, moduleKey: 'marketing-lab' },
   { id: 'tool:seo-meta', label: 'SEO Meta Generator', category: 'Marketing Lab', icon: ICONS.seo, action: () => router.navigate('marketing-lab', 'seo-meta'), isTool: true, moduleKey: 'marketing-lab' },
   { id: 'tool:social-counter', label: 'Social Media Counter', category: 'Marketing Lab', icon: ICONS.social, action: () => router.navigate('marketing-lab', 'social-counter'), isTool: true, moduleKey: 'marketing-lab' },
@@ -53,10 +54,10 @@ const TOOL_COMMANDS: Command[] = [
 ];
 
 const ALL_COMMANDS: Command[] = [
+  { id: 'settings:accent', label: 'Settings', category: 'Settings', icon: ICONS.settings, action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS) },
+  { id: 'help:shortcuts', label: 'Keyboard Shortcuts', category: 'Help', icon: ICONS.settings, action: () => events.emit('shortcuts:open') },
   ...MODULE_COMMANDS,
   ...TOOL_COMMANDS,
-  { id: 'settings:accent', label: 'Change Accent Color', category: 'Settings', icon: ICONS.settings, action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS) },
-  { id: 'help:shortcuts', label: 'Keyboard Shortcuts', category: 'Help', icon: ICONS.settings, action: () => events.emit('shortcuts:open') },
 ];
 
 const MODULE_ORDER = ['workers-suite', 'playground', 'design-studio', 'marketing-lab', 'freelance-core'];
@@ -658,7 +659,7 @@ export class CommandPalette {
     }
 
     // Settings and Shortcuts
-    for (const cmd of [ALL_COMMANDS[ALL_COMMANDS.length - 2], ALL_COMMANDS[ALL_COMMANDS.length - 1]]) {
+    for (const cmd of ALL_COMMANDS.filter(c => c.id === 'settings:accent' || c.id === 'help:shortcuts')) {
       const isSelected = globalIndex === this.selectedIndex;
       html += `
         <div class="cmd-item ${isSelected ? 'cmd-item--selected' : ''}" data-index="${globalIndex}" data-id="${cmd.id}">

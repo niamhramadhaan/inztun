@@ -1,9 +1,9 @@
 import { Toast } from '../../../components/Toast';
 import type { Tool } from '../../../types';
 
-export class AsciiArt implements Tool {
-  id = 'ascii-art';
-  name = 'ASCII Art';
+export class BannerGenerator implements Tool {
+  id = 'banner-generator';
+  name = 'Banner Generator';
   icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path d="M4 7V4h16v3"/>
       <path d="M9 20h6"/>

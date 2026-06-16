@@ -25,13 +25,14 @@ const COMMANDS: Command[] = [
   { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: ICONS.hash, action: () => router.navigate('workers-suite', 'hash-generator'), isTool: true },
   { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: ICONS.uuid, action: () => router.navigate('workers-suite', 'uuid-generator'), isTool: true },
   { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: ICONS.lorem, action: () => router.navigate('workers-suite', 'lorem-ipsum'), isTool: true },
+  { id: 'tool:scratchpad', label: 'Scratchpad', category: "Worker's Suite", icon: ICONS.scratchpad, action: () => router.navigate('workers-suite', 'scratchpad'), isTool: true },
   { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: ICONS.keyboard, action: () => router.navigate('playground', 'typing-test'), isTool: true },
-  { id: 'tool:ascii-art', label: 'ASCII Art Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'ascii-art'), isTool: true },
-  { id: 'tool:morse-code', label: 'Morse Code', category: 'Playground', icon: ICONS.morse, action: () => router.navigate('playground', 'morse-code'), isTool: true },
+  { id: 'tool:banner-generator', label: 'Banner Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'banner-generator'), isTool: true },
   { id: 'tool:css-gradient', label: 'CSS Gradient Builder', category: 'Design Studio', icon: ICONS.gradient, action: () => router.navigate('design-studio', 'css-gradient'), isTool: true },
   { id: 'tool:border-radius', label: 'Border Radius Previewer', category: 'Design Studio', icon: ICONS.borderRadius, action: () => router.navigate('design-studio', 'border-radius'), isTool: true },
   { id: 'tool:typography-scale', label: 'Typography Scale', category: 'Design Studio', icon: ICONS.typeScale, action: () => router.navigate('design-studio', 'typography-scale'), isTool: true },
   { id: 'tool:spacing-system', label: 'Spacing System', category: 'Design Studio', icon: ICONS.spacing, action: () => router.navigate('design-studio', 'spacing-system'), isTool: true },
+  { id: 'tool:logo-builder', label: 'Logo Builder', category: 'Design Studio', icon: ICONS.logoBuilder, action: () => router.navigate('design-studio', 'logo-builder'), isTool: true },
   { id: 'tool:utm-builder', label: 'UTM Builder', category: 'Marketing Lab', icon: ICONS.utm, action: () => router.navigate('marketing-lab', 'utm-builder'), isTool: true },
   { id: 'tool:seo-meta', label: 'SEO Meta Generator', category: 'Marketing Lab', icon: ICONS.seo, action: () => router.navigate('marketing-lab', 'seo-meta'), isTool: true },
   { id: 'tool:social-counter', label: 'Social Media Counter', category: 'Marketing Lab', icon: ICONS.social, action: () => router.navigate('marketing-lab', 'social-counter'), isTool: true },
@@ -42,7 +43,7 @@ const COMMANDS: Command[] = [
   { id: 'tool:expense-tracker', label: 'Expense Tracker', category: 'Freelance Core', icon: ICONS.expense, action: () => router.navigate('freelance-core', 'expense-tracker'), isTool: true },
   { id: 'tool:contract-templates', label: 'Contract Templates', category: 'Freelance Core', icon: ICONS.contract, action: () => router.navigate('freelance-core', 'contract-templates'), isTool: true },
   { id: 'tool:client-manager', label: 'Client Manager', category: 'Freelance Core', icon: ICONS.clients, action: () => router.navigate('freelance-core', 'client-manager'), isTool: true },
-  { id: 'settings:accent', label: 'Change Accent Color', category: 'Settings', icon: ICONS.settings, action: () => events.emit('palette:open-settings') },
+  { id: 'settings:accent', label: 'Settings', category: 'Settings', icon: ICONS.settings, action: () => events.emit('palette:open-settings') },
 ];
 
 export class TopBar {
@@ -278,7 +279,7 @@ export class TopBar {
     style.id = 'topbar-styles';
     style.textContent = `
       .topbar {
-        position: sticky;
+        position: relative;
         top: 0;
         z-index: 100;
         background: rgba(3, 3, 5, 0.85);

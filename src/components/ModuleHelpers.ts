@@ -84,7 +84,7 @@ export function createTipsPanel(params: CreateTipsPanelParams): HTMLElement {
     .join('');
 
   panel.innerHTML = `
-    <button class="tips-toggle" aria-expanded="false">
+    <button class="tips-toggle" aria-expanded="true">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <circle cx="12" cy="12" r="10"/>
         <path d="M12 16v-4M12 8h.01"/>
@@ -94,12 +94,14 @@ export function createTipsPanel(params: CreateTipsPanelParams): HTMLElement {
         <polyline points="6 9 12 15 18 9"/>
       </svg>
     </button>
-    <div class="tips-content">
+    <div class="tips-content" style="display:block;">
       ${data.useCases.length ? `<div class="tips-section"><h4 class="tips-section__title">Use Cases</h4><ul class="tips-list">${data.useCases.map(uc => `<li>${uc}</li>`).join('')}</ul></div>` : ''}
       ${data.tips.length ? `<div class="tips-section"><h4 class="tips-section__title">Pro Tips</h4><ul class="tips-list">${data.tips.map(tip => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
       ${relatedTools ? `<div class="tips-section tips-related"><h4 class="tips-section__title">Related Tools</h4><div class="tips-related__links">${relatedTools}</div></div>` : ''}
     </div>
   `;
+
+  panel.classList.add('tips-panel--expanded');
 
   const toggle = panel.querySelector('.tips-toggle')!;
   const content = panel.querySelector('.tips-content') as HTMLElement;

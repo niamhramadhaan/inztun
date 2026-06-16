@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { db } from '../../../core/db';
 
 const POPULAR_ZONES = [
   'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
@@ -20,6 +21,7 @@ export class TimezoneConverter {
   private zoneSelects: HTMLSelectElement[] = [];
   private displayEls: HTMLDivElement[] = [];
   private zonesContainer!: HTMLDivElement;
+  private locale = 'en-US';
 
   render(): string {
     return `
@@ -48,9 +50,12 @@ export class TimezoneConverter {
     `;
   }
 
-  init(root: HTMLElement): void {
+  async init(root: HTMLElement): Promise<void> {
     this.timeInput = root.querySelector('#tz-time')!;
     this.zonesContainer = root.querySelector('#tz-grid')!;
+
+    const defaultLocale = await db.getPreference('defaultLocale', 'en-US') as string;
+    this.locale = defaultLocale || 'en-US';
 
     const now = new Date();
     const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -83,12 +88,12 @@ export class TimezoneConverter {
       const zone = this.zoneSelects[i].value;
       try {
         const date = new Date(value);
-        const formatter = new Intl.DateTimeFormat('en-US', {
+        const formatter = new Intl.DateTimeFormat(this.locale, {
           timeZone: zone,
           hour: 'numeric', minute: '2-digit', hour12: true,
           weekday: 'short', month: 'short', day: 'numeric',
         });
-        const offsetFormatter = new Intl.DateTimeFormat('en-US', {
+        const offsetFormatter = new Intl.DateTimeFormat(this.locale, {
           timeZone: zone,
           timeZoneName: 'short',
         });

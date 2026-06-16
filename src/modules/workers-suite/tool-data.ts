@@ -56,6 +56,11 @@ export const TOOL_DATA: Record<string, ToolInfo> = {
     tips: ['Set your base font size (defaults to 16px)', 'Viewport width input makes vw/vh calculations accurate', 'All 10 unit conversions shown at once — no switching tabs', 'Copy values with the unit suffix included'],
     related: ['json-formatter', 'css-gradient'],
   },
+  'scratchpad': {
+    useCases: ['Quick notes during a call or meeting', 'Drafting email replies or documentation', 'Storing code snippets and terminal commands', 'Linking notes to specific clients or projects'],
+    tips: ['Double-click a note title to rename it inline', 'Use the toolbar to quickly insert markdown formatting', 'Toggle Preview to see rendered markdown', 'Link notes to clients or projects for organized context'],
+    related: ['markdown-preview', 'json-formatter'],
+  },
 };
 
 export function getToolInfo(toolId: string): ToolInfo {
