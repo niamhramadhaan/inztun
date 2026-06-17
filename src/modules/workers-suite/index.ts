@@ -5,6 +5,7 @@ import type { Category } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
+import { Toast } from '../../components/Toast';
 import { getToolInfo } from './tool-data';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions } from '../../types/index';
 
@@ -20,6 +21,13 @@ import { MarkdownToHtml } from './tools/markdown-html';
 import { PasswordGenerator } from './tools/password-gen';
 import { CssUnitConverter } from './tools/css-unit';
 import { Scratchpad } from './tools/scratchpad';
+import { PdfMerge } from './tools/pdf-merge';
+import { PdfSplit } from './tools/pdf-split';
+import { PdfCompress } from './tools/pdf-compress';
+import { PdfProtect } from './tools/pdf-protect';
+import { PdfSign } from './tools/pdf-sign';
+import { PdfToImages } from './tools/pdf-to-images';
+import { PdfMetadata } from './tools/pdf-metadata';
 
 const CATEGORIES: Category[] = [
   {
@@ -76,6 +84,20 @@ const CATEGORIES: Category[] = [
       { id: 'scratchpad', Tool: Scratchpad, span: { col: 8, row: 2 } },
     ],
   },
+  {
+    id: 'pdf',
+    name: 'PDF Tools',
+    tooltip: 'Merge, split, compress, sign, and convert PDF documents',
+    tools: [
+      { id: 'pdf-merge', Tool: PdfMerge, span: { col: 6, row: 1 }, featured: true },
+      { id: 'pdf-split', Tool: PdfSplit, span: { col: 6, row: 1 } },
+      { id: 'pdf-compress', Tool: PdfCompress, span: { col: 4, row: 1 } },
+      { id: 'pdf-protect', Tool: PdfProtect, span: { col: 4, row: 1 } },
+      { id: 'pdf-sign', Tool: PdfSign, span: { col: 4, row: 1 } },
+      { id: 'pdf-to-images', Tool: PdfToImages, span: { col: 6, row: 1 } },
+      { id: 'pdf-metadata', Tool: PdfMetadata, span: { col: 6, row: 1 } },
+    ],
+  },
 ];
 
 const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
@@ -95,6 +117,13 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'password-gen': 'Generate secure passwords with customizable options.',
   'css-unit': 'Convert between px, rem, em, vw, vh, and more.',
   'scratchpad': 'Markdown notes with auto-save, search, and client/project linking.',
+  'pdf-merge': 'Combine multiple PDF files into one with drag-to-reorder.',
+  'pdf-split': 'Extract specific pages or split every page into individual PDFs.',
+  'pdf-compress': 'Reduce PDF file size by stripping unused objects and metadata.',
+  'pdf-protect': 'Add or remove password protection from PDF files.',
+  'pdf-sign': 'Place a visual signature on PDF — draw, type, or upload.',
+  'pdf-to-images': 'Convert PDF pages to PNG images at configurable DPI.',
+  'pdf-metadata': 'View and edit PDF metadata — title, author, keywords, and more.',
 };
 
 interface ToolInstance {
@@ -260,10 +289,13 @@ export class WorkerSuite {
   private toggleFavorite(toolId: string): void {
     if (this.favorites.has(toolId)) {
       this.favorites.delete(toolId);
+      db.setPreference('ws-favorites', Array.from(this.favorites));
+      Toast.info('Removed from favorites');
     } else {
       this.favorites.add(toolId);
+      db.setPreference('ws-favorites', Array.from(this.favorites));
+      Toast.info('Added to favorites');
     }
-    db.setPreference('ws-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
@@ -1171,6 +1203,209 @@ export class WorkerSuite {
         .sp-sidebar {
           max-height: 200px;
         }
+      }
+
+      /* ── PDF Tools ── */
+      .pdf-drop-zone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+        padding: var(--space-8) var(--space-4);
+        border: 2px dashed var(--border-hairline);
+        border-radius: var(--radius-lg);
+        cursor: pointer;
+        transition: all 200ms ease;
+        color: var(--text-muted);
+        text-align: center;
+        min-height: 200px;
+      }
+      .pdf-drop-zone:hover { border-color: var(--accent); color: var(--text-secondary); }
+      .pdf-drop-zone--active { border-color: var(--accent); background: var(--accent-dim); }
+      .pdf-drop-hint { font-size: var(--text-xs); color: var(--text-ghost); }
+
+      .pdf-file-list { display: flex; flex-direction: column; gap: var(--space-2); }
+      .pdf-file-item {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-3); background: var(--bg-deep);
+        border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+        cursor: grab; transition: all 150ms ease;
+      }
+      .pdf-file-item:hover { border-color: var(--border-subtle); }
+      .pdf-file-item--dragging { opacity: 0.5; border-color: var(--accent); }
+      .pdf-file-handle { color: var(--text-ghost); cursor: grab; font-size: var(--text-lg); }
+      .pdf-file-icon { font-size: 1.5rem; }
+      .pdf-file-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+      .pdf-file-name { font-size: var(--text-sm); color: var(--text-primary); }
+      .pdf-file-meta { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
+      .pdf-file-remove { color: var(--text-muted); }
+      .pdf-file-remove:hover { color: var(--color-error); }
+
+      .pdf-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
+
+      .pdf-note {
+        font-size: var(--text-xs); color: var(--text-ghost);
+        padding: var(--space-2) var(--space-3); background: var(--bg-deep);
+        border-radius: var(--radius-sm); margin-top: var(--space-2);
+        line-height: 1.5;
+      }
+
+      /* Split */
+      .pdf-split-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0; }
+      .pdf-thumb {
+        display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+        padding: var(--space-2); border: 2px solid transparent;
+        border-radius: var(--radius-md); cursor: pointer; transition: all 150ms ease;
+      }
+      .pdf-thumb:hover { border-color: var(--border-subtle); background: var(--bg-deep); }
+      .pdf-thumb--selected { border-color: var(--accent); background: var(--accent-dim); }
+      .pdf-thumb-canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+      .pdf-thumb-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
+      .pdf-split-range { display: flex; flex-direction: column; gap: var(--space-2); }
+      .pdf-split-info { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
+
+      /* Compress */
+      .pdf-compress-info {
+        display: flex; align-items: center; gap: var(--space-4);
+        padding: var(--space-4); background: var(--bg-deep);
+        border-radius: var(--radius-lg); margin-bottom: var(--space-3);
+        flex-wrap: wrap; justify-content: center;
+      }
+      .pdf-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .pdf-stat-label { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+      .pdf-stat-value { font-size: var(--text-lg); font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
+      .pdf-stat-value--accent { color: var(--accent); }
+      .pdf-stat-arrow { font-size: var(--text-xl); color: var(--text-ghost); }
+
+      /* Protect */
+      .pdf-protect-controls { display: flex; flex-direction: column; gap: var(--space-3); }
+
+      /* Sign */
+      .pdf-sign-layout { display: grid; grid-template-columns: 1fr 300px; gap: var(--space-4); align-items: start; }
+      @media (max-width: 768px) { .pdf-sign-layout { grid-template-columns: 1fr; } }
+      .pdf-sign-preview-wrap { display: flex; flex-direction: column; gap: var(--space-2); }
+      .pdf-sign-preview {
+        position: relative; overflow: hidden; border-radius: var(--radius-md);
+        border: 1px solid var(--border-hairline); background: var(--bg-deep);
+      }
+      .pdf-sign-canvas { width: 100%; height: auto; display: block; }
+      .pdf-sign-overlay {
+        position: absolute; left: 65%; top: 80%;
+        min-width: 40px; min-height: 20px;
+        border: 2px dashed var(--accent);
+        border-radius: var(--radius-sm); cursor: move;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.8); touch-action: none;
+      }
+      .pdf-sign-sig-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+      .pdf-sign-sig-placeholder { font-size: var(--text-xs); color: var(--text-ghost); pointer-events: none; }
+      .pdf-sig-handle {
+        position: absolute; width: 10px; height: 10px;
+        background: var(--accent); border: 1px solid var(--bg-surface);
+        border-radius: 2px; z-index: 2;
+      }
+      .pdf-sig-handle--nw { top: -5px; left: -5px; cursor: nw-resize; }
+      .pdf-sig-handle--ne { top: -5px; right: -5px; cursor: ne-resize; }
+      .pdf-sig-handle--sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+      .pdf-sig-handle--se { bottom: -5px; right: -5px; cursor: se-resize; }
+      .pdf-sig-dims { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-align: center; }
+      .pdf-sign-options { display: flex; flex-direction: column; gap: var(--space-3); }
+      .pdf-sign-tabs { display: flex; gap: var(--space-1); }
+      .pdf-sign-tab.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+      .pdf-sign-draw { display: flex; flex-direction: column; gap: var(--space-2); }
+      .pdf-sign-draw-canvas {
+        width: 100%; height: 100px; border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md); background: white; cursor: crosshair; touch-action: none;
+      }
+      .pdf-sign-type { display: flex; flex-direction: column; gap: var(--space-2); }
+
+      /* To Images */
+      .pdf-images-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+      .pdf-images-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+      .pdf-image-thumb {
+        display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+        padding: var(--space-2); background: var(--bg-deep);
+        border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+      }
+      .pdf-image-thumb canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+      .pdf-image-thumb-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); text-align: center; }
+
+      /* Metadata */
+      .pdf-metadata-info {
+        padding: var(--space-3); background: var(--bg-deep);
+        border-radius: var(--radius-lg); margin-bottom: var(--space-3);
+      }
+      .pdf-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
+      .pdf-info-item { display: flex; flex-direction: column; gap: 2px; }
+      .pdf-info-label { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+      .pdf-info-value { font-size: var(--text-sm); font-family: var(--font-mono); color: var(--text-primary); }
+      .pdf-metadata-fields { display: flex; flex-direction: column; gap: var(--space-3); }
+
+      /* ── PDF Preview (shared) ── */
+      .pdf-preview-canvas {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-hairline);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        display: block;
+        margin-bottom: var(--space-3);
+        background: white;
+      }
+      .pdf-merge-thumb {
+        width: 40px;
+        height: 52px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-hairline);
+        object-fit: cover;
+        flex-shrink: 0;
+        background: white;
+      }
+      .pdf-split-preview {
+        margin: var(--space-3) 0;
+        text-align: center;
+      }
+      .pdf-split-preview canvas {
+        max-width: 100%;
+        max-height: 500px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-hairline);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        background: white;
+      }
+      .pdf-images-preview {
+        margin: var(--space-3) 0;
+        text-align: center;
+      }
+      .pdf-images-preview canvas {
+        max-width: 100%;
+        max-height: 500px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-hairline);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+        background: white;
+      }
+      .pdf-preview-label {
+        display: block;
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        margin-top: var(--space-1);
+      }
+      .pdf-sign-page-nav {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+      }
+      .pdf-sign-page-nav button {
+        padding: var(--space-1) var(--space-2);
+      }
+      .pdf-sign-page-nav span {
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
       }
     `;
     document.head.appendChild(style);

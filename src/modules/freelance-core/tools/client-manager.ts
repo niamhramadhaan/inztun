@@ -2,6 +2,7 @@ import { Toast } from '../../../components/Toast';
 import { db, type Client, type Project, type Note } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 
 export class ClientManager {
   id = 'client-manager';
@@ -23,6 +24,7 @@ export class ClientManager {
   private projectFormClientId: number | null = null;
   private editingProjectId: number | null = null;
   private locale = 'en-US';
+  private currencySymbol = '$';
 
   render(): string {
     return `
@@ -56,15 +58,17 @@ export class ClientManager {
     this.listEl = root.querySelector('#fccl-list')!;
     this.formEl = root.querySelector('#fccl-form')!;
 
-    const [clients, projects, allNotes, defaultLocale] = await Promise.all([
+    const [clients, projects, allNotes, defaultLocale, defaultCurrency] = await Promise.all([
       db.getAllClients(),
       db.getAllProjects(),
       db.getAllNotes(),
       db.getPreference('defaultLocale', 'en-US') as Promise<string>,
+      db.getPreference('defaultCurrency', 'USD') as Promise<string>,
     ]);
     this.clients = clients;
     this.projects = projects;
     this.locale = defaultLocale || 'en-US';
+    this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
 
     this.clientNotes = new Map();
     for (const note of allNotes) {
@@ -126,6 +130,7 @@ export class ClientManager {
     this.clients = this.clients.filter(c => c.id !== id);
     db.deleteClient(id);
     this.renderList();
+    Toast.success('Client deleted');
   }
 
   private clearForm(): void {
@@ -251,7 +256,7 @@ export class ClientManager {
                     </div>
                     <div class="fccl-project-card__meta">
                       ${p.deadline ? `<span class="fccl-project-card__deadline">${this.formatDeadline(p.deadline)}</span>` : ''}
-                      ${p.budget ? `<span class="fccl-project-card__budget">${p.currency || '$'}${p.budget.toLocaleString()}</span>` : ''}
+                      ${p.budget ? `<span class="fccl-project-card__budget">${p.currency || this.currencySymbol}${p.budget.toLocaleString()}</span>` : ''}
                     </div>
                     ${p.description ? `<p class="fccl-project-card__desc">${p.description}</p>` : ''}
                     <div class="fccl-project-card__actions">

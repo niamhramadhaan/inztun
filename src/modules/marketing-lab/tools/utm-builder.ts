@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { logToolAction } from '../../../core/activity';
 
 const PRESETS: Record<string, { source: string; medium: string }> = {
   'Google / CPC': { source: 'google', medium: 'cpc' },
@@ -86,11 +87,13 @@ export class UtmBuilder {
     root.querySelector('#mlu-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.previewEl.textContent || '');
       Toast.copied('URL');
+      logToolAction('utm-builder', 'Copied UTM link');
     });
 
     root.querySelector('#mlu-copy-params')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.buildParams());
       Toast.copied('Params');
+      logToolAction('utm-builder', 'Copied UTM params');
     });
 
     wireSharedInputs(root);

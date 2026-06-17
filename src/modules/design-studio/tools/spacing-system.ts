@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 export class SpacingSystem {
   id = 'spacing-system';
@@ -50,6 +51,7 @@ export class SpacingSystem {
     root.querySelector('#dss-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('CSS');
+      logToolAction('spacing-system', 'Copied spacing system CSS');
     });
 
     this.update();

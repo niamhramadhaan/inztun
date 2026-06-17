@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 interface ScaleStep {
   name: string;
@@ -62,6 +63,7 @@ export class TypographyScale {
     root.querySelector('#dst-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('CSS');
+      logToolAction('typography-scale', 'Copied typography scale CSS');
     });
 
     this.update();

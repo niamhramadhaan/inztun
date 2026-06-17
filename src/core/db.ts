@@ -500,6 +500,24 @@ class Database {
     });
   }
 
+  async getAllActivity(): Promise<Activity[]> {
+    const store = await this.getStore('activity');
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result.sort((a, b) => b.createdAt - a.createdAt));
+      request.onerror = () => resolve([]);
+    });
+  }
+
+  async clearActivity(): Promise<void> {
+    const store = await this.getStore('activity', 'readwrite');
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   private async getAllFromStore(storeName: string): Promise<unknown[]> {
     const store = await this.getStore(storeName);
     return new Promise((resolve) => {

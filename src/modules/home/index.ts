@@ -1,5 +1,7 @@
 import { Tile } from '../../components/Tile';
 import { ToolView } from '../../components/ToolView';
+import { ActivityLog } from '../../components/ActivityLog';
+import { getCurrencySymbol } from '../../components/SettingsPanel';
 import { router, ROUTES } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
@@ -31,6 +33,11 @@ import { ImageConvert } from '../design-studio/tools/image-convert';
 import { ContrastChecker } from '../design-studio/tools/contrast-checker';
 import { FaviconGenerator } from '../design-studio/tools/favicon-generator';
 import { LogoBuilder } from '../design-studio/tools/logo-builder';
+import { ImageCrop } from '../design-studio/tools/image-crop';
+import { ImageFilters } from '../design-studio/tools/image-filters';
+import { ImageMetadata } from '../design-studio/tools/image-metadata';
+import { FontPairer } from '../design-studio/tools/font-pairer';
+import { BrandKit } from '../design-studio/tools/brand-kit';
 import { UtmBuilder } from '../marketing-lab/tools/utm-builder';
 import { SeoMeta } from '../marketing-lab/tools/seo-meta';
 import { SocialCounter } from '../marketing-lab/tools/social-counter';
@@ -45,6 +52,14 @@ import { ContractTemplates } from '../freelance-core/tools/contract-templates';
 import { ClientManager } from '../freelance-core/tools/client-manager';
 import { TaxEstimator } from '../freelance-core/tools/tax-estimator';
 import { TimezoneConverter } from '../freelance-core/tools/timezone-converter';
+import { ProjectManager } from '../freelance-core/tools/project-manager';
+import { PdfMerge } from '../workers-suite/tools/pdf-merge';
+import { PdfSplit } from '../workers-suite/tools/pdf-split';
+import { PdfCompress } from '../workers-suite/tools/pdf-compress';
+import { PdfProtect } from '../workers-suite/tools/pdf-protect';
+import { PdfSign } from '../workers-suite/tools/pdf-sign';
+import { PdfToImages } from '../workers-suite/tools/pdf-to-images';
+import { PdfMetadata } from '../workers-suite/tools/pdf-metadata';
 
 const ALL_TOOLS: Record<string, { Tool: ToolClass; module: string; name: string; description: string }> = {
   'json-formatter': { Tool: JsonFormatter, module: 'workers-suite', name: 'JSON Formatter', description: 'Pretty-print, minify, and validate JSON data.' },
@@ -86,6 +101,19 @@ const ALL_TOOLS: Record<string, { Tool: ToolClass; module: string; name: string;
   'client-manager': { Tool: ClientManager, module: 'freelance-core', name: 'Clients', description: 'Organize client information and project notes.' },
   'tax-estimator': { Tool: TaxEstimator, module: 'freelance-core', name: 'Tax Estimator', description: 'Estimate US federal income tax by bracket with effective rate.' },
   'timezone-converter': { Tool: TimezoneConverter, module: 'freelance-core', name: 'Timezone', description: 'Convert times across multiple time zones with meeting planner.' },
+  'project-manager': { Tool: ProjectManager, module: 'freelance-core', name: 'Projects', description: 'Manage all projects across clients — create, track, and organize.' },
+  'image-crop': { Tool: ImageCrop, module: 'design-studio', name: 'Image Crop', description: 'Crop images with interactive handles and preset aspect ratios.' },
+  'image-filters': { Tool: ImageFilters, module: 'design-studio', name: 'Image Filters', description: 'Apply grayscale, sepia, brightness, contrast, blur, and sharpen filters.' },
+  'image-metadata': { Tool: ImageMetadata, module: 'design-studio', name: 'Image Metadata', description: 'Read and strip EXIF metadata from images.' },
+  'font-pairer': { Tool: FontPairer, module: 'design-studio', name: 'Font Pairer', description: 'Browse curated font pairings for headings and body text.' },
+  'brand-kit': { Tool: BrandKit, module: 'design-studio', name: 'Brand Kit', description: 'Build and export your brand colors, fonts, and logo as CSS.' },
+  'pdf-merge': { Tool: PdfMerge, module: 'workers-suite', name: 'PDF Merge', description: 'Combine multiple PDF files into one with drag-to-reorder.' },
+  'pdf-split': { Tool: PdfSplit, module: 'workers-suite', name: 'PDF Split', description: 'Extract specific pages or split every page into individual PDFs.' },
+  'pdf-compress': { Tool: PdfCompress, module: 'workers-suite', name: 'PDF Compress', description: 'Reduce PDF file size by stripping unused objects and metadata.' },
+  'pdf-protect': { Tool: PdfProtect, module: 'workers-suite', name: 'PDF Protect', description: 'Add or remove password protection from PDF files.' },
+  'pdf-sign': { Tool: PdfSign, module: 'workers-suite', name: 'PDF Sign', description: 'Place a visual signature on PDF — draw, type, or upload.' },
+  'pdf-to-images': { Tool: PdfToImages, module: 'workers-suite', name: 'PDF to Images', description: 'Convert PDF pages to PNG images at configurable DPI.' },
+  'pdf-metadata': { Tool: PdfMetadata, module: 'workers-suite', name: 'PDF Metadata', description: 'View and edit PDF metadata — title, author, keywords, and more.' },
 };
 
 const MODULE_NAMES: Record<string, string> = {
@@ -126,7 +154,9 @@ export class Home {
   private container: HTMLDivElement | null = null;
   private navTabsEl: HTMLDivElement | null = null;
   private _routeHandler: ((data: any) => void) | null = null;
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
   private locale = 'en-US';
+  private activityLog: ActivityLog | null = null;
 
   constructor(workspace: HTMLElement) {
     this.workspace = workspace;
@@ -135,6 +165,7 @@ export class Home {
   async render(): Promise<void> {
     this.workspace.className = 'workspace';
     this.addModuleStyles();
+    this.activityLog = new ActivityLog();
 
     this.container = document.createElement('div');
     this.container.className = 'module-container';
@@ -194,7 +225,8 @@ export class Home {
 
     // Load all data in parallel — each call is individually safe
     const [
-      activeTimer, invoices, usage, projects, clients, activity, userName_, defaultLocale
+      activeTimer, invoices, usage, projects, clients, activity, notes, defaultLocale, defaultCurrency,
+      wsFavorites, fcFavorites, dsFavorites, mlFavorites, pgFavorites
     ] = await Promise.all([
       db.getPreference('fc-active-timer').catch(() => null),
       db.getHistory('invoice', 100).catch(() => []),
@@ -202,8 +234,14 @@ export class Home {
       db.getAllProjects().catch(() => []),
       db.getAllClients().catch(() => []),
       db.getRecentActivity(10).catch(() => []),
-      db.getPreference('userName', '').catch(() => ''),
+      db.getAllNotes().catch(() => []),
       db.getPreference('defaultLocale', 'en-US').catch(() => 'en-US'),
+      db.getPreference('defaultCurrency', 'USD').catch(() => 'USD'),
+      db.getPreference('ws-favorites', []).catch(() => []),
+      db.getPreference('fc-favorites', []).catch(() => []),
+      db.getPreference('ds-favorites', []).catch(() => []),
+      db.getPreference('ml-favorites', []).catch(() => []),
+      db.getPreference('pg-favorites', []).catch(() => []),
     ]) as [
       { project: string; startTime: number } | null,
       Array<{ id: number; tool: string; data: unknown; timestamp: number }>,
@@ -211,10 +249,13 @@ export class Home {
       Array<{ id: number; clientId: number; name: string; status: string; deadline?: string; budget?: number; currency?: string }>,
       Array<{ id: number; name: string }>,
       Array<{ id: number; type: string; label: string; createdAt: number }>,
+      Array<{ id: number; title: string; content: string; updatedAt: number }>,
       string,
       string,
+      string[], string[], string[], string[], string[],
     ];
     this.locale = defaultLocale || 'en-US';
+    const allFavorites = [...new Set([...wsFavorites, ...fcFavorites, ...dsFavorites, ...mlFavorites, ...pgFavorites])];
 
     const clientMap = new Map(clients.map(c => [c.id, c.name]));
     const activeProjects = projects.filter(p => p.status === 'active').slice(0, 3);
@@ -261,6 +302,18 @@ export class Home {
     timerWidget.style.cursor = 'pointer';
     statsRow.appendChild(timerWidget);
 
+    // Live timer tick
+    if (activeTimer) {
+      const valueEl = timerWidget.querySelector('.home-stat-widget__value')!;
+      this.timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - activeTimer.startTime) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        const s = elapsed % 60;
+        valueEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    }
+
     // Invoice widget
     const invWidget = document.createElement('div');
     invWidget.className = 'home-stat-widget';
@@ -274,7 +327,7 @@ export class Home {
       invWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Invoices</span></div>
         <div class="home-stat-widget__value">${invoiceCount}</div>
-        <div class="home-stat-widget__detail">$${totalAmount.toFixed(0)} total</div>
+        <div class="home-stat-widget__detail">${getCurrencySymbol(defaultCurrency as string || 'USD')}${totalAmount.toFixed(0)} total</div>
       `;
     } else {
       invWidget.innerHTML = `
@@ -287,28 +340,123 @@ export class Home {
     invWidget.style.cursor = 'pointer';
     statsRow.appendChild(invWidget);
 
-    // Most Used widget
-    const recentWidget = document.createElement('div');
-    recentWidget.className = 'home-stat-widget';
-    const sorted = Object.entries(usage).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    const recentNames = sorted.map(([id]) => {
-      const data = ALL_TOOLS[id];
-      return data ? data.name : id;
+    // Quick Notes widget (inside stats row)
+    const notesWidget = document.createElement('div');
+    notesWidget.className = 'home-stat-widget home-stat-widget--notes';
+    const recentNotes = notes.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
+    if (recentNotes.length > 0) {
+      notesWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Quick Notes</span></div>
+        <div class="home-notes-grid">
+          ${recentNotes.map(n => {
+            const preview = (n.content || '').replace(/[#*`\[\]>_~-]/g, '').trim().slice(0, 40);
+            return `
+              <div class="home-note-mini" data-id="${n.id}">
+                <div class="home-note-mini__title">${n.title || 'Untitled'}</div>
+                <div class="home-note-mini__time">${this.relativeTime(n.updatedAt)}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      setTimeout(() => {
+        notesWidget.querySelectorAll('.home-note-mini').forEach(card => {
+          card.addEventListener('click', async () => {
+            const id = (card as HTMLElement).dataset.id!;
+            await db.setPreference('sp-active-note', parseInt(id));
+            router.navigate('workers-suite', 'scratchpad');
+          });
+        });
+      }, 0);
+    } else {
+      notesWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Quick Notes</span></div>
+        <div class="home-stat-widget__value home-stat-widget__value--muted">—</div>
+        <div class="home-stat-widget__detail">No notes yet</div>
+      `;
+    }
+    notesWidget.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.home-note-mini')) return;
+      router.navigate('workers-suite', 'scratchpad');
     });
+    notesWidget.style.cursor = 'pointer';
+    statsRow.appendChild(notesWidget);
+
+    // Usage chart widget
+    const usageWidget = document.createElement('div');
+    usageWidget.className = 'home-stat-widget home-stat-widget--wide';
+    const sorted = Object.entries(usage).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
     if (sorted.length > 0) {
-      recentWidget.innerHTML = `
-        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used</span></div>
-        <div class="home-stat-widget__value">${sorted[0][1]}</div>
-        <div class="home-stat-widget__detail">${recentNames.join(', ')}</div>
+      usageWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used Tools</span></div>
+        <div class="home-usage-chart">
+          ${sorted.map(([id, count]) => {
+            const data = ALL_TOOLS[id];
+            const name = data ? data.name : id;
+            const pct = Math.round((count / maxCount) * 100);
+            return `
+              <div class="home-usage-bar">
+                <span class="home-usage-bar__name">${name}</span>
+                <div class="home-usage-bar__track"><div class="home-usage-bar__fill" style="width:${pct}%"></div></div>
+                <span class="home-usage-bar__count">${count}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
       `;
     } else {
-      recentWidget.innerHTML = `
-        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used</span></div>
+      usageWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used Tools</span></div>
         <div class="home-stat-widget__value home-stat-widget__value--muted">—</div>
         <div class="home-stat-widget__detail">Start using tools to see stats</div>
       `;
     }
-    statsRow.appendChild(recentWidget);
+    statsRow.appendChild(usageWidget);
+
+    // Active Projects widget (in stats row)
+    const projWidget = document.createElement('div');
+    projWidget.className = 'home-stat-widget home-stat-widget--projects';
+    if (activeProjects.length > 0) {
+      projWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Active Projects</span></div>
+        <div class="home-projects-list">
+          ${activeProjects.map(p => {
+            const deadline = p.deadline ? this.formatProjectDeadline(p.deadline) : '';
+            const isUrgent = p.deadline && this.getDeadlineDays(p.deadline) <= 7 && this.getDeadlineDays(p.deadline) >= 0;
+            return `
+              <div class="home-project-mini" data-project-id="${p.id}" data-project-name="${p.name}">
+                <div class="home-project-mini__name">${p.name}</div>
+                <div class="home-project-mini__client">${clientMap.get(p.clientId) || 'Unknown'}</div>
+                ${deadline ? `<div class="home-project-mini__deadline ${isUrgent ? 'home-project-mini__deadline--urgent' : ''}">${deadline}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      setTimeout(() => {
+        projWidget.querySelectorAll('.home-project-mini').forEach(card => {
+          card.addEventListener('click', () => {
+            const projectId = parseInt((card as HTMLElement).dataset.projectId!);
+            const projectName = (card as HTMLElement).dataset.projectName!;
+            db.setPreference('fc-preselect-project', { projectId, projectName });
+            router.navigate('freelance-core', 'time-tracker');
+          });
+        });
+      }, 0);
+    } else {
+      projWidget.innerHTML = `
+        <div class="home-stat-widget__header"><span class="home-stat-widget__label">Active Projects</span></div>
+        <div class="home-stat-widget__value home-stat-widget__value--muted">—</div>
+        <div class="home-stat-widget__detail">No active projects</div>
+      `;
+    }
+    projWidget.style.cursor = 'pointer';
+    projWidget.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.home-project-mini')) return;
+      router.navigate('freelance-core', 'project-manager');
+    });
+    statsRow.appendChild(projWidget);
 
     this.gridView.appendChild(statsRow);
 
@@ -337,6 +485,10 @@ export class Home {
         ${ICONS.settings}
         Settings
       </button>
+      <button class="btn btn--ghost btn--sm home-qa-btn" data-action="defaults">
+        ${ICONS.defaults}
+        Defaults
+      </button>
       <button class="btn btn--ghost btn--sm home-qa-btn" data-action="shortcuts">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
         Shortcuts
@@ -346,79 +498,34 @@ export class Home {
 
     setTimeout(() => {
       quickActions.querySelectorAll('.home-qa-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const action = (btn as HTMLElement).dataset.action;
           switch (action) {
             case 'new-invoice': router.navigate('freelance-core', 'invoice-generator'); break;
             case 'start-timer': router.navigate('freelance-core', 'time-tracker'); break;
-            case 'new-note': router.navigate('workers-suite', 'scratchpad'); break;
+            case 'new-note':
+              const note = await db.createNote({ title: '', content: '' });
+              await db.setPreference('sp-active-note', note.id);
+              router.navigate('workers-suite', 'scratchpad');
+              break;
             case 'new-client': router.navigate('freelance-core', 'client-manager'); break;
             case 'settings': events.emit('palette:open-settings'); break;
+            case 'defaults': events.emit('palette:open-defaults'); break;
             case 'shortcuts': events.emit('shortcuts:open'); break;
           }
         });
       });
     }, 0);
 
-    // ── Active Projects ──
-    const projSection = document.createElement('div');
-    projSection.className = 'home-projects fade-in';
-    if (activeProjects.length > 0) {
-      projSection.innerHTML = `
-        <div class="home-section-label"><span>Active Projects</span></div>
-        <div class="home-projects__grid">
-          ${activeProjects.map(p => {
-            const deadline = p.deadline ? this.formatProjectDeadline(p.deadline) : '';
-            const isUrgent = p.deadline && this.getDeadlineDays(p.deadline) <= 7 && this.getDeadlineDays(p.deadline) >= 0;
-            return `
-              <div class="home-project-card">
-                <div class="home-project-card__header">
-                  <span class="home-project-card__name">${p.name}</span>
-                  ${p.budget ? `<span class="home-project-card__budget">${p.currency || '$'}${p.budget.toLocaleString()}</span>` : ''}
-                </div>
-                <div class="home-project-card__client">${clientMap.get(p.clientId) || 'Unknown Client'}</div>
-                ${deadline ? `<div class="home-project-card__deadline ${isUrgent ? 'home-project-card__deadline--urgent' : ''}">${deadline}</div>` : ''}
-                <button class="btn btn--ghost btn--sm home-project-card__timer" data-project-id="${p.id}" data-project-name="${p.name}">▶ Start Timer</button>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-      setTimeout(() => {
-        projSection.querySelectorAll('.home-project-card__timer').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const projectId = parseInt((btn as HTMLElement).dataset.projectId!);
-            const projectName = (btn as HTMLElement).dataset.projectName!;
-            db.setPreference('fc-preselect-project', { projectId, projectName });
-            router.navigate('freelance-core', 'time-tracker');
-          });
-        });
-      }, 0);
-    } else {
-      projSection.innerHTML = `
-        <div class="home-section-label"><span>Active Projects</span></div>
-        <div class="home-widget-empty">
-          <p>No active projects yet.</p>
-          <button class="btn btn--ghost btn--sm" id="home-add-project">Create a Project</button>
-        </div>
-      `;
-      setTimeout(() => {
-        document.getElementById('home-add-project')?.addEventListener('click', () => {
-          router.navigate('freelance-core', 'client-manager');
-        });
-      }, 0);
-    }
-    this.gridView.appendChild(projSection);
-
     // ── Activity Feed ──
     const actSection = document.createElement('div');
     actSection.className = 'home-activity fade-in';
     if (activity.length > 0) {
       actSection.innerHTML = `
-        <div class="home-section-label"><span>Recent Activity</span></div>
+        <div class="home-section-label"><span>Recent Activity</span><button class="btn btn--ghost btn--sm" id="al-view-all">View All</button></div>
         <div class="home-activity__list">
           ${activity.map(a => `
-            <div class="home-activity-item">
+            <div class="home-activity-item" data-type="${a.type}" data-meta="${a.meta || ''}">
               <span class="home-activity-item__icon">${this.getActivityIcon(a.type)}</span>
               <span class="home-activity-item__label">${a.label}</span>
               <span class="home-activity-item__time">${this.relativeTime(a.createdAt)}</span>
@@ -426,6 +533,35 @@ export class Home {
           `).join('')}
         </div>
       `;
+      setTimeout(() => {
+        actSection.querySelectorAll('.home-activity-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const type = (item as HTMLElement).dataset.type;
+            const meta = (item as HTMLElement).dataset.meta;
+            switch (type) {
+              case 'invoice': router.navigate('freelance-core', 'invoice-generator'); break;
+              case 'client-add':
+              case 'client-update': router.navigate('freelance-core', 'client-manager'); break;
+              case 'project-create':
+              case 'project-update': router.navigate('freelance-core', 'client-manager'); break;
+              case 'note-create': router.navigate('workers-suite', 'scratchpad'); break;
+              case 'tool-action': {
+                const toolId = meta;
+                const wsTools = ['pdf-merge','pdf-split','pdf-compress','pdf-protect','pdf-sign','pdf-to-images','pdf-metadata','lorem-ipsum','char-counter','base64','url-encoder','json-formatter','hash-generator','uuid-generator','password-generator','css-unit','markdown-preview','markdown-html','scratchpad'];
+                const dsTools = ['css-gradient','border-radius','typography-scale','spacing-system','image-compress','image-resize','image-convert','contrast-checker','favicon-generator','logo-builder','image-crop','image-filters','image-metadata','font-pairer','brand-kit'];
+                const mlTools = ['utm-builder','social-resizer','social-counter','seo-meta','og-preview','color-palette'];
+                const fcTools = ['invoice-generator','time-tracker','rate-calculator','contract-templates','expense-tracker','client-manager','tax-estimator','timezone-converter','project-manager'];
+                if (wsTools.includes(toolId)) router.navigate('workers-suite', toolId);
+                else if (dsTools.includes(toolId)) router.navigate('design-studio', toolId);
+                else if (mlTools.includes(toolId)) router.navigate('marketing-lab', toolId);
+                else if (fcTools.includes(toolId)) router.navigate('freelance-core', toolId);
+                break;
+              }
+              default: router.navigate('home');
+            }
+          });
+        });
+      }, 0);
     } else {
       actSection.innerHTML = `
         <div class="home-section-label"><span>Recent Activity</span></div>
@@ -436,11 +572,13 @@ export class Home {
     }
     this.gridView.appendChild(actSection);
 
-    // ── Favorites ──
-    const wsFavorites = await db.getPreference('favorites', []) as string[];
-    const fcFavorites = await db.getPreference('fc-favorites', []) as string[];
-    const allFavorites = [...new Set([...wsFavorites, ...fcFavorites])];
+    // View All button
+    setTimeout(() => {
+      const viewAllBtn = actSection.querySelector('#al-view-all');
+      viewAllBtn?.addEventListener('click', () => this.activityLog?.open());
+    }, 0);
 
+    // ── Favorites ──
     const favSection = document.createElement('div');
     favSection.className = 'home-favorites fade-in';
     const sectionLabel = document.createElement('div');
@@ -552,6 +690,7 @@ export class Home {
       'note-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       'project-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
       'project-update': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>',
+      'tool-action': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
     };
     return icons[type] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
   }
@@ -794,6 +933,7 @@ export class Home {
         font-size: var(--text-xs);
         font-weight: 600;
         color: var(--text-muted);
+        flex: 1;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
@@ -885,6 +1025,11 @@ export class Home {
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-sm);
         font-size: var(--text-xs);
+        cursor: pointer;
+        transition: border-color 150ms ease;
+      }
+      .home-activity-item:hover {
+        border-color: var(--accent-border);
       }
       .home-activity-item__icon {
         color: var(--text-muted);
@@ -927,6 +1072,156 @@ export class Home {
       .home-favorites {
         margin-bottom: var(--space-4);
       }
+
+      /* ── Usage Chart ── */
+      .home-stat-widget--wide {
+        grid-column: span 2;
+      }
+      .home-usage-chart {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-top: var(--space-1);
+      }
+      .home-usage-bar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .home-usage-bar__name {
+        width: 100px;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        text-align: right;
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .home-usage-bar__track {
+        flex: 1;
+        height: 8px;
+        background: var(--bg-deep);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .home-usage-bar__fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 4px;
+        transition: width 300ms ease;
+        opacity: 0.7;
+      }
+      .home-usage-bar__count {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        width: 30px;
+        text-align: right;
+      }
+
+      /* ── Quick Notes (in stats row) ── */
+      .home-stat-widget--notes {
+        cursor: pointer;
+      }
+      .home-notes-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-1);
+        max-height: 160px;
+        overflow-y: auto;
+        margin-top: var(--space-1);
+      }
+      .home-notes-grid::-webkit-scrollbar {
+        width: 4px;
+      }
+      .home-notes-grid::-webkit-scrollbar-thumb {
+        background: var(--border-hairline);
+        border-radius: 2px;
+      }
+      .home-note-mini {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--space-2);
+        background: var(--bg-glass);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: border-color 150ms ease;
+        min-width: 0;
+      }
+      .home-note-mini:hover {
+        border-color: var(--accent-border);
+      }
+      .home-note-mini__title {
+        font-size: var(--text-xs);
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .home-note-mini__time {
+        font-size: 10px;
+        color: var(--text-ghost);
+        font-family: var(--font-mono);
+      }
+
+      /* ── Active Projects (in stats row) ── */
+      .home-stat-widget--projects {
+        cursor: pointer;
+      }
+      .home-projects-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        max-height: 160px;
+        overflow-y: auto;
+        margin-top: var(--space-1);
+      }
+      .home-projects-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      .home-projects-list::-webkit-scrollbar-thumb {
+        background: var(--border-hairline);
+        border-radius: 2px;
+      }
+      .home-project-mini {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--space-2);
+        background: var(--bg-glass);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: border-color 150ms ease;
+      }
+      .home-project-mini:hover {
+        border-color: var(--accent-border);
+      }
+      .home-project-mini__name {
+        font-size: var(--text-xs);
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .home-project-mini__client {
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .home-project-mini__deadline {
+        font-size: 10px;
+        font-family: var(--font-mono);
+        color: var(--color-warning);
+      }
+      .home-project-mini__deadline--urgent {
+        color: var(--color-error) !important;
+      }
+
       @media (max-width: 768px) {
         .home-nav__tab-label {
           display: none;
@@ -952,13 +1247,19 @@ export class Home {
         .home-quick-actions {
           flex-wrap: wrap;
         }
+        .home-stat-widget--wide {
+          grid-column: span 1;
+        }
       }
     `;
     document.head.appendChild(style);
   }
 
   destroy(): void {
+    if (this.timerInterval) clearInterval(this.timerInterval);
     if (this._routeHandler) events.off(ROUTES.CHANGE, this._routeHandler);
+    this.activityLog?.destroy();
+    this.activityLog = null;
     this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
     this.toolInstances.clear();
     this.navTabsEl = null;

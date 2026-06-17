@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 export class BorderRadius {
   id = 'border-radius';
@@ -68,6 +69,7 @@ export class BorderRadius {
     root.querySelector('#dsr-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('CSS');
+      logToolAction('border-radius', 'Copied border radius CSS');
     });
 
     this.update();

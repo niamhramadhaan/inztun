@@ -66,6 +66,27 @@ export class Toast {
         color: var(--accent);
       }
 
+      .toast--progress {
+        border-color: var(--accent-border);
+        min-width: 200px;
+      }
+
+      .toast__progress-bar {
+        width: 100%;
+        height: 4px;
+        background: var(--bg-deep);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: var(--space-1);
+      }
+
+      .toast__progress-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 2px;
+        transition: width 200ms ease;
+      }
+
       .toast__icon {
         width: 16px;
         height: 16px;
@@ -150,5 +171,36 @@ export class Toast {
 
   static copied(what = 'Copied'): void {
     this.success(`${what} to clipboard`);
+  }
+
+  static progress(message: string, current: number, total: number): HTMLDivElement {
+    this.init();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast--progress';
+    const pct = Math.round((current / total) * 100);
+    toast.innerHTML = `
+      <span class="toast__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+      <div style="flex:1;">
+        <span class="toast__message">${message}</span>
+        <div class="toast__progress-bar"><div class="toast__progress-fill" style="width:${pct}%"></div></div>
+      </div>
+    `;
+
+    this.container!.appendChild(toast);
+    return toast;
+  }
+
+  static updateProgress(toast: HTMLDivElement, current: number, total: number): void {
+    const fill = toast.querySelector('.toast__progress-fill') as HTMLElement;
+    if (fill) {
+      fill.style.width = `${Math.round((current / total) * 100)}%`;
+    }
+    if (current >= total) {
+      setTimeout(() => {
+        toast.classList.add('toast--exit');
+        setTimeout(() => toast.remove(), 200);
+      }, 800);
+    }
   }
 }

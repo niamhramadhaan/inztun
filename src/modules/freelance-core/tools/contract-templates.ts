@@ -2,6 +2,7 @@ import { Toast } from '../../../components/Toast';
 import { db } from '../../../core/db';
 import { wireSharedInputs } from '../../../core/shared-inputs';
 import { getCurrencySymbol } from '../../../components/SettingsPanel';
+import { logToolAction } from '../../../core/activity';
 
 const TEMPLATES: Record<string, { name: string; text: string }> = {
   contractor: {
@@ -161,6 +162,7 @@ export class ContractTemplates {
     root.querySelector('#fcct-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.previewEl.textContent || '');
       Toast.copied('Contract');
+      logToolAction('contract-templates', 'Copied contract template');
     });
 
     this.renderVars();

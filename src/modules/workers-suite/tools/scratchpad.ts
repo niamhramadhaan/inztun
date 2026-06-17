@@ -256,6 +256,7 @@ export class Scratchpad implements Tool {
       db.updateNote(note);
       if (this.activeNote?.id === id) this.titleEl.value = newTitle;
       this.renderList();
+      Toast.success('Note renamed');
     };
 
     input.addEventListener('blur', finish);

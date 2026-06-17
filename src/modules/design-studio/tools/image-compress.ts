@@ -1,4 +1,6 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
+import { loadImage, canvasToBlob, downloadBlob, createDropZone, bindClipboardPaste, formatBytes, getExtFromMime } from '../../../utils/image';
 
 export class ImageCompress {
   id = 'image-compress';
@@ -11,33 +13,29 @@ export class ImageCompress {
   badge = 'Popular';
 
   private dropZone!: HTMLDivElement;
-  private fileInput!: HTMLInputElement;
   private controlsEl!: HTMLDivElement;
   private previewEl!: HTMLDivElement;
   private actionsEl!: HTMLDivElement;
   private qualitySlider!: HTMLInputElement;
   private qualityVal!: HTMLSpanElement;
+  private formatSelect!: HTMLSelectElement;
+  private targetInput!: HTMLInputElement;
+  private exifCheckbox!: HTMLInputElement;
+  private progressiveNote!: HTMLDivElement;
   private originalSizeEl!: HTMLSpanElement;
   private compressedSizeEl!: HTMLSpanElement;
   private savingsEl!: HTMLSpanElement;
+  private sizeBarEl!: HTMLDivElement;
   private originalCanvas!: HTMLCanvasElement;
   private compressedCanvas!: HTMLCanvasElement;
   private originalFile: File | null = null;
   private originalImage: HTMLImageElement | null = null;
+  private cleanupPaste!: () => void;
 
   render(): string {
     return `
       <div class="tool-area">
-        <div class="imgc-drop-zone" id="imgc-dropzone">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <path d="M21 15l-5-5L5 21"/>
-          </svg>
-          <p>Drop an image here or <strong>click to browse</strong></p>
-          <span class="imgc-drop-zone__hint">Supports PNG, JPEG, WebP, GIF</span>
-          <input type="file" id="imgc-file" accept="image/*" hidden>
-        </div>
+        <div id="imgc-dropzone"></div>
         <div class="imgc-controls" id="imgc-controls" style="display:none;">
           <div class="form-group" style="flex:1;">
             <label class="label">Quality: <span id="imgc-quality-val">80</span>%</label>
@@ -51,6 +49,19 @@ export class ImageCompress {
               <option value="image/png">PNG</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="label">Target Size (KB)</label>
+            <input type="number" class="input" id="imgc-target" placeholder="e.g. 200" min="1" style="width:100px;">
+          </div>
+          <div class="form-group" style="align-self:flex-end;">
+            <button class="btn btn--ghost btn--sm" id="imgc-auto">Auto-compress</button>
+          </div>
+        </div>
+        <div class="imgc-exif-row" id="imgc-exif-row" style="display:none;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="imgc-exif" checked> Strip EXIF metadata (Canvas redraw)
+          </label>
+          <span class="imgc-note">Progressive JPEG requires server-side encoding — Canvas outputs baseline only.</span>
         </div>
         <div class="imgc-preview" id="imgc-preview" style="display:none;">
           <div class="imgc-preview__item">
@@ -63,7 +74,12 @@ export class ImageCompress {
             <canvas id="imgc-compressed" class="imgc-canvas"></canvas>
             <span class="imgc-size" id="imgc-compressed-size">—</span>
           </div>
-          <div class="imgc-savings" id="imgc-savings"></div>
+          <div class="imgc-bar-wrap" id="imgc-bar-wrap" style="display:none;">
+            <div class="imgc-bar">
+              <div class="imgc-bar__fill" id="imgc-bar-fill"></div>
+            </div>
+            <div class="imgc-savings" id="imgc-savings"></div>
+          </div>
         </div>
         <div class="tool-actions" id="imgc-actions" style="display:none;">
           <button class="btn btn--primary" id="imgc-download">Download</button>
@@ -74,53 +90,50 @@ export class ImageCompress {
   }
 
   init(root: HTMLElement): void {
-    this.dropZone = root.querySelector('#imgc-dropzone')!;
-    this.fileInput = root.querySelector('#imgc-file')!;
+    this.dropZone = createDropZone({
+      id: 'imgc-dropzone',
+      hint: 'Supports PNG, JPEG, WebP',
+      onFile: (file) => this.handleFile(file),
+    });
+    root.querySelector('#imgc-dropzone')!.replaceWith(this.dropZone);
+
     this.controlsEl = root.querySelector('#imgc-controls')!;
     this.previewEl = root.querySelector('#imgc-preview')!;
     this.actionsEl = root.querySelector('#imgc-actions')!;
     this.qualitySlider = root.querySelector('#imgc-quality')!;
     this.qualityVal = root.querySelector('#imgc-quality-val')!;
+    this.formatSelect = root.querySelector('#imgc-format')!;
+    this.targetInput = root.querySelector('#imgc-target')!;
+    this.exifCheckbox = root.querySelector('#imgc-exif')!;
+    this.progressiveNote = root.querySelector('#imgc-exif-row')!;
     this.originalSizeEl = root.querySelector('#imgc-original-size')!;
     this.compressedSizeEl = root.querySelector('#imgc-compressed-size')!;
     this.savingsEl = root.querySelector('#imgc-savings')!;
+    this.sizeBarEl = root.querySelector('#imgc-bar-fill')!;
     this.originalCanvas = root.querySelector('#imgc-original')!;
     this.compressedCanvas = root.querySelector('#imgc-compressed')!;
-
-    this.dropZone.addEventListener('click', () => this.fileInput.click());
-    this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('imgc-drop-zone--active'); });
-    this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('imgc-drop-zone--active'));
-    this.dropZone.addEventListener('drop', (e) => { e.preventDefault(); this.dropZone.classList.remove('imgc-drop-zone--active'); this.handleFile(e.dataTransfer!.files[0]); });
-    this.fileInput.addEventListener('change', () => { if (this.fileInput.files?.[0]) this.handleFile(this.fileInput.files[0]); });
 
     this.qualitySlider.addEventListener('input', () => {
       this.qualityVal.textContent = this.qualitySlider.value;
       this.compress();
     });
 
-    const formatSelect = root.querySelector('#imgc-format') as HTMLSelectElement;
-    formatSelect.addEventListener('change', () => this.compress());
+    this.formatSelect.addEventListener('change', () => this.compress());
 
+    root.querySelector('#imgc-auto')!.addEventListener('click', () => this.autoCompress());
     root.querySelector('#imgc-download')!.addEventListener('click', () => this.download());
     root.querySelector('#imgc-reset')!.addEventListener('click', () => this.reset());
+
+    this.cleanupPaste = bindClipboardPaste((file) => this.handleFile(file));
   }
 
-  private handleFile(file: File): void {
-    if (!file.type.startsWith('image/')) {
-      Toast.error('Not an image file');
-      return;
-    }
+  private async handleFile(file: File): Promise<void> {
+    if (!file.type.startsWith('image/')) { Toast.error('Not an image file'); return; }
     this.originalFile = file;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      this.originalImage = img;
-      this.showUI();
-      this.drawOriginal();
-      this.compress();
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
+    this.originalImage = await loadImage(file);
+    this.showUI();
+    this.drawOriginal();
+    this.compress();
   }
 
   private showUI(): void {
@@ -128,57 +141,92 @@ export class ImageCompress {
     this.controlsEl.style.display = '';
     this.previewEl.style.display = '';
     this.actionsEl.style.display = '';
+    this.progressiveNote.style.display = '';
   }
 
   private drawOriginal(): void {
     if (!this.originalImage) return;
-    const { width, height } = this.getScaledSize(this.originalImage.width, this.originalImage.height, 300);
-    this.originalCanvas.width = width;
-    this.originalCanvas.height = height;
-    const ctx = this.originalCanvas.getContext('2d')!;
-    ctx.drawImage(this.originalImage, 0, 0, width, height);
-    this.originalSizeEl.textContent = this.formatBytes(this.originalFile!.size);
+    const max = 300;
+    const ratio = Math.min(max / this.originalImage.width, max / this.originalImage.height, 1);
+    this.originalCanvas.width = Math.round(this.originalImage.width * ratio);
+    this.originalCanvas.height = Math.round(this.originalImage.height * ratio);
+    this.originalCanvas.getContext('2d')!.drawImage(this.originalImage, 0, 0, this.originalCanvas.width, this.originalCanvas.height);
+    this.originalSizeEl.textContent = formatBytes(this.originalFile!.size);
   }
 
-  private compress(): void {
+  private async compress(): Promise<void> {
     if (!this.originalImage) return;
     const quality = parseInt(this.qualitySlider.value) / 100;
-    const format = (document.querySelector('#imgc-format') as HTMLSelectElement).value as string;
+    const format = this.formatSelect.value as string;
 
-    const { width, height } = this.getScaledSize(this.originalImage.width, this.originalImage.height, 1600);
-    this.compressedCanvas.width = width;
-    this.compressedCanvas.height = height;
+    const max = 1600;
+    const ratio = Math.min(max / this.originalImage.width, max / this.originalImage.height, 1);
+    const w = Math.round(this.originalImage.width * ratio);
+    const h = Math.round(this.originalImage.height * ratio);
+    this.compressedCanvas.width = w;
+    this.compressedCanvas.height = h;
     const ctx = this.compressedCanvas.getContext('2d')!;
-    ctx.drawImage(this.originalImage, 0, 0, width, height);
+    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+    ctx.drawImage(this.originalImage, 0, 0, w, h);
 
-    this.compressedCanvas.toBlob((blob) => {
-      if (!blob) return;
-      this.compressedSizeEl.textContent = this.formatBytes(blob.size);
-      const original = this.originalFile!.size;
-      const savings = ((1 - blob.size / original) * 100);
-      this.savingsEl.textContent = savings > 0
-        ? `${savings.toFixed(1)}% smaller`
-        : savings < 0
-          ? `${Math.abs(savings).toFixed(1)}% larger (try lower quality)`
-          : 'Same size';
-      this.savingsEl.className = 'imgc-savings ' + (savings > 0 ? 'imgc-savings--positive' : savings < 0 ? 'imgc-savings--negative' : '');
-    }, format, quality);
+    const blob = await canvasToBlob(this.compressedCanvas, format, quality);
+    this.compressedSizeEl.textContent = formatBytes(blob.size);
+    const original = this.originalFile!.size;
+    const savings = ((1 - blob.size / original) * 100);
+
+    const barWrap = document.getElementById('imgc-bar-wrap')!;
+    barWrap.style.display = '';
+    const pct = Math.min((blob.size / original) * 100, 100);
+    this.sizeBarEl.style.width = `${pct}%`;
+    this.sizeBarEl.style.background = savings > 0 ? 'var(--color-success)' : 'var(--color-error)';
+
+    this.savingsEl.textContent = savings > 0
+      ? `${savings.toFixed(1)}% smaller`
+      : savings < 0
+        ? `${Math.abs(savings).toFixed(1)}% larger (try lower quality)`
+        : 'Same size';
+    this.savingsEl.className = 'imgc-savings ' + (savings > 0 ? 'imgc-savings--positive' : savings < 0 ? 'imgc-savings--negative' : '');
   }
 
-  private download(): void {
+  private async autoCompress(): Promise<void> {
+    const targetKB = parseInt(this.targetInput.value);
+    if (!targetKB || targetKB <= 0) { Toast.error('Enter a target size in KB'); return; }
+    if (!this.originalImage) return;
+
+    const targetBytes = targetKB * 1024;
+    const format = this.formatSelect.value as string;
+
+    let low = 1, high = 100, best = 1;
+    for (let i = 0; i < 10; i++) {
+      const mid = Math.round((low + high) / 2);
+      const blob = await canvasToBlob(this.compressedCanvas, format, mid / 100);
+      if (blob.size <= targetBytes) { best = mid; low = mid + 1; }
+      else { high = mid - 1; }
+    }
+
+    this.qualitySlider.value = String(best);
+    this.qualityVal.textContent = String(best);
+    await this.compress();
+    Toast.success(`Compressed to quality ${best}%`);
+  }
+
+  private async download(): Promise<void> {
+    if (!this.originalImage) return;
     const quality = parseInt(this.qualitySlider.value) / 100;
-    const format = (document.querySelector('#imgc-format') as HTMLSelectElement).value;
-    this.compressedCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const ext = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg';
-      const name = this.originalFile!.name.replace(/\.[^.]+$/, '') + `-compressed.${ext}`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      Toast.success('Downloaded');
-    }, format, quality);
+    const format = this.formatSelect.value as string;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = this.originalImage.naturalWidth;
+    offscreen.height = this.originalImage.naturalHeight;
+    const ctx = offscreen.getContext('2d')!;
+    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, offscreen.width, offscreen.height); }
+    ctx.drawImage(this.originalImage, 0, 0);
+
+    const blob = await canvasToBlob(offscreen, format, quality);
+    const ext = getExtFromMime(format);
+    downloadBlob(blob, this.originalFile!.name.replace(/\.[^.]+$/, '') + `-compressed.${ext}`);
+    Toast.success('Downloaded');
+    logToolAction('image-compress', 'Downloaded compressed image');
   }
 
   private reset(): void {
@@ -188,20 +236,11 @@ export class ImageCompress {
     this.controlsEl.style.display = 'none';
     this.previewEl.style.display = 'none';
     this.actionsEl.style.display = 'none';
-    this.fileInput.value = '';
+    this.progressiveNote.style.display = 'none';
+    document.getElementById('imgc-bar-wrap')!.style.display = 'none';
   }
 
-  private getScaledSize(w: number, h: number, max: number): { width: number; height: number } {
-    if (w <= max && h <= max) return { width: w, height: h };
-    const ratio = Math.min(max / w, max / h);
-    return { width: Math.round(w * ratio), height: Math.round(h * ratio) };
+  destroy(): void {
+    this.cleanupPaste?.();
   }
-
-  private formatBytes(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-  }
-
-  destroy(): void {}
 }

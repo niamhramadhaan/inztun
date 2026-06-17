@@ -51,6 +51,31 @@ export const DESIGN_STUDIO_TOOL_DATA: Record<string, ToolInfo> = {
     tips: ['Choose a shape background first, then layer your icon or text on top', 'Use the size slider to find the right balance between icon and shape', 'Import colors from your saved palette for brand consistency', 'Downloaded PNG is 256×256 — use Image Resize for other dimensions'],
     related: ['favicon-generator', 'css-gradient'],
   },
+  'image-crop': {
+    useCases: ['Cropping photos to specific aspect ratios for social media', 'Removing unwanted edges from screenshots', 'Creating square profile pictures from landscape photos', 'Isolating a subject from a wider shot'],
+    tips: ['Use the ratio presets for common formats like 1:1, 16:9, 4:3', 'Drag the corner handles for precise control', 'The rule-of-thirds grid helps with composition', 'Output uses original image resolution, not the preview size'],
+    related: ['image-resize', 'image-filters'],
+  },
+  'image-filters': {
+    useCases: ['Quick grayscale conversion for black-and-white effects', 'Adjusting brightness and contrast before publishing', 'Applying sepia tone for vintage aesthetic', 'Sharpening slightly soft photos'],
+    tips: ['Filters stack — combine grayscale + brightness for custom looks', 'Blur is useful for creating background bokeh effects', 'The split view shows original vs filtered side by side', 'Download uses full original resolution, not the preview size'],
+    related: ['image-compress', 'image-crop'],
+  },
+  'image-metadata': {
+    useCases: ['Checking what EXIF data your photos contain before sharing', 'Stripping GPS coordinates before posting photos publicly', 'Verifying camera settings used for a particular shot', 'Extracting metadata for photo cataloging'],
+    tips: ['GPS coordinates link to OpenStreetMap for easy viewing', 'Strip metadata before uploading to social media for privacy', 'Copy JSON exports all metadata for programmatic use', 'Canvas redraw always strips EXIF — that\'s how the strip feature works'],
+    related: ['image-compress', 'image-convert'],
+  },
+  'font-pairer': {
+    useCases: ['Finding the right heading + body font combination for a new project', 'Exploring curated font pairs that work well together', 'Getting Google Fonts import CSS for your chosen pair', 'Testing how different font sizes look together'],
+    tips: ['Serif headings with sans-serif body is a classic, reliable combo', 'Match the mood: geometric fonts for tech, serifs for editorial', 'Adjust the size sliders to see how the pair reads at different scales', 'Copy the CSS to get the Google Fonts @import ready to paste'],
+    related: ['typography-scale', 'brand-kit'],
+  },
+  'brand-kit': {
+    useCases: ['Defining your brand colors, fonts, and logo in one place', 'Exporting brand tokens as CSS custom properties', 'Saving a brand kit for quick reference across projects', 'Building a visual identity system from scratch'],
+    tips: ['Start with 2-3 brand colors: primary, accent, and neutral', 'Upload your logo to see it alongside your color and font choices', 'The exported CSS includes Google Fonts import — paste it directly', 'Save multiple kits for different brands or clients'],
+    related: ['logo-builder', 'font-pairer', 'color-palette'],
+  },
 };
 
 export function getDesignStudioToolInfo(toolId: string): ToolInfo {

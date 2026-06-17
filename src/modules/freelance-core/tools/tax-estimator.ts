@@ -30,6 +30,7 @@ export class TaxEstimator {
     </svg>`;
 
   private currencySymbol = '$';
+  private locale = 'en-US';
   private incomeInput!: HTMLInputElement;
   private statusSelect!: HTMLSelectElement;
   private resultEl!: HTMLDivElement;
@@ -65,8 +66,12 @@ export class TaxEstimator {
     this.barEl = root.querySelector('#tax-bar')!;
     const breakdownEl = root.querySelector('#tax-breakdown')!;
 
-    const defaultCurrency = await db.getPreference('defaultCurrency', 'USD') as string;
+    const [defaultCurrency, defaultLocale] = await Promise.all([
+      db.getPreference('defaultCurrency', 'USD') as Promise<string>,
+      db.getPreference('defaultLocale', 'en-US') as Promise<string>,
+    ]);
     this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
+    this.locale = defaultLocale || 'en-US';
 
     const update = () => {
       const income = parseFloat(this.incomeInput.value) || 0;
@@ -77,7 +82,7 @@ export class TaxEstimator {
       this.resultEl.innerHTML = `
         <div class="tax-stat">
           <span class="tax-stat__label">Total Tax</span>
-          <span class="tax-stat__value" style="color:var(--color-error);">${s}${result.totalTax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value" style="color:var(--color-error);">${s}${result.totalTax.toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Effective Rate</span>
@@ -85,11 +90,11 @@ export class TaxEstimator {
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Take-Home</span>
-          <span class="tax-stat__value" style="color:var(--color-success);">${s}${result.takeHome.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value" style="color:var(--color-success);">${s}${result.takeHome.toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
         <div class="tax-stat">
           <span class="tax-stat__label">Monthly</span>
-          <span class="tax-stat__value">${s}${(result.takeHome / 12).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+          <span class="tax-stat__value">${s}${(result.takeHome / 12).toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
         </div>
       `;
 
@@ -97,7 +102,7 @@ export class TaxEstimator {
         .filter(b => b.amount > 0)
         .map(b => {
           const pct = (b.amount / income) * 100;
-          return `<div class="tax-bar__segment" style="width:${pct}%;background:${this.bracketColor(b.rate)};" title="${(b.rate * 100).toFixed(0)}%: ${s}${b.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}"></div>`;
+          return `<div class="tax-bar__segment" style="width:${pct}%;background:${this.bracketColor(b.rate)};" title="${(b.rate * 100).toFixed(0)}%: ${s}${b.amount.toLocaleString(this.locale, { maximumFractionDigits: 0 })}"></div>`;
         }).join('');
 
       breakdownEl.innerHTML = result.bracketBreakdown
@@ -106,7 +111,7 @@ export class TaxEstimator {
           <div class="tax-row">
             <span class="tax-row__rate">${(b.rate * 100).toFixed(0)}%</span>
             <span class="tax-row__range">${s}${b.min.toLocaleString()} – ${b.max === Infinity ? '∞' : s + b.max.toLocaleString()}</span>
-            <span class="tax-row__amount">${s}${b.tax.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            <span class="tax-row__amount">${s}${b.tax.toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
           </div>
         `).join('');
     };

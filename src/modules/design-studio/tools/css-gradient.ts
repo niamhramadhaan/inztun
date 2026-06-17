@@ -1,4 +1,23 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
+
+const PRESETS: Array<{ name: string; css: string; stops: Array<{ color: string; position: number }>; type: string; angle: number }> = [
+  { name: 'Sunset', css: '', stops: [{ color: '#ff512f', position: 0 }, { color: '#f09819', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Ocean', css: '', stops: [{ color: '#2193b0', position: 0 }, { color: '#6dd5ed', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Purple Haze', css: '', stops: [{ color: '#7b4397', position: 0 }, { color: '#dc2430', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Emerald', css: '', stops: [{ color: '#11998e', position: 0 }, { color: '#38ef7d', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Midnight', css: '', stops: [{ color: '#232526', position: 0 }, { color: '#414345', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Peach', css: '', stops: [{ color: '#ffecd2', position: 0 }, { color: '#fcb69f', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Aurora', css: '', stops: [{ color: '#00c6ff', position: 0 }, { color: '#0072ff', position: 50 }, { color: '#7209b7', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Fire', css: '', stops: [{ color: '#f12711', position: 0 }, { color: '#f5af19', position: 100 }], type: 'linear', angle: 90 },
+  { name: 'Neon', css: '', stops: [{ color: '#00f260', position: 0 }, { color: '#0575e6', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Rose', css: '', stops: [{ color: '#ee9ca7', position: 0 }, { color: '#ffdde1', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Gold', css: '', stops: [{ color: '#f7971e', position: 0 }, { color: '#ffd200', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Steel', css: '', stops: [{ color: '#485563', position: 0 }, { color: '#29323c', position: 100 }], type: 'linear', angle: 135 },
+  { name: 'Radial Sunset', css: '', stops: [{ color: '#ff512f', position: 0 }, { color: '#f09819', position: 100 }], type: 'radial', angle: 0 },
+  { name: 'Radial Ocean', css: '', stops: [{ color: '#6dd5ed', position: 0 }, { color: '#2193b0', position: 100 }], type: 'radial', angle: 0 },
+  { name: 'Conic Rainbow', css: '', stops: [{ color: '#ff0000', position: 0 }, { color: '#ffff00', position: 17 }, { color: '#00ff00', position: 33 }, { color: '#00ffff', position: 50 }, { color: '#0000ff', position: 67 }, { color: '#ff00ff', position: 83 }, { color: '#ff0000', position: 100 }], type: 'conic', angle: 0 },
+];
 
 export class CssGradient {
   id = 'css-gradient';
@@ -16,6 +35,7 @@ export class CssGradient {
   private angleSlider!: HTMLInputElement;
   private angleValEl!: HTMLSpanElement;
   private stopsContainer!: HTMLDivElement;
+  private presetsEl!: HTMLDivElement;
   private stops: Array<{ color: string; position: number }> = [
     { color: '#c9a96e', position: 0 },
     { color: '#8a6d3a', position: 100 },
@@ -43,8 +63,14 @@ export class CssGradient {
         <button class="btn btn--sm" id="dsg-add-stop">+ Add Stop</button>
         <div class="tool-actions">
           <button class="btn btn--ghost" id="dsg-copy">Copy CSS</button>
+          <button class="btn btn--primary" id="dsg-download-png">Download PNG</button>
         </div>
         <pre class="input input--textarea" id="dsg-output" style="min-height:60px;cursor:text;"></pre>
+
+        <div class="dsg-presets" id="dsg-presets">
+          <label class="label">Presets</label>
+          <div class="dsg-presets-grid" id="dsg-presets-grid"></div>
+        </div>
       </div>
     `;
   }
@@ -56,6 +82,7 @@ export class CssGradient {
     this.angleSlider = root.querySelector('#dsg-angle')!;
     this.angleValEl = root.querySelector('#dsg-angle-val')!;
     this.stopsContainer = root.querySelector('#dsg-stops')!;
+    this.presetsEl = root.querySelector('#dsg-presets-grid')!;
     const angleGroup = root.querySelector('#dsg-angle-group') as HTMLElement;
 
     this.typeSelect.addEventListener('change', () => {
@@ -77,10 +104,41 @@ export class CssGradient {
     root.querySelector('#dsg-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('CSS');
+      logToolAction('css-gradient', 'Copied CSS gradient');
     });
 
+    root.querySelector('#dsg-download-png')!.addEventListener('click', () => this.downloadPng());
+
+    this.renderPresets();
     this.renderStops();
     this.update();
+  }
+
+  private renderPresets(): void {
+    this.presetsEl.innerHTML = PRESETS.map((preset, i) => {
+      const stopsStr = preset.stops.map(s => `${s.color} ${s.position}%`).join(', ');
+      let css: string;
+      if (preset.type === 'linear') css = `linear-gradient(${preset.angle}deg, ${stopsStr})`;
+      else if (preset.type === 'radial') css = `radial-gradient(circle, ${stopsStr})`;
+      else css = `conic-gradient(from ${preset.angle}deg, ${stopsStr})`;
+      return `<button class="dsg-preset-btn" data-i="${i}" title="${preset.name}" style="background:${css}"></button>`;
+    }).join('');
+
+    this.presetsEl.querySelectorAll('.dsg-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt((btn as HTMLElement).dataset.i!);
+        const preset = PRESETS[i];
+        this.stops = preset.stops.map(s => ({ ...s }));
+        this.typeSelect.value = preset.type;
+        this.angleSlider.value = String(preset.angle);
+        this.angleValEl.textContent = String(preset.angle);
+        const angleGroup = this.typeSelect.closest('.tool-area')!.querySelector('#dsg-angle-group') as HTMLElement;
+        angleGroup.style.display = preset.type === 'linear' ? '' : 'none';
+        this.renderStops();
+        this.update();
+        Toast.info(`Loaded "${preset.name}" preset`);
+      });
+    });
   }
 
   private renderStops(): void {
@@ -133,6 +191,29 @@ export class CssGradient {
     const css = this.buildGradient();
     this.previewEl.style.background = css;
     this.outputEl.textContent = `background: ${css};`;
+  }
+
+  private downloadPng(): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d')!;
+
+    const css = this.buildGradient();
+    ctx.fillStyle = css;
+    ctx.fillRect(0, 0, 1920, 1080);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gradient.png';
+      a.click();
+      URL.revokeObjectURL(url);
+      Toast.success('PNG downloaded (1920×1080)');
+      logToolAction('css-gradient', 'Downloaded gradient PNG');
+    }, 'image/png');
   }
 
   destroy(): void {}

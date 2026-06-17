@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { loadImage, formatBytes, downloadBlob } from '../../../utils/image';
+import { logToolAction } from '../../../core/activity';
 
 const PRESETS = [
   { name: 'Twitter Post', w: 1600, h: 900, platform: 'Twitter' },
@@ -150,6 +151,7 @@ export class SocialResizer {
       const name = this.originalFile!.name.replace(/\.[^.]+$/, '') + `-${preset.name.toLowerCase().replace(/\s+/g, '-')}.png`;
       downloadBlob(blob, name);
       Toast.success('Downloaded');
+      logToolAction('social-resizer', 'Downloaded resized image');
     }, 'image/png');
   }
 

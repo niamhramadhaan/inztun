@@ -1,9 +1,11 @@
 import { ToolView } from '../../components/ToolView';
 import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel } from '../../components/ModuleHelpers';
+import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
+import type { Category } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
+import { Toast } from '../../components/Toast';
 import { getDesignStudioToolInfo } from './tool-data';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
 
@@ -17,19 +19,61 @@ import { ImageConvert } from './tools/image-convert';
 import { ContrastChecker } from './tools/contrast-checker';
 import { FaviconGenerator } from './tools/favicon-generator';
 import { LogoBuilder } from './tools/logo-builder';
+import { ImageCrop } from './tools/image-crop';
+import { ImageFilters } from './tools/image-filters';
+import { ImageMetadata } from './tools/image-metadata';
+import { FontPairer } from './tools/font-pairer';
+import { BrandKit } from './tools/brand-kit';
 
-const TOOL_REGISTRY: ToolRegistryEntry[] = [
-  { id: 'css-gradient', Tool: CssGradient, span: { col: 6, row: 1 } },
-  { id: 'border-radius', Tool: BorderRadius, span: { col: 4, row: 1 } },
-  { id: 'typography-scale', Tool: TypographyScale, span: { col: 4, row: 1 } },
-  { id: 'spacing-system', Tool: SpacingSystem, span: { col: 4, row: 1 } },
-  { id: 'image-compress', Tool: ImageCompress, span: { col: 6, row: 1 }, featured: true },
-  { id: 'image-resize', Tool: ImageResize, span: { col: 6, row: 1 } },
-  { id: 'image-convert', Tool: ImageConvert, span: { col: 6, row: 1 } },
-  { id: 'contrast-checker', Tool: ContrastChecker, span: { col: 6, row: 1 } },
-  { id: 'favicon-generator', Tool: FaviconGenerator, span: { col: 6, row: 1 } },
-  { id: 'logo-builder', Tool: LogoBuilder, span: { col: 6, row: 1 } },
+const CATEGORIES: Category[] = [
+  {
+    id: 'layout',
+    name: 'Layout & Shape',
+    tooltip: 'Gradients, borders, and spacing tools',
+    tools: [
+      { id: 'css-gradient', Tool: CssGradient, span: { col: 6, row: 1 } },
+      { id: 'border-radius', Tool: BorderRadius, span: { col: 4, row: 1 } },
+      { id: 'spacing-system', Tool: SpacingSystem, span: { col: 4, row: 1 } },
+    ],
+  },
+  {
+    id: 'typography',
+    name: 'Typography & Color',
+    tooltip: 'Type scales and contrast checking',
+    tools: [
+      { id: 'typography-scale', Tool: TypographyScale, span: { col: 4, row: 1 } },
+      { id: 'contrast-checker', Tool: ContrastChecker, span: { col: 6, row: 1 } },
+    ],
+  },
+  {
+    id: 'image',
+    name: 'Image Processing',
+    tooltip: 'Compress, resize, convert, crop, filter, and inspect images',
+    tools: [
+      { id: 'image-compress', Tool: ImageCompress, span: { col: 6, row: 1 }, featured: true },
+      { id: 'image-resize', Tool: ImageResize, span: { col: 6, row: 1 } },
+      { id: 'image-convert', Tool: ImageConvert, span: { col: 6, row: 1 } },
+      { id: 'image-crop', Tool: ImageCrop, span: { col: 6, row: 1 } },
+      { id: 'image-filters', Tool: ImageFilters, span: { col: 6, row: 1 } },
+      { id: 'image-metadata', Tool: ImageMetadata, span: { col: 6, row: 1 } },
+    ],
+  },
+  {
+    id: 'branding',
+    name: 'Branding',
+    tooltip: 'Favicons, logos, fonts, and brand kits',
+    tools: [
+      { id: 'favicon-generator', Tool: FaviconGenerator, span: { col: 6, row: 1 } },
+      { id: 'logo-builder', Tool: LogoBuilder, span: { col: 6, row: 1 } },
+      { id: 'font-pairer', Tool: FontPairer, span: { col: 6, row: 1 } },
+      { id: 'brand-kit', Tool: BrandKit, span: { col: 6, row: 1 } },
+    ],
+  },
 ];
+
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
+  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+);
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'css-gradient': 'Build and preview CSS gradients with live output.',
@@ -42,6 +86,11 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'contrast-checker': 'Check WCAG contrast ratios for accessible text on any background.',
   'favicon-generator': 'Generate favicons in all standard sizes from any image.',
   'logo-builder': 'Build logos with shapes, icons, and text. Export as PNG.',
+  'image-crop': 'Interactive crop with drag handles and preset aspect ratios.',
+  'image-filters': 'Apply filters like grayscale, sepia, brightness, contrast, and blur.',
+  'image-metadata': 'Read and strip EXIF metadata from images.',
+  'font-pairer': 'Browse curated font pairings for headings and body text.',
+  'brand-kit': 'Build and export your brand colors, fonts, and logo as CSS.',
 };
 
 interface ToolInstance {
@@ -60,7 +109,8 @@ export class DesignStudio {
   private searchQuery = '';
   private sortMode: SortMode = 'alpha';
   private favorites = new Set<string>();
-  private toolsGrid: HTMLDivElement | null = null;
+  private collapsedCategories = new Set<string>();
+  private categoriesContainer: HTMLDivElement | null = null;
   private _routeHandler: ((data: any) => void) | null = null;
   private toolbar: ModuleToolbar | null = null;
 
@@ -117,34 +167,32 @@ export class DesignStudio {
       onHome: () => router.navigate('home'),
       onSearch: (query) => {
         this.searchQuery = query;
-        this.renderTools();
+        this.renderCategories();
       },
       onSortChange: (mode) => {
         this.sortMode = mode;
-        this.renderTools();
+        this.renderCategories();
       },
     });
     this.gridView.appendChild(this.toolbar.render());
 
-    this.toolsGrid = document.createElement('div');
-    this.toolsGrid.className = 'bento-grid';
-    this.gridView.appendChild(this.toolsGrid);
+    this.categoriesContainer = document.createElement('div');
+    this.categoriesContainer.className = 'categories-container';
+    this.gridView.appendChild(this.categoriesContainer);
 
     this.container!.appendChild(this.gridView);
-    this.renderTools();
+    this.renderCategories();
   }
 
-  private renderTools(): void {
-    if (!this.toolsGrid) return;
-    this.toolsGrid.innerHTML = '';
+  private renderCategories(): void {
+    this.categoriesContainer!.innerHTML = '';
+    const isSearching = this.searchQuery.length > 0;
 
-    let tools = [...TOOL_REGISTRY];
-
-    if (this.sortMode === 'favorites' && !this.searchQuery) {
-      tools = tools.filter(t => this.favorites.has(t.id));
-      if (tools.length === 0) {
-        this.toolsGrid.innerHTML = `
-          <div class="empty-state" style="grid-column: 1 / -1;">
+    if (this.sortMode === 'favorites' && !isSearching) {
+      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      if (favTools.length === 0) {
+        this.categoriesContainer!.innerHTML = `
+          <div class="empty-state">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
@@ -153,64 +201,72 @@ export class DesignStudio {
         `;
         return;
       }
-    }
 
-    if (this.searchQuery) {
-      tools = tools.filter(t => {
-        const tool = new t.Tool();
-        const name = tool.name.toLowerCase();
-        const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-        return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+      const section = createCategorySection({
+        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        collapsed: false,
+        onToggleCollapse: () => {},
+        createCard: (entry, index) => this.makeToolCard(entry, index),
       });
-    }
-
-    if (this.sortMode === 'alpha') {
-      tools.sort((a, b) => new a.Tool().name.localeCompare(new b.Tool().name));
-    } else if (this.sortMode === 'favorites') {
-      tools.sort((a, b) => {
-        const af = this.favorites.has(a.id) ? 0 : 1;
-        const bf = this.favorites.has(b.id) ? 0 : 1;
-        return af - bf || new a.Tool().name.localeCompare(new b.Tool().name);
-      });
-    }
-
-    if (tools.length === 0) {
-      this.toolsGrid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <p>No tools match "${this.searchQuery}".</p>
-        </div>
-      `;
+      this.categoriesContainer!.appendChild(section);
       return;
     }
 
-    tools.forEach((entry, index) => {
-      const tool = new entry.Tool();
-      this.toolsGrid!.appendChild(createToolCard({
-        toolId: entry.id,
-        tool,
-        span: entry.span,
-        featured: entry.featured,
-        index,
-        moduleId: this.moduleId,
-        isFavorite: this.favorites.has(entry.id),
-        description: TOOL_DESCRIPTIONS[entry.id] || '',
-        onToggleFavorite: (id) => this.toggleFavorite(id),
-        onNavigate: (modId, toolId) => router.navigate(modId, toolId),
-      }));
+    CATEGORIES.forEach(cat => {
+      let tools = [...cat.tools];
+
+      if (isSearching) {
+        tools = tools.filter(t => {
+          const name = new t.Tool().name.toLowerCase();
+          const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
+          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+        });
+        if (tools.length === 0) return;
+      }
+
+      const section = createCategorySection({
+        category: { ...cat, tools },
+        collapsed: this.collapsedCategories.has(cat.id),
+        onToggleCollapse: (catId, expanded) => {
+          if (expanded) this.collapsedCategories.delete(catId);
+          else this.collapsedCategories.add(catId);
+        },
+        createCard: (entry, index) => this.makeToolCard(entry, index),
+      });
+      this.categoriesContainer!.appendChild(section);
+    });
+  }
+
+  private makeToolCard(entry: ToolRegistryEntry, index: number): HTMLElement {
+    const tool = new entry.Tool();
+    return createToolCard({
+      toolId: entry.id,
+      tool,
+      span: entry.span,
+      featured: entry.featured,
+      index,
+      moduleId: this.moduleId,
+      isFavorite: this.favorites.has(entry.id),
+      description: TOOL_DESCRIPTIONS[entry.id] || '',
+      onToggleFavorite: (id) => this.toggleFavorite(id),
+      onNavigate: (modId, toolId) => router.navigate(modId, toolId),
     });
   }
 
   private toggleFavorite(toolId: string): void {
     if (this.favorites.has(toolId)) {
       this.favorites.delete(toolId);
+      db.setPreference('ds-favorites', Array.from(this.favorites));
+      Toast.info('Removed from favorites');
     } else {
       this.favorites.add(toolId);
+      db.setPreference('ds-favorites', Array.from(this.favorites));
+      Toast.info('Added to favorites');
     }
-    db.setPreference('ds-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
-    const registry = TOOL_REGISTRY.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find(t => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -237,8 +293,8 @@ export class DesignStudio {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = TOOL_REGISTRY.findIndex(t => t.id === toolId);
-    const toolsList = TOOL_REGISTRY.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
+    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -264,7 +320,7 @@ export class DesignStudio {
         toolId,
         data: tipsData,
         moduleId: this.moduleId,
-        allTools: TOOL_REGISTRY,
+        allTools: ALL_TOOLS,
         onNavigate: (modId, tId) => router.navigate(modId, tId),
       }));
     }
@@ -319,6 +375,17 @@ export class DesignStudio {
         width: 40px;
         text-align: right;
       }
+      .dsg-presets { margin-top: var(--space-4); }
+      .dsg-presets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: var(--space-2);
+      }
+      .dsg-preset-btn {
+        width: 100%; aspect-ratio: 1; border: 2px solid var(--border-hairline);
+        border-radius: var(--radius-md); cursor: pointer; transition: transform 150ms, border-color 150ms;
+      }
+      .dsg-preset-btn:hover { transform: scale(1.08); border-color: var(--accent); }
       .dsb-preview-wrap {
         display: flex;
         justify-content: center;
@@ -700,6 +767,8 @@ export class DesignStudio {
       .lb-saved-swatch:hover {
         transform: scale(1.2);
       }
+      .lb-export-sizes { display: flex; gap: var(--space-1); }
+      .lb-size-btn--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
       .lb-preview-area {
         display: flex;
         flex-direction: column;
@@ -741,6 +810,88 @@ export class DesignStudio {
           grid-template-columns: 1fr;
         }
       }
+
+      /* ── Image Crop ── */
+      .imcr-controls { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--space-4); }
+      .imcr-ratio-btns { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+      .imcr-ratio-btn--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .imcr-canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
+      .imcr-canvas { border: 1px solid var(--border-hairline); border-radius: var(--radius-md); cursor: crosshair; max-width: 100%; touch-action: none; }
+      .imcr-dims { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); text-align: center; }
+
+      /* ── Image Filters ── */
+      .imgf-controls { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
+      .imgf-toggles { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+      .imgf-toggle--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .imgf-sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
+      .imgf-canvas-wrap { margin-bottom: var(--space-4); }
+      .imgf-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+      .imgf-split__item { display: flex; flex-direction: column; gap: var(--space-2); }
+      .imgf-canvas { border: 1px solid var(--border-hairline); border-radius: var(--radius-md); max-width: 100%; max-height: 400px; object-fit: contain; }
+      @media (max-width: 768px) { .imgf-split { grid-template-columns: 1fr; } }
+
+      /* ── Image Metadata ── */
+      .imgm-meta { margin-bottom: var(--space-4); max-height: 400px; overflow-y: auto; }
+      .imgm-table { display: flex; flex-direction: column; }
+      .imgm-row { display: flex; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-hairline); }
+      .imgm-row__key { font-size: var(--text-xs); color: var(--text-muted); min-width: 120px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.05em; }
+      .imgm-row__val { font-size: var(--text-sm); color: var(--text-primary); font-family: var(--font-mono); word-break: break-all; }
+      .imgm-link { color: var(--accent); text-decoration: none; }
+      .imgm-link:hover { text-decoration: underline; }
+      .imgm-empty { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-4); text-align: center; }
+      .imgm-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+
+      /* ── Batch shared ── */
+      .imgc-batch-list { margin-bottom: var(--space-4); max-height: 200px; overflow-y: auto; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+      .imgc-batch-header { padding: var(--space-2) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); border-bottom: 1px solid var(--border-hairline); text-transform: uppercase; letter-spacing: 0.05em; }
+      .imgc-batch-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-hairline); font-size: var(--text-xs); }
+      .imgc-batch-item:last-child { border-bottom: none; }
+      .imgc-batch-item__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .imgc-batch-item__size { color: var(--text-muted); font-family: var(--font-mono); }
+      .imgc-batch-item__status { font-family: var(--font-mono); color: var(--text-muted); min-width: 60px; text-align: right; }
+
+      /* ── EXIF strip row ── */
+      .imgc-exif-row { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); flex-wrap: wrap; }
+      .imgc-note { font-size: var(--text-xs); color: var(--text-ghost); }
+
+      /* ── Compress bar ── */
+      .imgc-bar-wrap { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+      .imgc-bar { height: 8px; background: var(--bg-deep); border-radius: 4px; overflow: hidden; }
+      .imgc-bar__fill { height: 100%; border-radius: 4px; transition: width 200ms ease; }
+
+      /* ── Font Pairer ── */
+      .fp-controls { display: grid; grid-template-columns: 1fr 200px; gap: var(--space-4); margin-bottom: var(--space-4); align-items: start; }
+      .fp-pair-list { display: flex; flex-wrap: wrap; gap: var(--space-1); max-height: 200px; overflow-y: auto; }
+      .fp-pair-btn { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: var(--space-2) var(--space-3); }
+      .fp-pair-btn--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .fp-pair-cat { font-size: var(--text-xs); color: var(--text-ghost); text-transform: uppercase; letter-spacing: 0.05em; }
+      .fp-pair-name { font-size: var(--text-sm); }
+      .fp-settings { display: flex; flex-direction: column; gap: var(--space-3); }
+      .fp-preview { padding: var(--space-6); background: var(--bg-deep); border-radius: var(--radius-lg); margin-bottom: var(--space-4); }
+      .fp-css-output { margin-bottom: var(--space-4); }
+      @media (max-width: 768px) { .fp-controls { grid-template-columns: 1fr; } }
+
+      /* ── Brand Kit ── */
+      .bk-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); align-items: start; }
+      .bk-controls { display: flex; flex-direction: column; gap: var(--space-3); }
+      .bk-logo-upload { cursor: pointer; }
+      .bk-logo-preview { display: flex; align-items: center; justify-content: center; min-height: 80px; border: 2px dashed var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-3); }
+      .bk-logo-placeholder { font-size: var(--text-sm); color: var(--text-muted); }
+      .bk-colors { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+      .bk-color-item { display: flex; align-items: center; gap: var(--space-1); }
+      .bk-color-input { width: 32px; height: 28px; border: none; border-radius: var(--radius-sm); cursor: pointer; background: transparent; }
+      .bk-color-hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+      .bk-color-remove { padding: 0; width: 20px; height: 20px; }
+      .bk-preview { }
+      .bk-preview-card { padding: var(--space-6); background: var(--bg-deep); border-radius: var(--radius-lg); }
+      .bk-preview-logo { margin-bottom: var(--space-4); }
+      .bk-preview-name { font-size: var(--text-2xl); font-weight: 700; color: var(--text-primary); margin-bottom: var(--space-1); }
+      .bk-preview-tagline { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); }
+      .bk-preview-palette { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
+      .bk-palette-swatch { width: 40px; height: 40px; border-radius: var(--radius-md); border: 1px solid var(--border-hairline); }
+      .bk-preview-sample h3 { margin-bottom: var(--space-2); color: var(--text-primary); }
+      .bk-preview-sample p { color: var(--text-secondary); line-height: 1.6; }
+      @media (max-width: 768px) { .bk-layout { grid-template-columns: 1fr; } }
     `;
     document.head.appendChild(style);
   }

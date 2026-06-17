@@ -5,6 +5,7 @@ import type { Category } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
+import { Toast } from '../../components/Toast';
 import { getFreelanceCoreToolInfo } from './tool-data';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
 
@@ -16,6 +17,7 @@ import { ContractTemplates } from './tools/contract-templates';
 import { ClientManager } from './tools/client-manager';
 import { TaxEstimator } from './tools/tax-estimator';
 import { TimezoneConverter } from './tools/timezone-converter';
+import { ProjectManager } from './tools/project-manager';
 
 const CATEGORIES: Category[] = [
   {
@@ -41,10 +43,11 @@ const CATEGORIES: Category[] = [
   {
     id: 'business',
     name: 'Business',
-    tooltip: 'Contracts and client management',
+    tooltip: 'Contracts, clients, and project management',
     tools: [
       { id: 'contract-templates', Tool: ContractTemplates, span: { col: 6, row: 1 } },
       { id: 'client-manager', Tool: ClientManager, span: { col: 6, row: 1 } },
+      { id: 'project-manager', Tool: ProjectManager, span: { col: 6, row: 1 } },
     ],
   },
 ];
@@ -60,6 +63,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'expense-tracker': 'Log and categorize business expenses.',
   'contract-templates': 'Pre-built contract templates with variable inputs.',
   'client-manager': 'Organize client information and project notes.',
+  'project-manager': 'Manage all projects across clients — create, track, and organize.',
   'tax-estimator': 'Estimate US federal income tax by bracket with effective rate.',
   'timezone-converter': 'Convert times across multiple time zones with meeting planner.',
 };
@@ -227,10 +231,13 @@ export class FreelanceCore {
   private toggleFavorite(toolId: string): void {
     if (this.favorites.has(toolId)) {
       this.favorites.delete(toolId);
+      db.setPreference('fc-favorites', Array.from(this.favorites));
+      Toast.info('Removed from favorites');
     } else {
       this.favorites.add(toolId);
+      db.setPreference('fc-favorites', Array.from(this.favorites));
+      Toast.info('Added to favorites');
     }
-    db.setPreference('fc-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
@@ -840,6 +847,32 @@ export class FreelanceCore {
           padding: 0 !important;
         }
       }
+
+      /* ── Project Manager ── */
+      .fcpm-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+      .fcpm-filters { display: flex; gap: var(--space-1); }
+      .fcpm-filter-btn--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .fcpm-form-wrap { margin-bottom: var(--space-4); }
+      .fcpm-form { padding: var(--space-4); background: var(--bg-deep); border-radius: var(--radius-lg); border: 1px solid var(--border-hairline); }
+      .fcpm-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-3); }
+      .fcpm-form__row:has(> :nth-child(3)) { grid-template-columns: 1fr 1fr 1fr; }
+      .fcpm-form__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+      .fcpm-list { display: flex; flex-direction: column; gap: var(--space-3); }
+      .fcpm-card { padding: var(--space-4); background: var(--bg-deep); border-radius: var(--radius-lg); border: 1px solid var(--border-hairline); transition: border-color 150ms; }
+      .fcpm-card:hover { border-color: var(--border-subtle); }
+      .fcpm-card__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+      .fcpm-card__name { font-weight: 600; color: var(--text-primary); font-size: var(--text-sm); }
+      .fcpm-card__status { font-size: var(--text-xs); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; }
+      .fcpm-card__meta { display: flex; gap: var(--space-3); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: var(--space-2); flex-wrap: wrap; }
+      .fcpm-card__client { color: var(--text-secondary); }
+      .fcpm-card__budget { font-family: var(--font-mono); }
+      .fcpm-card__deadline { font-family: var(--font-mono); }
+      .fcpm-card__deadline--urgent { color: var(--color-error); }
+      .fcpm-card__desc { font-size: var(--text-xs); color: var(--text-ghost); margin-bottom: var(--space-2); line-height: 1.5; }
+      .fcpm-card__actions { display: flex; gap: var(--space-2); }
+      .fcpm-empty { text-align: center; padding: var(--space-8); color: var(--text-muted); }
+      .fcpm-empty p { margin-bottom: var(--space-3); }
+      @media (max-width: 768px) { .fcpm-form__row { grid-template-columns: 1fr; } .fcpm-form__row:has(> :nth-child(3)) { grid-template-columns: 1fr; } }
     `;
     document.head.appendChild(style);
   }

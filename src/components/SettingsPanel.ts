@@ -237,21 +237,6 @@ export class SettingsPanel {
             <div class="form-group"><label class="label">Your Name</label><input type="text" class="input" id="settings-name" placeholder="What should we call you?"></div>
           </div>
           <div class="settings-section">
-            <div class="settings-label">Defaults</div>
-            <div class="form-group"><label class="label">Currency</label>
-              <select class="input" id="settings-currency">
-                ${CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.code} — ${c.name}</option>`).join('')}
-              </select>
-            </div>
-            <div class="form-group"><label class="label">Locale</label><input type="text" class="input" id="settings-locale" placeholder="en-US"></div>
-            <div class="form-group"><label class="label">Email</label><input type="email" class="input" id="settings-email" placeholder="you@company.com"></div>
-            <div class="form-group"><label class="label">Company</label><input type="text" class="input" id="settings-company" placeholder="Your Company"></div>
-            <div class="settings-row-2col">
-              <div class="form-group"><label class="label">Tax Rate %</label><input type="number" class="input" id="settings-tax-rate" placeholder="0" min="0" max="100"></div>
-              <div class="form-group"><label class="label">Payment Terms (days)</label><input type="number" class="input" id="settings-payment-terms" placeholder="30" min="0"></div>
-            </div>
-          </div>
-          <div class="settings-section">
             <div class="settings-label">Accent Color</div>
             <div class="accent-grid" id="accent-grid">
               ${ACCENT_PRESETS.map(p => `
@@ -273,6 +258,18 @@ export class SettingsPanel {
               <button class="btn btn--ghost" id="settings-import">Import</button>
             </div>
             <input type="file" id="settings-import-file" accept=".json" style="display:none">
+          </div>
+          <div class="settings-section">
+            <div class="settings-label">Security</div>
+            <label class="checkbox-label" style="margin-bottom:var(--space-3);">
+              <input type="checkbox" id="settings-lock-toggle"> Enable PIN Lock
+            </label>
+            <div id="settings-pin-setup" style="display:none;">
+              <div class="form-group"><label class="label">New PIN (4 digits)</label><input type="password" class="input" id="settings-pin-new" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••"></div>
+              <div class="form-group"><label class="label">Confirm PIN</label><input type="password" class="input" id="settings-pin-confirm" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••"></div>
+              <button class="btn btn--primary" id="settings-pin-save" style="width:100%;">Save PIN</button>
+            </div>
+            <p class="pdf-note" style="margin-top:var(--space-2);">PIN protects access on this device only. Data is stored locally and is not encrypted.</p>
           </div>
           <div class="settings-section" id="settings-install-section" style="display:none">
             <div class="settings-label">App</div>
@@ -297,40 +294,6 @@ export class SettingsPanel {
     const nameInput = this.overlay.querySelector('#settings-name') as HTMLInputElement;
     nameInput.addEventListener('input', () => {
       db.setPreference('userName', nameInput.value.trim());
-    });
-
-    // Load and save defaults
-    const defaultsMap: [string, string, 'value' | 'checked'][] = [
-      ['defaultCurrency', '#settings-currency', 'value'],
-      ['defaultLocale', '#settings-locale', 'value'],
-      ['defaultEmail', '#settings-email', 'value'],
-      ['defaultCompany', '#settings-company', 'value'],
-      ['defaultTaxRate', '#settings-tax-rate', 'value'],
-      ['defaultPaymentTerms', '#settings-payment-terms', 'value'],
-    ];
-
-    defaultsMap.forEach(([key, selector, prop]) => {
-      const el = this.overlay!.querySelector(selector) as HTMLInputElement;
-      if (!el) return;
-      db.getPreference(key, '').then(val => {
-        if (val !== '' && val !== null && val !== undefined) (el as any)[prop] = val;
-      });
-      el.addEventListener('input', () => {
-        const raw = el.value.trim();
-        if (key === 'defaultTaxRate' || key === 'defaultPaymentTerms') {
-          db.setPreference(key, raw === '' ? '' : Number(raw));
-        } else {
-          db.setPreference(key, raw);
-        }
-      });
-      el.addEventListener('change', () => {
-        const raw = el.value.trim();
-        if (key === 'defaultTaxRate' || key === 'defaultPaymentTerms') {
-          db.setPreference(key, raw === '' ? '' : Number(raw));
-        } else {
-          db.setPreference(key, raw);
-        }
-      });
     });
 
     this.overlay.querySelector('#settings-close')?.addEventListener('click', () => this.close());
@@ -359,6 +322,9 @@ export class SettingsPanel {
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
         this.applyAccent(hex, `${r}, ${g}, ${b}`);
+        Toast.success('Accent color applied');
+      } else {
+        Toast.error('Enter a valid hex color (e.g. #c9a96e)');
       }
     });
 
@@ -406,6 +372,47 @@ export class SettingsPanel {
       deferredPrompt = null;
       const section = this.overlay!.querySelector('#settings-install-section') as HTMLElement;
       if (section) section.style.display = 'none';
+    });
+
+    // PIN lock setup
+    const lockToggle = this.overlay.querySelector('#settings-lock-toggle') as HTMLInputElement;
+    const pinSetup = this.overlay.querySelector('#settings-pin-setup') as HTMLElement;
+    const pinNew = this.overlay.querySelector('#settings-pin-new') as HTMLInputElement;
+    const pinConfirm = this.overlay.querySelector('#settings-pin-confirm') as HTMLInputElement;
+    const pinSave = this.overlay.querySelector('#settings-pin-save') as HTMLButtonElement;
+
+    db.getPreference('lockEnabled', false).then(enabled => {
+      lockToggle.checked = enabled as boolean;
+      pinSetup.style.display = enabled ? '' : 'none';
+    });
+
+    lockToggle.addEventListener('change', () => {
+      if (lockToggle.checked) {
+        pinSetup.style.display = '';
+      } else {
+        db.setPreference('lockEnabled', false);
+        db.setPreference('lockPinHash', null);
+        pinSetup.style.display = 'none';
+        Toast.info('PIN lock disabled');
+      }
+    });
+
+    pinSave.addEventListener('click', async () => {
+      const pin = pinNew.value.trim();
+      const confirm = pinConfirm.value.trim();
+      if (!/^\d{4}$/.test(pin)) { Toast.error('PIN must be exactly 4 digits'); return; }
+      if (pin !== confirm) { Toast.error('PINs do not match'); return; }
+
+      const msgBuffer = new TextEncoder().encode(pin);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      await db.setPreference('lockPinHash', hash);
+      await db.setPreference('lockEnabled', true);
+      pinNew.value = '';
+      pinConfirm.value = '';
+      Toast.success('PIN lock enabled');
     });
   }
 

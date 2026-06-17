@@ -10,9 +10,11 @@ import { db } from './core/db';
 import { CommandPalette } from './components/CommandPalette';
 import { FloatingOrb } from './components/FloatingOrb';
 import { SettingsPanel } from './components/SettingsPanel';
+import { DefaultsPanel } from './components/DefaultsPanel';
 import { ShortcutGuide } from './components/ShortcutGuide';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
+import { LockScreen } from './components/LockScreen';
 import { Home } from './modules/home/index';
 import { WorkerSuite } from './modules/workers-suite/index';
 import { Playground } from './modules/playground/index';
@@ -26,6 +28,7 @@ class Inztun {
   private commandPalette: CommandPalette | null = null;
   private floatingOrb: FloatingOrb | null = null;
   private settingsPanel: SettingsPanel | null = null;
+  private defaultsPanel: DefaultsPanel | null = null;
   private shortcutGuide: ShortcutGuide | null = null;
   private topBar: TopBar | null = null;
   private bottomNav: BottomNav | null = null;
@@ -45,9 +48,14 @@ class Inztun {
 
     await this.loadAccent();
 
+    // Lock screen gate
+    const lockScreen = new LockScreen();
+    await lockScreen.show();
+
     this.commandPalette = new CommandPalette();
     this.floatingOrb = new FloatingOrb(this.commandPalette);
     this.settingsPanel = new SettingsPanel();
+    this.defaultsPanel = new DefaultsPanel();
     this.shortcutGuide = new ShortcutGuide();
 
     const topbarEl = document.getElementById('topbar')!;
@@ -101,6 +109,7 @@ class Inztun {
     events.on(EVENTS.NOTIFICATION, ({ message, type }: { message: string; type?: string }) => this.showNotification(message, type));
 
     events.on('palette:open-settings', () => this.settingsPanel?.open());
+    events.on('palette:open-defaults', () => this.defaultsPanel?.open());
     events.on('shortcuts:open', () => this.shortcutGuide?.open());
 
     document.addEventListener('keydown', (e) => {
@@ -114,6 +123,7 @@ class Inztun {
         const output = document.querySelector('.tool-view:not([style*="display: none"]) .input--textarea, .tool-view:not([style*="display: none"]) [id$="-output"]') as HTMLElement;
         if (output) {
           navigator.clipboard.writeText(output.textContent || '');
+          Toast.copied();
         }
       }
       if (e.key === '?' && !e.defaultPrevented && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'SELECT') {

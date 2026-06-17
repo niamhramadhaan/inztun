@@ -1,9 +1,11 @@
 import { ToolView } from '../../components/ToolView';
 import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel } from '../../components/ModuleHelpers';
+import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
+import type { Category } from '../../components/ModuleHelpers';
 import { router } from '../../core/router';
 import { events } from '../../core/events';
 import { db } from '../../core/db';
+import { Toast } from '../../components/Toast';
 import { getMarketingLabToolInfo } from './tool-data';
 import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
 
@@ -14,14 +16,39 @@ import { ColorPalette } from './tools/color-palette';
 import { OgPreview } from './tools/og-preview';
 import { SocialResizer } from './tools/social-resizer';
 
-const TOOL_REGISTRY: ToolRegistryEntry[] = [
-  { id: 'utm-builder', Tool: UtmBuilder, span: { col: 6, row: 1 }, featured: true },
-  { id: 'seo-meta', Tool: SeoMeta, span: { col: 6, row: 1 } },
-  { id: 'social-counter', Tool: SocialCounter, span: { col: 4, row: 1 } },
-  { id: 'color-palette', Tool: ColorPalette, span: { col: 4, row: 1 } },
-  { id: 'og-preview', Tool: OgPreview, span: { col: 6, row: 1 } },
-  { id: 'social-resizer', Tool: SocialResizer, span: { col: 6, row: 1 } },
+const CATEGORIES: Category[] = [
+  {
+    id: 'campaigns',
+    name: 'Campaign Tracking',
+    tooltip: 'Build and analyze marketing campaign URLs',
+    tools: [
+      { id: 'utm-builder', Tool: UtmBuilder, span: { col: 6, row: 1 }, featured: true },
+    ],
+  },
+  {
+    id: 'seo-social',
+    name: 'SEO & Social',
+    tooltip: 'Meta tags, previews, and social media tools',
+    tools: [
+      { id: 'seo-meta', Tool: SeoMeta, span: { col: 6, row: 1 } },
+      { id: 'og-preview', Tool: OgPreview, span: { col: 6, row: 1 } },
+      { id: 'social-counter', Tool: SocialCounter, span: { col: 4, row: 1 } },
+      { id: 'social-resizer', Tool: SocialResizer, span: { col: 6, row: 1 } },
+    ],
+  },
+  {
+    id: 'color',
+    name: 'Color',
+    tooltip: 'Color palette generation and extraction',
+    tools: [
+      { id: 'color-palette', Tool: ColorPalette, span: { col: 4, row: 1 } },
+    ],
+  },
 ];
+
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
+  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+);
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'utm-builder': 'Build campaign tracking URLs with UTM parameters.',
@@ -48,7 +75,8 @@ export class MarketingLab {
   private searchQuery = '';
   private sortMode: SortMode = 'alpha';
   private favorites = new Set<string>();
-  private toolsGrid: HTMLDivElement | null = null;
+  private collapsedCategories = new Set<string>();
+  private categoriesContainer: HTMLDivElement | null = null;
   private _routeHandler: ((data: any) => void) | null = null;
   private toolbar: ModuleToolbar | null = null;
 
@@ -105,34 +133,32 @@ export class MarketingLab {
       onHome: () => router.navigate('home'),
       onSearch: (query) => {
         this.searchQuery = query;
-        this.renderTools();
+        this.renderCategories();
       },
       onSortChange: (mode) => {
         this.sortMode = mode;
-        this.renderTools();
+        this.renderCategories();
       },
     });
     this.gridView.appendChild(this.toolbar.render());
 
-    this.toolsGrid = document.createElement('div');
-    this.toolsGrid.className = 'bento-grid';
-    this.gridView.appendChild(this.toolsGrid);
+    this.categoriesContainer = document.createElement('div');
+    this.categoriesContainer.className = 'categories-container';
+    this.gridView.appendChild(this.categoriesContainer);
 
     this.container!.appendChild(this.gridView);
-    this.renderTools();
+    this.renderCategories();
   }
 
-  private renderTools(): void {
-    if (!this.toolsGrid) return;
-    this.toolsGrid.innerHTML = '';
+  private renderCategories(): void {
+    this.categoriesContainer!.innerHTML = '';
+    const isSearching = this.searchQuery.length > 0;
 
-    let tools = [...TOOL_REGISTRY];
-
-    if (this.sortMode === 'favorites' && !this.searchQuery) {
-      tools = tools.filter(t => this.favorites.has(t.id));
-      if (tools.length === 0) {
-        this.toolsGrid.innerHTML = `
-          <div class="empty-state" style="grid-column: 1 / -1;">
+    if (this.sortMode === 'favorites' && !isSearching) {
+      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      if (favTools.length === 0) {
+        this.categoriesContainer!.innerHTML = `
+          <div class="empty-state">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
@@ -141,64 +167,72 @@ export class MarketingLab {
         `;
         return;
       }
-    }
 
-    if (this.searchQuery) {
-      tools = tools.filter(t => {
-        const tool = new t.Tool();
-        const name = tool.name.toLowerCase();
-        const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-        return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+      const section = createCategorySection({
+        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        collapsed: false,
+        onToggleCollapse: () => {},
+        createCard: (entry, index) => this.makeToolCard(entry, index),
       });
-    }
-
-    if (this.sortMode === 'alpha') {
-      tools.sort((a, b) => new a.Tool().name.localeCompare(new b.Tool().name));
-    } else if (this.sortMode === 'favorites') {
-      tools.sort((a, b) => {
-        const af = this.favorites.has(a.id) ? 0 : 1;
-        const bf = this.favorites.has(b.id) ? 0 : 1;
-        return af - bf || new a.Tool().name.localeCompare(new b.Tool().name);
-      });
-    }
-
-    if (tools.length === 0) {
-      this.toolsGrid.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
-          <p>No tools match "${this.searchQuery}".</p>
-        </div>
-      `;
+      this.categoriesContainer!.appendChild(section);
       return;
     }
 
-    tools.forEach((entry, index) => {
-      const tool = new entry.Tool();
-      this.toolsGrid!.appendChild(createToolCard({
-        toolId: entry.id,
-        tool,
-        span: entry.span,
-        featured: entry.featured,
-        index,
-        moduleId: this.moduleId,
-        isFavorite: this.favorites.has(entry.id),
-        description: TOOL_DESCRIPTIONS[entry.id] || '',
-        onToggleFavorite: (id) => this.toggleFavorite(id),
-        onNavigate: (modId, toolId) => router.navigate(modId, toolId),
-      }));
+    CATEGORIES.forEach(cat => {
+      let tools = [...cat.tools];
+
+      if (isSearching) {
+        tools = tools.filter(t => {
+          const name = new t.Tool().name.toLowerCase();
+          const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
+          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+        });
+        if (tools.length === 0) return;
+      }
+
+      const section = createCategorySection({
+        category: { ...cat, tools },
+        collapsed: this.collapsedCategories.has(cat.id),
+        onToggleCollapse: (catId, expanded) => {
+          if (expanded) this.collapsedCategories.delete(catId);
+          else this.collapsedCategories.add(catId);
+        },
+        createCard: (entry, index) => this.makeToolCard(entry, index),
+      });
+      this.categoriesContainer!.appendChild(section);
+    });
+  }
+
+  private makeToolCard(entry: ToolRegistryEntry, index: number): HTMLElement {
+    const tool = new entry.Tool();
+    return createToolCard({
+      toolId: entry.id,
+      tool,
+      span: entry.span,
+      featured: entry.featured,
+      index,
+      moduleId: this.moduleId,
+      isFavorite: this.favorites.has(entry.id),
+      description: TOOL_DESCRIPTIONS[entry.id] || '',
+      onToggleFavorite: (id) => this.toggleFavorite(id),
+      onNavigate: (modId, toolId) => router.navigate(modId, toolId),
     });
   }
 
   private toggleFavorite(toolId: string): void {
     if (this.favorites.has(toolId)) {
       this.favorites.delete(toolId);
+      db.setPreference('ml-favorites', Array.from(this.favorites));
+      Toast.info('Removed from favorites');
     } else {
       this.favorites.add(toolId);
+      db.setPreference('ml-favorites', Array.from(this.favorites));
+      Toast.info('Added to favorites');
     }
-    db.setPreference('ml-favorites', Array.from(this.favorites));
   }
 
   private showTool(toolId: string): void {
-    const registry = TOOL_REGISTRY.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find(t => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -225,8 +259,8 @@ export class MarketingLab {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = TOOL_REGISTRY.findIndex(t => t.id === toolId);
-    const toolsList = TOOL_REGISTRY.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
+    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -252,7 +286,7 @@ export class MarketingLab {
         toolId,
         data: tipsData,
         moduleId: this.moduleId,
-        allTools: TOOL_REGISTRY,
+        allTools: ALL_TOOLS,
         onNavigate: (modId, tId) => router.navigate(modId, tId),
       }));
     }

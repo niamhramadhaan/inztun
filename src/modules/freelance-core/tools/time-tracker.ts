@@ -2,6 +2,7 @@ import { Toast } from '../../../components/Toast';
 import { db, type TimeEntry, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
+import { logToolAction } from '../../../core/activity';
 
 export class TimeTracker {
   id = 'time-tracker';
@@ -148,6 +149,8 @@ export class TimeTracker {
       this.entries.unshift(entry);
       db.putTimeEntry(entry);
       this.renderLog();
+      Toast.success('Time entry saved');
+      logToolAction('time-tracker', 'Stopped timer and saved entry');
     }
     this.elapsed = 0;
     this.timerEl.textContent = '00:00:00';
@@ -171,6 +174,7 @@ export class TimeTracker {
       db.putTimeEntry(entry);
       this.renderLog();
       Toast.success('Entry logged');
+      logToolAction('time-tracker', 'Logged manual time entry');
     }
   }
 
@@ -219,6 +223,7 @@ export class TimeTracker {
         this.entries = this.entries.filter(e => e.id !== id);
         db.deleteTimeEntry(id);
         this.renderLog();
+        Toast.success('Entry deleted');
       });
     });
 
@@ -235,6 +240,7 @@ export class TimeTracker {
           projectId: entry.projectId,
         }];
         db.setPreference('fc-pending-invoice-items', items);
+        Toast.info('Sent to Invoice Generator');
         router.navigate('freelance-core', 'invoice-generator');
       });
     });

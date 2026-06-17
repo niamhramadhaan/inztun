@@ -41,6 +41,11 @@ export const FREELANCE_CORE_TOOL_DATA: Record<string, ToolInfo> = {
     tips: ['Pick up to 4 time zones to compare at once', 'Use "Now" to see current times across all zones instantly', 'The datetime-local input converts any past or future time', 'All timezone names use the IANA standard (e.g., America/New_York)'],
     related: ['time-tracker', 'tax-estimator'],
   },
+  'project-manager': {
+    useCases: ['Seeing all your projects across every client in one view', 'Creating a new project without going into each client separately', 'Tracking which projects are active, completed, or archived', 'Jumping straight to time tracking for any project'],
+    tips: ['Use the filter tabs to focus on active work only', 'Click "Track Time →" to start logging hours against a project', 'Set deadlines to see urgent projects highlighted in red', 'Projects created here also appear in Client Manager and Time Tracker'],
+    related: ['client-manager', 'time-tracker', 'invoice-generator'],
+  },
 };
 
 export function getFreelanceCoreToolInfo(toolId: string): ToolInfo {

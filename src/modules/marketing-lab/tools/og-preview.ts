@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 export class OgPreview {
   id = 'og-preview';
@@ -78,6 +79,7 @@ export class OgPreview {
     root.querySelector('#og-copy')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('Meta Tags');
+      logToolAction('og-preview', 'Copied OG meta tags');
     });
 
     this.update(root);

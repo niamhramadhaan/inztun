@@ -3,6 +3,7 @@ import { db, type Expense, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
 import { getCurrencySymbol } from '../../../components/SettingsPanel';
+import { logToolAction } from '../../../core/activity';
 
 const CATEGORIES = ['Software', 'Hardware', 'Travel', 'Meals', 'Office', 'Marketing', 'Other'];
 
@@ -108,6 +109,7 @@ export class ExpenseTracker {
     (this.root.querySelector('#fce-amount') as HTMLInputElement).value = '';
     (this.root.querySelector('#fce-desc') as HTMLInputElement).value = '';
     Toast.success('Expense added');
+    logToolAction('expense-tracker', 'Added expense');
   }
 
   private renderList(): void {
@@ -145,6 +147,7 @@ export class ExpenseTracker {
         this.expenses = this.expenses.filter(exp => exp.id !== id);
         db.deleteExpense(id);
         this.renderList();
+        Toast.success('Expense deleted');
       });
     });
 
@@ -160,6 +163,7 @@ export class ExpenseTracker {
           projectId: entry.projectId,
         }];
         db.setPreference('fc-pending-invoice-items', items);
+        Toast.info('Sent to Invoice Generator');
         router.navigate('freelance-core', 'invoice-generator');
       });
     });

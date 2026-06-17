@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 import { loadImage, downloadBlob } from '../../../utils/image';
 
 const FAVICON_SIZES = [
@@ -106,6 +107,7 @@ export class FaviconGenerator {
           if (!blob) return;
           downloadBlob(blob, `favicon-${size}x${size}.png`);
           Toast.success(`Downloaded ${label}`);
+          logToolAction('favicon-generator', `Downloaded ${label} favicon`);
         }, 'image/png');
       });
 

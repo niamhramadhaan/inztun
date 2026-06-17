@@ -88,6 +88,7 @@ export class JsonFormatter {
     } catch (e) {
       this.outputEl.textContent = `Error: ${(e as Error).message}`;
       this.outputEl.style.color = 'var(--color-error)';
+      Toast.error('Invalid JSON');
     }
   }
 

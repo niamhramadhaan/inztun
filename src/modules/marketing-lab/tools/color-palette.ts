@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 interface Palette {
   name: string;
@@ -92,6 +93,7 @@ export class ColorPalette {
     root.querySelector('#mlc-copy-css')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('CSS');
+      logToolAction('color-palette', 'Copied color palette');
     });
 
     this.update();
@@ -129,6 +131,7 @@ export class ColorPalette {
       el.addEventListener('click', () => {
         navigator.clipboard.writeText((el as HTMLElement).dataset.color!);
         Toast.copied('Color');
+        logToolAction('color-palette', 'Copied color swatch');
       });
     });
 

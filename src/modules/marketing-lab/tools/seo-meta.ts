@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 
 export class SeoMeta {
   id = 'seo-meta';
@@ -63,6 +64,7 @@ export class SeoMeta {
     root.querySelector('#mlo-copy-tags')!.addEventListener('click', () => {
       navigator.clipboard.writeText(this.outputEl.textContent || '');
       Toast.copied('Meta Tags');
+      logToolAction('seo-meta', 'Generated SEO meta');
     });
 
     this.update();
