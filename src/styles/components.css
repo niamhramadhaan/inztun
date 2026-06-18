@@ -47,7 +47,7 @@
 
 .btn--ghost {
   background: transparent;
-  border-color: transparent;
+  border-color: var(--border-subtle);
 }
 
 .btn--ghost:hover {
@@ -83,8 +83,8 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  background: var(--bg-deep);
-  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   transition: all var(--duration-normal) var(--ease-smooth);
   outline: none;

@@ -22,8 +22,8 @@ export const FREELANCE_CORE_TOOL_DATA: Record<string, ToolInfo> = {
     related: ['time-tracker', 'rate-calculator'],
   },
   'contract-templates': {
-    useCases: ['Starting a new gig? Get a contractor agreement in minutes', 'Need a Statement of Work? Template handles the structure', 'Non-Disclosure for when clients share sensitive stuff', 'Clear payment terms so nobody gets surprised'],
-    tips: ['Always customize templates for each client — one size doesn\'t fit all', 'Spell out scope and deliverables clearly to avoid scope creep', 'Define how changes are handled before they happen', 'Keep signed copies somewhere safe — you\'ll need them eventually'],
+    useCases: ['Starting a new gig? Get a contractor agreement in minutes', 'Need a Statement of Work? Template handles the structure', 'Non-Disclosure for when clients share sensitive stuff', 'Writing a project proposal with budget and timeline', 'Formalizing project sign-off and final acceptance', 'Creating a Master Services Agreement for ongoing work', 'Defining uptime guarantees with an SLA', 'Hiring a subcontractor with proper IP and confidentiality terms'],
+    tips: ['Use toggles to show/hide optional sections — keeps templates flexible', 'Fill in the date fields with the date picker for consistent formatting', 'Signatures embed in PDF and DOCX exports — draw, type, or upload', 'Export as DOCX for clients who need to edit, PDF for final versions', 'Copy Formatted pastes rich text into email or docs with formatting intact', 'Long templates (MSA, SLA) have detailed legal clauses — review and customize', 'Keep signed copies somewhere safe — you\'ll need them eventually'],
     related: ['client-manager', 'invoice-generator'],
   },
   'client-manager': {

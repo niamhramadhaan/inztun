@@ -1,41 +1,62 @@
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
-import { downloadBlob } from '../../../utils/image';
+import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
 import { db } from '../../../core/db';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 type SignMode = 'draw' | 'type' | 'upload';
+
+interface SignState {
+  file: File | null;
+  pdfBytes: ArrayBuffer | null;
+  pdfDoc: PDFDocument | null;
+  pdfDocProxy: PDFDocumentProxy | null;
+  currentPage: number;
+  totalPages: number;
+  signatureDataUrl: string | null;
+  sigW: number;
+  sigH: number;
+  loading: boolean;
+}
 
 export class PdfSign {
   id = 'pdf-sign';
   name = 'PDF Signature';
   icon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
 
-  private file: File | null = null;
-  private pdfDoc: PDFDocument | null = null;
-  private pdfBytes: ArrayBuffer | null = null;
-  private signatureDataUrl: string | null = null;
+  private state: SignState = {
+    file: null,
+    pdfBytes: null,
+    pdfDoc: null,
+    pdfDocProxy: null,
+    currentPage: 1,
+    totalPages: 1,
+    signatureDataUrl: null,
+    sigW: 150,
+    sigH: 60,
+    loading: false,
+  };
+
   private containerEl!: HTMLDivElement;
   private previewCanvas!: HTMLCanvasElement;
+  private previewCtx!: CanvasRenderingContext2D;
   private sigOverlay!: HTMLDivElement;
   private sigPreview!: HTMLImageElement;
+  private sigPlaceholder!: HTMLSpanElement;
   private drawCanvas!: HTMLCanvasElement;
   private typeInput!: HTMLInputElement;
   private uploadInput!: HTMLInputElement;
   private placeBtn!: HTMLButtonElement;
-  private pageNavEl!: HTMLDivElement;
   private pageNumEl!: HTMLSpanElement;
   private prevBtn!: HTMLButtonElement;
   private nextBtn!: HTMLButtonElement;
+  private loadingEl!: HTMLDivElement;
 
-  private sigW = 150;
-  private sigH = 60;
-
-  private currentPage = 1;
-  private totalPages = 1;
   private isDrawing = false;
   private drawCtx!: CanvasRenderingContext2D;
 
@@ -48,6 +69,10 @@ export class PdfSign {
           <input type="file" accept=".pdf" hidden>
         </div>
         <div class="pdf-sign-controls" id="pdfsg-controls" style="display:none;">
+          <div class="pdf-info-bar">
+            <span id="pdfsg-info"></span>
+            <button class="btn btn--ghost btn--sm" id="pdfsg-change">Change File</button>
+          </div>
           <div class="pdf-sign-layout">
             <div class="pdf-sign-preview-wrap">
               <div class="pdf-sign-page-nav" id="pdfsg-page-nav">
@@ -58,9 +83,10 @@ export class PdfSign {
               <label class="label">Drag to position · corners to resize</label>
               <div class="pdf-sign-preview" id="pdfsg-preview">
                 <canvas id="pdfsg-canvas" class="pdf-sign-canvas"></canvas>
+                <div class="pdf-sign-loading" id="pdfsg-loading" style="display:none;">Rendering...</div>
                 <div class="pdf-sign-overlay" id="pdfsg-sig-overlay">
                   <img id="pdfsg-sig-preview" class="pdf-sign-sig-img" style="display:none;">
-                  <span class="pdf-sign-sig-placeholder">Signature</span>
+                  <span class="pdf-sign-sig-placeholder" id="pdfsg-sig-placeholder">Signature</span>
                   <div class="pdf-sig-handle pdf-sig-handle--nw" data-handle="nw"></div>
                   <div class="pdf-sig-handle pdf-sig-handle--ne" data-handle="ne"></div>
                   <div class="pdf-sig-handle pdf-sig-handle--sw" data-handle="sw"></div>
@@ -103,23 +129,25 @@ export class PdfSign {
   }
 
   init(root: HTMLElement): void {
-    const dropZone = root.querySelector('#pdfsg-dropzone')!;
+    const dropZone = root.querySelector('#pdfsg-dropzone') as HTMLDivElement;
     this.containerEl = root.querySelector('#pdfsg-controls')!;
     this.previewCanvas = root.querySelector('#pdfsg-canvas')!;
+    this.previewCtx = this.previewCanvas.getContext('2d')!;
     this.sigOverlay = root.querySelector('#pdfsg-sig-overlay')!;
     this.sigPreview = root.querySelector('#pdfsg-sig-preview')!;
+    this.sigPlaceholder = root.querySelector('#pdfsg-sig-placeholder')!;
     this.drawCanvas = root.querySelector('#pdfsg-draw-canvas')!;
     this.typeInput = root.querySelector('#pdfsg-type-input')!;
     this.uploadInput = root.querySelector('#pdfsg-upload-input')!;
     this.placeBtn = root.querySelector('#pdfsg-place')!;
-    this.pageNavEl = root.querySelector('#pdfsg-page-nav')!;
     this.pageNumEl = root.querySelector('#pdfsg-page')!;
     this.prevBtn = root.querySelector('#pdfsg-prev')!;
     this.nextBtn = root.querySelector('#pdfsg-next')!;
+    this.loadingEl = root.querySelector('#pdfsg-loading')!;
     const fileInput = dropZone.querySelector('input')!;
 
-    this.sigOverlay.style.width = this.sigW + 'px';
-    this.sigOverlay.style.height = this.sigH + 'px';
+    this.sigOverlay.style.width = this.state.sigW + 'px';
+    this.sigOverlay.style.height = this.state.sigH + 'px';
 
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('pdf-drop-zone--active'); });
@@ -128,30 +156,16 @@ export class PdfSign {
       e.preventDefault();
       dropZone.classList.remove('pdf-drop-zone--active');
       const file = (e as DragEvent).dataTransfer?.files[0];
-      if (file?.type === 'application/pdf') await this.loadFile(file, dropZone);
+      if (file?.type === 'application/pdf') await this.loadFile(file, dropZone as HTMLDivElement);
     });
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0];
-      if (file) await this.loadFile(file, dropZone);
+      if (file) await this.loadFile(file, dropZone as HTMLDivElement);
       fileInput.value = '';
     });
 
-    this.prevBtn.addEventListener('click', () => {
-      if (this.currentPage > 1) {
-        this.currentPage--;
-        this.renderPage(this.currentPage);
-        this.resetOverlay();
-        this.updatePageNav();
-      }
-    });
-    this.nextBtn.addEventListener('click', () => {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++;
-        this.renderPage(this.currentPage);
-        this.resetOverlay();
-        this.updatePageNav();
-      }
-    });
+    this.prevBtn.addEventListener('click', () => this.changePage(-1));
+    this.nextBtn.addEventListener('click', () => this.changePage(1));
 
     root.querySelectorAll('.pdf-sign-tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -187,9 +201,9 @@ export class PdfSign {
 
     root.querySelector('#pdfsg-clear-draw')?.addEventListener('click', () => {
       this.drawCtx.clearRect(0, 0, this.drawCanvas.width, this.drawCanvas.height);
-      this.signatureDataUrl = null;
+      this.state.signatureDataUrl = null;
       this.sigPreview.style.display = 'none';
-      this.sigOverlay.querySelector('.pdf-sign-sig-placeholder')!.style.display = '';
+      this.sigPlaceholder.style.display = '';
       this.placeBtn.disabled = true;
     });
 
@@ -207,63 +221,133 @@ export class PdfSign {
     this.setupDragAndResize();
     this.placeBtn.addEventListener('click', () => this.placeSignature());
 
-    // Load default signature
+    // Change File
+    root.querySelector('#pdfsg-change')?.addEventListener('click', () => {
+      this.cleanupProxy();
+      this.state.file = null;
+      this.state.pdfBytes = null;
+      this.state.pdfDoc = null;
+      this.state.signatureDataUrl = null;
+      this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+      this.containerEl.style.display = 'none';
+      dropZone.style.display = '';
+    });
+
     db.getPreference('defaultSignature', null).then(sig => {
-      if (sig) {
-        this.setSignature(sig as string);
-      }
+      if (sig) this.setSignature(sig as string);
     });
   }
 
   private updateDimsDisplay(): void {
     const dimsEl = this.containerEl.querySelector('#pdfsg-dims');
-    if (dimsEl) dimsEl.textContent = `${Math.round(this.sigW)} × ${Math.round(this.sigH)} px`;
+    if (dimsEl) dimsEl.textContent = `${Math.round(this.state.sigW)} × ${Math.round(this.state.sigH)} px`;
   }
 
   private async loadFile(file: File, dropZone: HTMLDivElement): Promise<void> {
+    this.cleanupProxy();
+
+    this.state.file = file;
+    this.state.currentPage = 1;
+    this.state.signatureDataUrl = null;
+    this.state.loading = true;
+
     try {
-      this.file = file;
-      this.pdfBytes = await file.arrayBuffer();
-      this.pdfDoc = await PDFDocument.load(this.pdfBytes, { ignoreEncryption: true });
-      this.currentPage = 1;
-      this.totalPages = this.pdfDoc.getPageCount();
-      dropZone.style.display = 'none';
-      this.containerEl.style.display = '';
-      this.updatePageNav();
-      this.resetOverlay();
-      await this.renderPage(this.currentPage);
+      this.state.pdfBytes = await file.arrayBuffer();
+      this.state.pdfDoc = await PDFDocument.load(this.state.pdfBytes, { ignoreEncryption: true });
+      this.state.totalPages = this.state.pdfDoc.getPageCount();
     } catch {
       Toast.error('Failed to load PDF');
+      this.state.loading = false;
+      return;
     }
+
+    dropZone.style.display = 'none';
+    this.containerEl.style.display = '';
+
+    const infoEl = this.containerEl.querySelector('#pdfsg-info')!;
+    infoEl.textContent = `${file.name} · ${this.state.totalPages} pages · ${formatBytes(file.size)}`;
+
+    this.updatePageNav();
+    this.resetOverlay();
+
+    try {
+      this.state.pdfDocProxy = await pdfjsLib.getDocument({ data: this.state.pdfBytes.slice(0) }).promise;
+      await this.renderPage(this.state.currentPage);
+    } catch {
+      Toast.error('Failed to render PDF');
+    }
+
+    this.state.loading = false;
+  }
+
+  private async changePage(delta: number): Promise<void> {
+    const next = this.state.currentPage + delta;
+    if (next < 1 || next > this.state.totalPages) return;
+
+    this.state.currentPage = next;
+    this.updatePageNav();
+    this.resetOverlay();
+    await this.renderPage(next);
   }
 
   private updatePageNav(): void {
-    this.pageNumEl.textContent = String(this.currentPage);
-    (this.containerEl.querySelector('#pdfsg-total') as HTMLSpanElement).textContent = String(this.totalPages);
-    this.prevBtn.disabled = this.currentPage <= 1;
-    this.nextBtn.disabled = this.currentPage >= this.totalPages;
+    this.pageNumEl.textContent = String(this.state.currentPage);
+    (this.containerEl.querySelector('#pdfsg-total') as HTMLSpanElement).textContent = String(this.state.totalPages);
+    this.prevBtn.disabled = this.state.currentPage <= 1;
+    this.nextBtn.disabled = this.state.currentPage >= this.state.totalPages;
   }
 
   private resetOverlay(): void {
     this.sigOverlay.style.left = '';
     this.sigOverlay.style.top = '';
-    this.sigOverlay.style.right = '10px';
-    this.sigOverlay.style.bottom = '10px';
-    this.sigOverlay.style.width = '150px';
-    this.sigOverlay.style.height = '60px';
-    this.sigW = 150;
-    this.sigH = 60;
+    this.sigOverlay.style.right = '';
+    this.sigOverlay.style.bottom = '';
+    this.sigOverlay.style.width = this.state.sigW + 'px';
+    this.sigOverlay.style.height = this.state.sigH + 'px';
+    this.state.sigW = 150;
+    this.state.sigH = 60;
     this.updateDimsDisplay();
+    this.positionOverlayDefault();
+  }
+
+  private positionOverlayDefault(): void {
+    const rect = this.previewCanvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const x = rect.width - this.state.sigW - 20;
+    const y = rect.height - this.state.sigH - 20;
+    this.sigOverlay.style.left = Math.max(0, x) + 'px';
+    this.sigOverlay.style.top = Math.max(0, y) + 'px';
   }
 
   private async renderPage(pageNum: number): Promise<void> {
-    if (!this.pdfBytes) return;
-    const pdf = await pdfjsLib.getDocument({ data: this.pdfBytes.slice(0) }).promise;
-    const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 });
-    this.previewCanvas.width = viewport.width;
-    this.previewCanvas.height = viewport.height;
-    await page.render({ canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
+    const pdf = this.state.pdfDocProxy;
+    if (!pdf) return;
+
+    this.state.loading = true;
+    this.loadingEl.style.display = '';
+
+    try {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1.5 });
+
+      this.previewCanvas.width = viewport.width;
+      this.previewCanvas.height = viewport.height;
+      this.previewCtx.clearRect(0, 0, viewport.width, viewport.height);
+
+      await page.render({
+        canvas: this.previewCanvas,
+        canvasContext: this.previewCtx,
+        viewport,
+      }).promise;
+
+      this.positionOverlayDefault();
+    } catch (e) {
+      console.error('PDF page render failed:', e);
+      Toast.error('Failed to render page');
+    } finally {
+      this.loadingEl.style.display = 'none';
+      this.state.loading = false;
+    }
   }
 
   private renderTypeSignature(): void {
@@ -282,10 +366,10 @@ export class PdfSign {
   }
 
   private setSignature(dataUrl: string): void {
-    this.signatureDataUrl = dataUrl;
+    this.state.signatureDataUrl = dataUrl;
     this.sigPreview.src = dataUrl;
     this.sigPreview.style.display = '';
-    this.sigOverlay.querySelector('.pdf-sign-sig-placeholder')!.style.display = 'none';
+    this.sigPlaceholder.style.display = 'none';
     this.placeBtn.disabled = false;
   }
 
@@ -295,6 +379,16 @@ export class PdfSign {
     let startY = 0;
     let origLeft = 0;
     let origTop = 0;
+
+    const clampToCanvas = (left: number, top: number, w: number, h: number) => {
+      const canvasRect = this.previewCanvas.getBoundingClientRect();
+      const maxLeft = canvasRect.width - w;
+      const maxTop = canvasRect.height - h;
+      return {
+        left: Math.max(0, Math.min(left, maxLeft)),
+        top: Math.max(0, Math.min(top, maxTop)),
+      };
+    };
 
     this.sigOverlay.addEventListener('pointerdown', (e) => {
       const target = e.target as HTMLElement;
@@ -311,13 +405,13 @@ export class PdfSign {
       if (!isDragging) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      this.sigOverlay.style.left = `${origLeft + dx}px`;
-      this.sigOverlay.style.top = `${origTop + dy}px`;
+      const clamped = clampToCanvas(origLeft + dx, origTop + dy, this.state.sigW, this.state.sigH);
+      this.sigOverlay.style.left = clamped.left + 'px';
+      this.sigOverlay.style.top = clamped.top + 'px';
     });
 
     this.sigOverlay.addEventListener('pointerup', () => { isDragging = false; });
 
-    // Resize handles
     const handles = this.sigOverlay.querySelectorAll('.pdf-sig-handle');
     handles.forEach(handle => {
       handle.addEventListener('pointerdown', (e) => {
@@ -367,12 +461,16 @@ export class PdfSign {
               break;
           }
 
+          const canvasRect = this.previewCanvas.getBoundingClientRect();
+          newW = Math.min(newW, canvasRect.width - newLeft);
+          newH = Math.min(newH, canvasRect.height - newTop);
+
           this.sigOverlay.style.width = newW + 'px';
           this.sigOverlay.style.height = newH + 'px';
           this.sigOverlay.style.left = newLeft + 'px';
           this.sigOverlay.style.top = newTop + 'px';
-          this.sigW = newW;
-          this.sigH = newH;
+          this.state.sigW = newW;
+          this.state.sigH = newH;
           this.updateDimsDisplay();
         };
 
@@ -388,37 +486,43 @@ export class PdfSign {
   }
 
   private async placeSignature(): Promise<void> {
-    if (!this.pdfDoc || !this.signatureDataUrl) return;
+    if (!this.state.pdfDoc || !this.state.signatureDataUrl) return;
     this.placeBtn.disabled = true;
     this.placeBtn.textContent = 'Signing...';
 
     try {
-      const sigResponse = await fetch(this.signatureDataUrl);
+      const sigResponse = await fetch(this.state.signatureDataUrl);
       const sigBytes = await sigResponse.arrayBuffer();
-      const sigImage = await this.pdfDoc.embedPng(sigBytes);
+      const sigImage = await this.state.pdfDoc.embedPng(sigBytes);
 
-      const pages = this.pdfDoc.getPages();
-      const page = pages[this.currentPage - 1];
-      const { width, height } = page.getSize();
+      const pages = this.state.pdfDoc.getPages();
+      const page = pages[this.state.currentPage - 1];
+      const { width: pdfW, height: pdfH } = page.getSize();
+
       const canvasRect = this.previewCanvas.getBoundingClientRect();
       const overlayRect = this.sigOverlay.getBoundingClientRect();
 
-      const relX = (overlayRect.left - canvasRect.left) / canvasRect.width;
-      const relY = (overlayRect.top - canvasRect.top) / canvasRect.height;
+      const scaleX = this.previewCanvas.width / canvasRect.width;
+      const scaleY = this.previewCanvas.height / canvasRect.height;
 
-      const pdfX = relX * width;
-      const pdfY = (1 - relY - (this.sigH / canvasRect.height)) * height;
+      const overlayLeft = (overlayRect.left - canvasRect.left) * scaleX;
+      const overlayTop = (overlayRect.top - canvasRect.top) * scaleY;
+      const overlayW = this.state.sigW * scaleX;
+      const overlayH = this.state.sigH * scaleY;
+
+      const pdfX = overlayLeft * (pdfW / this.previewCanvas.width);
+      const pdfY = pdfH - (overlayTop + overlayH) * (pdfH / this.previewCanvas.height);
 
       page.drawImage(sigImage, {
         x: pdfX,
         y: pdfY,
-        width: this.sigW,
-        height: this.sigH,
+        width: this.state.sigW,
+        height: this.state.sigH,
       });
 
-      const pdfBytes = await this.pdfDoc.save();
+      const pdfBytes = await this.state.pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const name = this.file!.name.replace(/\.pdf$/i, '-signed.pdf');
+      const name = this.state.file!.name.replace(/\.pdf$/i, '-signed.pdf');
       downloadBlob(blob, name);
       Toast.success('PDF signed');
       logToolAction('pdf-sign', 'Signed PDF');
@@ -430,5 +534,15 @@ export class PdfSign {
     this.placeBtn.disabled = false;
   }
 
-  destroy(): void {}
+  private cleanupProxy(): void {
+    this.state.pdfDocProxy = null;
+  }
+
+  destroy(): void {
+    this.cleanupProxy();
+    this.state.pdfDoc = null;
+    this.state.pdfBytes = null;
+    this.state.file = null;
+    this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+  }
 }

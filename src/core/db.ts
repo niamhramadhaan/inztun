@@ -488,7 +488,11 @@ class Database {
   async logActivity(type: string, label: string, meta?: string): Promise<void> {
     const entry: Activity = { id: Date.now(), type, label, meta, createdAt: Date.now() };
     const store = await this.getStore('activity', 'readwrite');
-    store.add(entry);
+    return new Promise((resolve, reject) => {
+      const request = store.add(entry);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getRecentActivity(limit = 10): Promise<Activity[]> {

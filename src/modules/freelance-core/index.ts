@@ -61,7 +61,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'rate-calculator': 'Calculate hourly and daily rates with overhead and tax.',
   'time-tracker': 'Track time with a live timer or manual entry.',
   'expense-tracker': 'Log and categorize business expenses.',
-  'contract-templates': 'Pre-built contract templates with variable inputs.',
+  'contract-templates': '9 contract templates with typed inputs, signatures, and PDF/DOCX export.',
   'client-manager': 'Organize client information and project notes.',
   'project-manager': 'Manage all projects across clients — create, track, and organize.',
   'tax-estimator': 'Estimate US federal income tax by bracket with effective rate.',
@@ -495,11 +495,261 @@ export class FreelanceCore {
         font-size: var(--text-xs);
         color: var(--text-ghost);
       }
-      .fcct-vars {
+      .fcct-vars-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--space-3);
         margin-bottom: var(--space-4);
+      }
+      .fcct-var { display: flex; flex-direction: column; gap: var(--space-1); }
+      .fcct-var--full { grid-column: 1 / -1; }
+      .fcct-currency-wrap { display: flex; align-items: center; gap: 0; }
+      .fcct-currency-sym {
+        padding: var(--space-2) var(--space-2);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-right: none;
+        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+      }
+      .fcct-currency-input { border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important; }
+      .fcct-toggle {
+        display: flex; align-items: center; gap: var(--space-2);
+        cursor: pointer; font-size: var(--text-sm); color: var(--text-secondary);
+        padding: var(--space-2) 0;
+      }
+      .fcct-toggle input { accent-color: var(--accent); width: 16px; height: 16px; }
+      .fcct-layout {
+        display: grid;
+        grid-template-columns: 1fr 520px;
+        gap: var(--space-6);
+        align-items: start;
+      }
+      .fcct-form { display: flex; flex-direction: column; gap: var(--space-3); }
+      .fcct-preview-col { position: sticky; top: 80px; display: flex; flex-direction: column; gap: var(--space-3); }
+      .fcct-paper {
+        position: relative;
+        background: var(--bg-void);
+        border-radius: var(--radius-lg);
+        overflow-y: auto;
+        max-height: calc(100vh - 160px);
+        padding: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-4);
+      }
+      .fcct-page {
+        position: relative;
+        width: 210mm;
+        min-height: 297mm;
+        background: #faf9f6;
+        padding: 20mm;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        border-radius: var(--radius-sm);
+        font-family: 'Georgia', serif;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #1a1a1a;
+        flex-shrink: 0;
+      }
+      .fcct-page__inner {
+        position: relative;
+        z-index: 1;
+      }
+      .fcct-paper__header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #1a1a1a;
+      }
+      .fcct-paper__logo { max-height: 48px; flex-shrink: 0; }
+      .fcct-paper__header-text { flex: 1; text-align: center; }
+      .fcct-paper__header-text h1 {
+        font-size: 18px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+        color: #1a1a1a;
+      }
+      .fcct-paper__date { font-size: 10px; color: #666; margin: 0; }
+      .fcct-paper__parties { font-size: 10px; color: #666; margin: 4px 0 0; }
+      .fcct-section h2 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin: 16px 0 6px;
+        color: #333;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 3px;
+      }
+      .fcct-section p { margin: 4px 0; }
+      .fcct-section ul { margin: 4px 0 8px 18px; }
+      .fcct-section li { margin: 2px 0; }
+      .fcct-sigs-print {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        margin-top: auto;
+        padding-top: 24px;
+      }
+      .fcct-sig-block-print { text-align: center; }
+      .fcct-sig-img { object-fit: contain; display: block; margin: 0 auto 6px; }
+      .fcct-sig-line { height: 1px; background: #1a1a1a; margin: 40px auto 6px; }
+      .fcct-sig-block-print p { font-size: 9px; color: #555; margin: 3px 0; }
+      .fcct-sig-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+        padding: var(--space-4);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+      }
+      .fcct-sig-block { display: flex; flex-direction: column; gap: var(--space-2); }
+      .fcct-sig-canvas {
+        width: 100%; height: 80px;
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        background: white; cursor: crosshair; touch-action: none;
+      }
+      .fcct-export-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+      .fcct-watermark {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: none; z-index: 0;
+        overflow: hidden;
+      }
+      .fcct-watermark-text {
+        font-size: 72px; font-family: 'Georgia', serif;
+        color: rgba(0,0,0,0.06);
+        transform: rotate(-45deg);
+        text-transform: uppercase; letter-spacing: 10px;
+        white-space: nowrap; user-select: none;
+      }
+      .fcct-branding {
+        display: flex; flex-direction: column; gap: var(--space-3);
+        padding: var(--space-3);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+      }
+      .fcct-logo-row { display: flex; align-items: center; gap: var(--space-2); }
+      .fcct-logo-thumb { max-height: 40px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); }
+      .fcct-preview-header {
+        display: flex; justify-content: flex-end; margin-bottom: var(--space-2);
+      }
+      .fcct-modal {
+        position: fixed; inset: 0; z-index: 1000;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .fcct-modal__overlay {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.8);
+      }
+      .fcct-modal__content {
+        position: relative;
+        max-width: 90vw; max-height: 90vh;
+        background: var(--bg-void);
+        border-radius: var(--radius-lg);
+        display: flex; flex-direction: column;
+        overflow: hidden;
+      }
+      .fcct-modal__header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-hairline);
+      }
+      .fcct-modal__title {
+        font-size: var(--text-sm); font-weight: 500; color: var(--text-primary);
+      }
+      .fcct-modal__close {
+        font-size: var(--text-lg); line-height: 1; padding: var(--space-1) !important;
+      }
+      .fcct-modal__body {
+        overflow-y: auto; padding: var(--space-4);
+        display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+      }
+      .fcct-modal__body .fcct-page {
+        transform: none !important;
+        margin-bottom: 0 !important;
+      }
+      .fcct-sig-overlay {
+        position: absolute;
+        min-width: 40px; min-height: 20px;
+        border: 2px dashed var(--accent);
+        border-radius: var(--radius-sm);
+        cursor: move;
+        display: none; /* hidden until signature is set */
+        align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.8);
+        touch-action: none;
+        z-index: 10;
+      }
+      .fcct-sig-overlay--active { display: flex; }
+      .fcct-sig-overlay__img {
+        max-width: 100%; max-height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+      }
+      .fcct-sig-handle {
+        position: absolute; width: 10px; height: 10px;
+        background: var(--accent); border: 1px solid var(--bg-surface);
+        border-radius: 2px; z-index: 11;
+      }
+      .fcct-sig-handle--nw { top: -5px; left: -5px; cursor: nw-resize; }
+      .fcct-sig-handle--ne { top: -5px; right: -5px; cursor: ne-resize; }
+      .fcct-sig-handle--sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+      .fcct-sig-handle--se { bottom: -5px; right: -5px; cursor: se-resize; }
+      .fcct-page-break {
+        border-top: 1px dashed var(--border-subtle);
+        margin: var(--space-4) 0;
+        padding-top: var(--space-2);
+        text-align: center;
+        font-size: 9px;
+        color: var(--text-ghost);
+        letter-spacing: 1px;
+        font-family: var(--font-mono);
+      }
+      .fcct-size-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: var(--space-1);
+      }
+      .fcct-size-slider {
+        flex: 1;
+        height: 4px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--bg-deep);
+        border-radius: 2px;
+        outline: none;
+      }
+      .fcct-size-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .fcct-size-val {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--text-muted);
+        min-width: 36px;
+        text-align: right;
+      }
+      .fcct-sig-size-row {
+        grid-column: 1 / -1;
+        padding-top: var(--space-2);
+        border-top: 1px solid var(--border-hairline);
       }
       .fccl-layout {
         display: grid;
@@ -791,13 +1041,14 @@ export class FreelanceCore {
       .tz-time { font-family: var(--font-mono); font-size: var(--text-lg); color: var(--accent); font-weight: 500; text-align: center; }
       .tz-offset { font-size: var(--text-xs); color: var(--text-ghost); text-align: center; }
       @media (max-width: 1024px) {
-        .fci-layout { grid-template-columns: 1fr; }
-        .fci-preview-col { position: static; }
+        .fci-layout, .fcct-layout { grid-template-columns: 1fr; }
+        .fci-preview-col, .fcct-preview-col { position: static; }
       }
       @media (max-width: 768px) {
-        .fcinv-header, .fcr-grid, .fcct-vars, .fccl-layout {
+        .fcinv-header, .fcr-grid, .fcct-vars-grid, .fccl-layout {
           grid-template-columns: 1fr;
         }
+        .fcct-sig-section { grid-template-columns: 1fr; }
         .fcr-cards {
           grid-template-columns: repeat(2, 1fr);
         }

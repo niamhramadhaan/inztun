@@ -15,6 +15,7 @@ import { SocialCounter } from './tools/social-counter';
 import { ColorPalette } from './tools/color-palette';
 import { OgPreview } from './tools/og-preview';
 import { SocialResizer } from './tools/social-resizer';
+import { BrandExtractor } from './tools/brand-extractor';
 
 const CATEGORIES: Category[] = [
   {
@@ -34,6 +35,7 @@ const CATEGORIES: Category[] = [
       { id: 'og-preview', Tool: OgPreview, span: { col: 6, row: 1 } },
       { id: 'social-counter', Tool: SocialCounter, span: { col: 4, row: 1 } },
       { id: 'social-resizer', Tool: SocialResizer, span: { col: 6, row: 1 } },
+      { id: 'brand-extractor', Tool: BrandExtractor, span: { col: 6, row: 1 }, featured: true },
     ],
   },
   {
@@ -57,6 +59,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'color-palette': 'Generate harmonious color palettes from any base color.',
   'og-preview': 'Preview how your page looks on Twitter, Facebook, and LinkedIn.',
   'social-resizer': 'Crop and resize images to exact social media platform dimensions.',
+  'brand-extractor': 'Extract brand colors, fonts, logo, and meta from any website URL.',
 };
 
 interface ToolInstance {
@@ -489,9 +492,89 @@ export class MarketingLab {
       .ogp-card--twitter .ogp-card__title { color: #1d9bf0; }
       .ogp-card--facebook .ogp-card__site { color: #8a8d91; }
       .ogp-card--linkedin .ogp-card__title { color: #0a66c2; }
+
+      /* Brand Extractor */
+      .mlbe-url-row { display: flex; gap: var(--space-3); align-items: flex-end; margin-bottom: var(--space-4); }
+      .mlbe-loading {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-4); color: var(--text-muted);
+        font-size: var(--text-sm); justify-content: center;
+      }
+      .mlbe-spinner {
+        width: 18px; height: 18px; border: 2px solid var(--border-hairline);
+        border-top-color: var(--accent); border-radius: 50%;
+        animation: mlbe-spin 0.8s linear infinite;
+      }
+      @keyframes mlbe-spin { to { transform: rotate(360deg); } }
+      .mlbe-card {
+        background: var(--bg-deep); border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-lg); padding: var(--space-5);
+      }
+      .mlbe-card__header {
+        display: flex; align-items: center; gap: var(--space-3);
+        margin-bottom: var(--space-3);
+      }
+      .mlbe-card__title {
+        font-family: var(--font-display); font-size: var(--text-xl);
+        color: var(--text-primary); font-weight: 600;
+      }
+      .mlbe-card__desc {
+        font-size: var(--text-sm); color: var(--text-muted);
+        margin-bottom: var(--space-4); line-height: 1.5;
+      }
+      .mlbe-section {
+        margin-bottom: var(--space-4);
+      }
+      .mlbe-section__title {
+        font-size: var(--text-sm); color: var(--text-secondary);
+        font-weight: 500; margin-bottom: var(--space-2);
+        display: flex; align-items: center; gap: var(--space-2);
+      }
+      .mlbe-count {
+        font-size: var(--text-xs); color: var(--accent);
+        font-family: var(--font-mono);
+      }
+      .mlbe-colors {
+        display: flex; flex-wrap: wrap; gap: var(--space-2);
+      }
+      .mlbe-fonts {
+        display: flex; flex-wrap: wrap; gap: var(--space-2);
+      }
+      .mlbe-font {
+        padding: var(--space-1) var(--space-3); background: var(--bg-surface);
+        border: 1px solid var(--border-hairline); border-radius: var(--radius-pill);
+        font-size: var(--text-sm); color: var(--text-primary);
+        cursor: pointer; transition: all 150ms ease;
+      }
+      .mlbe-font:hover {
+        border-color: var(--accent); color: var(--accent);
+      }
+      .mlbe-logo {
+        display: flex; align-items: center;
+      }
+      .mlbe-logo-img {
+        max-width: 200px; max-height: 80px; object-fit: contain;
+        border-radius: var(--radius-md); background: white;
+        padding: var(--space-2);
+      }
+      .mlbe-favicon-img {
+        width: 24px; height: 24px; border-radius: 4px;
+      }
+      .mlbe-og-img {
+        max-width: 100%; max-height: 200px; object-fit: cover;
+        border-radius: var(--radius-md); border: 1px solid var(--border-hairline);
+      }
+      .mlbe-empty {
+        font-size: var(--text-xs); color: var(--text-ghost); font-style: italic;
+      }
+
       @media (max-width: 768px) {
         .mlu-fields, .mla-grid, .mla-stats, .ogp-fields {
           grid-template-columns: 1fr;
+        }
+        .mlbe-url-row {
+          flex-direction: column;
+          align-items: stretch;
         }
       }
     `;

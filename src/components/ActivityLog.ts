@@ -27,7 +27,7 @@ const ACTIVITY_ICONS: Record<string, string> = {
 const TOOL_MODULE_MAP: Record<string, string> = {};
 const wsTools = ['pdf-merge','pdf-split','pdf-compress','pdf-protect','pdf-sign','pdf-to-images','pdf-metadata','lorem-ipsum','char-counter','base64','url-encoder','json-formatter','hash-generator','uuid-generator','password-generator','css-unit','markdown-preview','markdown-html','scratchpad'];
 const dsTools = ['css-gradient','border-radius','typography-scale','spacing-system','image-compress','image-resize','image-convert','contrast-checker','favicon-generator','logo-builder','image-crop','image-filters','image-metadata','font-pairer','brand-kit'];
-const mlTools = ['utm-builder','social-resizer','social-counter','seo-meta','og-preview','color-palette'];
+const mlTools = ['utm-builder','social-resizer','social-counter','seo-meta','og-preview','color-palette','brand-extractor'];
 const fcTools = ['invoice-generator','time-tracker','rate-calculator','contract-templates','expense-tracker','client-manager','tax-estimator','timezone-converter'];
 wsTools.forEach(t => TOOL_MODULE_MAP[t] = 'workers-suite');
 dsTools.forEach(t => TOOL_MODULE_MAP[t] = 'design-studio');

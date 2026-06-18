@@ -1,10 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
 import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export class PdfMetadata {
   id = 'pdf-metadata';
@@ -28,6 +29,10 @@ export class PdfMetadata {
           <input type="file" accept=".pdf" hidden>
         </div>
         <div class="pdf-metadata-controls" id="pdfmd-controls" style="display:none;">
+          <div class="pdf-info-bar">
+            <span id="pdfmd-file-info"></span>
+            <button class="btn btn--ghost btn--sm" id="pdfmd-change">Change File</button>
+          </div>
           <div class="pdf-metadata-info" id="pdfmd-info"></div>
           <canvas id="pdfmd-preview" class="pdf-preview-canvas" style="display:none;"></canvas>
           <div class="pdf-metadata-fields" id="pdfmd-fields"></div>
@@ -41,7 +46,7 @@ export class PdfMetadata {
   }
 
   init(root: HTMLElement): void {
-    const dropZone = root.querySelector('#pdfmd-dropzone')!;
+    const dropZone = root.querySelector('#pdfmd-dropzone') as HTMLDivElement;
     this.containerEl = root.querySelector('#pdfmd-controls')!;
     this.infoEl = root.querySelector('#pdfmd-info')!;
     this.fieldsEl = root.querySelector('#pdfmd-fields')!;
@@ -67,6 +72,13 @@ export class PdfMetadata {
 
     this.saveBtn.addEventListener('click', () => this.saveMetadata());
     root.querySelector('#pdfmd-strip')?.addEventListener('click', () => this.stripMetadata());
+    root.querySelector('#pdfmd-change')?.addEventListener('click', () => {
+      this.file = null;
+      this.pdfDoc = null;
+      this.previewCanvas.style.display = 'none';
+      this.containerEl.style.display = 'none';
+      dropZone.style.display = '';
+    });
   }
 
   private async loadFile(file: File, dropZone: HTMLDivElement): Promise<void> {
@@ -78,6 +90,9 @@ export class PdfMetadata {
       dropZone.style.display = 'none';
       this.containerEl.style.display = '';
 
+      const fileInfoEl = this.containerEl.querySelector('#pdfmd-file-info')!;
+      fileInfoEl.textContent = `${file.name} · ${formatBytes(file.size)}`;
+
       this.renderInfo();
       this.renderFields();
 
@@ -88,9 +103,10 @@ export class PdfMetadata {
         const viewport = page.getViewport({ scale: 0.8 });
         this.previewCanvas.width = viewport.width;
         this.previewCanvas.height = viewport.height;
-        await page.render({ canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
+        await page.render({ canvas: this.previewCanvas, canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
         this.previewCanvas.style.display = '';
-      } catch {
+      } catch (e) {
+        console.warn('PDF preview failed:', e);
         this.previewCanvas.style.display = 'none';
       }
     } catch {

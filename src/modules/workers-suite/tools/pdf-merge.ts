@@ -1,10 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
 import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 interface PdfFile {
   file: File;
@@ -102,9 +103,10 @@ export class PdfMerge {
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const ctx = canvas.getContext('2d')!;
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
       return canvas.toDataURL('image/png');
-    } catch {
+    } catch (e) {
+      console.warn('PDF thumbnail failed:', e);
       return '';
     }
   }

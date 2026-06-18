@@ -1,8 +1,10 @@
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { Toast } from '../../../components/Toast';
 import { db, type Client, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
 import { CURRENCIES } from '../../../components/SettingsPanel';
+import { downloadBlob } from '../../../utils/image';
 
 interface LineItem {
   description: string;
@@ -93,7 +95,8 @@ export class InvoiceGenerator {
             <div class="tool-actions">
               <button class="btn btn--ghost" id="fci-copy">Copy Text</button>
               <button class="btn btn--ghost" id="fci-save-inv">Save to History</button>
-              <button class="btn btn--primary" id="fci-print">Print / Export</button>
+              <button class="btn btn--primary" id="fci-download">Download PDF</button>
+              <button class="btn btn--ghost" id="fci-print">Print</button>
             </div>
           </div>
 
@@ -189,6 +192,8 @@ export class InvoiceGenerator {
     });
 
     root.querySelector('#fci-save-inv')!.addEventListener('click', () => this.saveToHistory());
+
+    root.querySelector('#fci-download')!.addEventListener('click', () => this.downloadPdf());
 
     root.querySelector('#fci-print')!.addEventListener('click', () => window.print());
 
@@ -396,6 +401,104 @@ export class InvoiceGenerator {
     text += `TOTAL: ${sym}${total.toFixed(2)}\n`;
     if (f.notes) text += `\nNotes: ${f.notes}\n`;
     return text;
+  }
+
+  private async downloadPdf(): Promise<void> {
+    const f = this.getFormValues();
+    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
+    const taxRate = parseFloat(this.taxInput.value) || 0;
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
+    const sym = this.currency.symbol;
+
+    const pdf = await PDFDocument.create();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const page = pdf.addPage([595, 842]); // A4
+    const { width, height } = page.getSize();
+    let y = height - 50;
+
+    const draw = (text: string, x: number, yPos: number, size = 10, isBold = false) => {
+      page.drawText(text, { x, y: yPos, size, font: isBold ? boldFont : font, color: rgb(0, 0, 0) });
+    };
+
+    // Header
+    draw('INVOICE', 50, y, 24, true);
+    y -= 30;
+    draw(`#${f.number || 'INV-001'}`, 50, y, 12);
+    y -= 40;
+
+    // From
+    if (f.fromName) { draw(f.fromName, 50, y, 11, true); y -= 16; }
+    if (f.fromCompany) { draw(f.fromCompany, 50, y, 10); y -= 14; }
+    if (f.fromEmail) { draw(f.fromEmail, 50, y, 10); y -= 14; }
+    y -= 20;
+
+    // To
+    draw('Bill To:', 50, y, 10, true); y -= 16;
+    if (f.client) { draw(f.client, 50, y, 11, true); y -= 16; }
+    if (f.clientEmail) { draw(f.clientEmail, 50, y, 10); y -= 14; }
+    y -= 10;
+
+    // Dates
+    draw(`Date: ${f.date || '—'}`, 350, height - 80, 10);
+    draw(`Due: ${f.dueDate || '—'}`, 350, height - 95, 10);
+    y -= 20;
+
+    // Table header
+    const tableTop = y;
+    page.drawRectangle({ x: 50, y: y - 2, width: width - 100, height: 18, color: rgb(0.95, 0.95, 0.95) });
+    draw('Description', 55, y, 9, true);
+    draw('Qty', 340, y, 9, true);
+    draw('Rate', 390, y, 9, true);
+    draw('Amount', 470, y, 9, true);
+    y -= 20;
+
+    // Items
+    for (const item of this.items) {
+      if (item._group) {
+        draw(item.description, 55, y, 9, true);
+        y -= 18;
+        continue;
+      }
+      const amt = (item.quantity * item.rate).toFixed(2);
+      draw(item.description || '—', 55, y, 9);
+      draw(String(item.quantity), 345, y, 9);
+      draw(`${sym}${item.rate.toFixed(2)}`, 390, y, 9);
+      draw(`${sym}${amt}`, 470, y, 9);
+      y -= 18;
+    }
+
+    // Line
+    y -= 5;
+    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+    y -= 20;
+
+    // Totals
+    draw('Subtotal:', 380, y, 10); draw(`${sym}${subtotal.toFixed(2)}`, 470, y, 10);
+    y -= 18;
+    if (taxRate > 0) {
+      draw(`Tax (${taxRate}%):`, 380, y, 10); draw(`${sym}${tax.toFixed(2)}`, 470, y, 10);
+      y -= 18;
+    }
+    page.drawRectangle({ x: 370, y: y - 4, width: 180, height: 20, color: rgb(0.95, 0.95, 0.95) });
+    draw('TOTAL:', 380, y, 12, true); draw(`${sym}${total.toFixed(2)}`, 470, y, 12, true);
+    y -= 30;
+
+    // Notes
+    if (f.notes) {
+      draw('Notes:', 50, y, 10, true); y -= 16;
+      const lines = f.notes.split('\n');
+      for (const line of lines) {
+        draw(line, 50, y, 9);
+        y -= 14;
+      }
+    }
+
+    const pdfBytes = await pdf.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    downloadBlob(blob, `invoice-${f.number || 'INV-001'}.pdf`);
+    Toast.success('PDF downloaded');
   }
 
   private async saveToHistory(): Promise<void> {

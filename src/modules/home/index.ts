@@ -1,6 +1,5 @@
 import { Tile } from '../../components/Tile';
 import { ToolView } from '../../components/ToolView';
-import { ActivityLog } from '../../components/ActivityLog';
 import { getCurrencySymbol } from '../../components/SettingsPanel';
 import { router, ROUTES } from '../../core/router';
 import { events } from '../../core/events';
@@ -156,7 +155,6 @@ export class Home {
   private _routeHandler: ((data: any) => void) | null = null;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
   private locale = 'en-US';
-  private activityLog: ActivityLog | null = null;
 
   constructor(workspace: HTMLElement) {
     this.workspace = workspace;
@@ -165,7 +163,6 @@ export class Home {
   async render(): Promise<void> {
     this.workspace.className = 'workspace';
     this.addModuleStyles();
-    this.activityLog = new ActivityLog();
 
     this.container = document.createElement('div');
     this.container.className = 'module-container';
@@ -225,7 +222,7 @@ export class Home {
 
     // Load all data in parallel — each call is individually safe
     const [
-      activeTimer, invoices, usage, projects, clients, activity, notes, defaultLocale, defaultCurrency,
+      activeTimer, invoices, usage, projects, clients, notes, defaultLocale, defaultCurrency,
       wsFavorites, fcFavorites, dsFavorites, mlFavorites, pgFavorites
     ] = await Promise.all([
       db.getPreference('fc-active-timer').catch(() => null),
@@ -233,7 +230,6 @@ export class Home {
       db.getToolUsage().catch(() => ({})),
       db.getAllProjects().catch(() => []),
       db.getAllClients().catch(() => []),
-      db.getRecentActivity(10).catch(() => []),
       db.getAllNotes().catch(() => []),
       db.getPreference('defaultLocale', 'en-US').catch(() => 'en-US'),
       db.getPreference('defaultCurrency', 'USD').catch(() => 'USD'),
@@ -247,8 +243,7 @@ export class Home {
       Array<{ id: number; tool: string; data: unknown; timestamp: number }>,
       Record<string, number>,
       Array<{ id: number; clientId: number; name: string; status: string; deadline?: string; budget?: number; currency?: string }>,
-      Array<{ id: number; name: string }>,
-      Array<{ id: number; type: string; label: string; createdAt: number }>,
+      Array<{ id: number; name: string; createdAt?: number }>,
       Array<{ id: number; title: string; content: string; updatedAt: number }>,
       string,
       string,
@@ -394,9 +389,10 @@ export class Home {
           ${sorted.map(([id, count]) => {
             const data = ALL_TOOLS[id];
             const name = data ? data.name : id;
+            const module = data ? data.module : '';
             const pct = Math.round((count / maxCount) * 100);
             return `
-              <div class="home-usage-bar">
+              <div class="home-usage-bar home-usage-bar--clickable" data-tool-id="${id}" data-module="${module}">
                 <span class="home-usage-bar__name">${name}</span>
                 <div class="home-usage-bar__track"><div class="home-usage-bar__fill" style="width:${pct}%"></div></div>
                 <span class="home-usage-bar__count">${count}</span>
@@ -405,6 +401,15 @@ export class Home {
           }).join('')}
         </div>
       `;
+      setTimeout(() => {
+        usageWidget.querySelectorAll('.home-usage-bar--clickable').forEach(bar => {
+          bar.addEventListener('click', () => {
+            const toolId = (bar as HTMLElement).dataset.toolId!;
+            const module = (bar as HTMLElement).dataset.module!;
+            if (module && toolId) router.navigate(module, toolId);
+          });
+        });
+      }, 0);
     } else {
       usageWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used Tools</span></div>
@@ -517,66 +522,61 @@ export class Home {
       });
     }, 0);
 
-    // ── Activity Feed ──
-    const actSection = document.createElement('div');
-    actSection.className = 'home-activity fade-in';
-    if (activity.length > 0) {
-      actSection.innerHTML = `
-        <div class="home-section-label"><span>Recent Activity</span><button class="btn btn--ghost btn--sm" id="al-view-all">View All</button></div>
-        <div class="home-activity__list">
-          ${activity.map(a => `
-            <div class="home-activity-item" data-type="${a.type}" data-meta="${a.meta || ''}">
-              <span class="home-activity-item__icon">${this.getActivityIcon(a.type)}</span>
-              <span class="home-activity-item__label">${a.label}</span>
-              <span class="home-activity-item__time">${this.relativeTime(a.createdAt)}</span>
+    // ── Recent Drafts ──
+    const drafts: Array<{ type: string; title: string; subtitle: string; time: number; module: string; tool: string }> = [];
+
+    invoices.slice(-5).forEach(inv => {
+      const d = inv.data as any;
+      drafts.push({ type: 'invoice', title: `Invoice ${d.number || '#' + inv.id}`, subtitle: d.client || 'No client', time: inv.timestamp, module: 'freelance-core', tool: 'invoice-generator' });
+    });
+    clients.slice(-3).forEach(c => {
+      drafts.push({ type: 'client', title: c.name, subtitle: 'Client', time: (c as any).createdAt || Date.now(), module: 'freelance-core', tool: 'client-manager' });
+    });
+    projects.filter(p => p.status === 'active').slice(-3).forEach(p => {
+      drafts.push({ type: 'project', title: p.name, subtitle: clientMap.get(p.clientId) || 'No client', time: Date.now(), module: 'freelance-core', tool: 'project-manager' });
+    });
+    notes.slice(-3).forEach(n => {
+      drafts.push({ type: 'note', title: n.title || 'Untitled note', subtitle: 'Note', time: n.updatedAt, module: 'workers-suite', tool: 'scratchpad' });
+    });
+
+    drafts.sort((a, b) => b.time - a.time);
+    const recentDrafts = drafts.slice(0, 12);
+
+    const draftsSection = document.createElement('div');
+    draftsSection.className = 'home-drafts fade-in';
+    if (recentDrafts.length > 0) {
+      draftsSection.innerHTML = `
+        <div class="home-section-label"><span>Recent Drafts</span></div>
+        <div class="home-drafts__grid">
+          ${recentDrafts.map(d => `
+            <div class="home-draft-card" data-module="${d.module}" data-tool="${d.tool}">
+              <span class="home-draft-card__icon">${this.getDraftIcon(d.type)}</span>
+              <div class="home-draft-card__info">
+                <span class="home-draft-card__title">${d.title}</span>
+                <span class="home-draft-card__subtitle">${d.subtitle}</span>
+              </div>
             </div>
           `).join('')}
         </div>
       `;
       setTimeout(() => {
-        actSection.querySelectorAll('.home-activity-item').forEach(item => {
-          item.addEventListener('click', () => {
-            const type = (item as HTMLElement).dataset.type;
-            const meta = (item as HTMLElement).dataset.meta;
-            switch (type) {
-              case 'invoice': router.navigate('freelance-core', 'invoice-generator'); break;
-              case 'client-add':
-              case 'client-update': router.navigate('freelance-core', 'client-manager'); break;
-              case 'project-create':
-              case 'project-update': router.navigate('freelance-core', 'client-manager'); break;
-              case 'note-create': router.navigate('workers-suite', 'scratchpad'); break;
-              case 'tool-action': {
-                const toolId = meta;
-                const wsTools = ['pdf-merge','pdf-split','pdf-compress','pdf-protect','pdf-sign','pdf-to-images','pdf-metadata','lorem-ipsum','char-counter','base64','url-encoder','json-formatter','hash-generator','uuid-generator','password-generator','css-unit','markdown-preview','markdown-html','scratchpad'];
-                const dsTools = ['css-gradient','border-radius','typography-scale','spacing-system','image-compress','image-resize','image-convert','contrast-checker','favicon-generator','logo-builder','image-crop','image-filters','image-metadata','font-pairer','brand-kit'];
-                const mlTools = ['utm-builder','social-resizer','social-counter','seo-meta','og-preview','color-palette'];
-                const fcTools = ['invoice-generator','time-tracker','rate-calculator','contract-templates','expense-tracker','client-manager','tax-estimator','timezone-converter','project-manager'];
-                if (wsTools.includes(toolId)) router.navigate('workers-suite', toolId);
-                else if (dsTools.includes(toolId)) router.navigate('design-studio', toolId);
-                else if (mlTools.includes(toolId)) router.navigate('marketing-lab', toolId);
-                else if (fcTools.includes(toolId)) router.navigate('freelance-core', toolId);
-                break;
-              }
-              default: router.navigate('home');
-            }
+        draftsSection.querySelectorAll('.home-draft-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const mod = (card as HTMLElement).dataset.module!;
+            const tool = (card as HTMLElement).dataset.tool!;
+            router.navigate(mod, tool);
           });
         });
       }, 0);
     } else {
-      actSection.innerHTML = `
-        <div class="home-section-label"><span>Recent Activity</span></div>
+      draftsSection.innerHTML = `
+        <div class="home-section-label"><span>Recent Drafts</span></div>
         <div class="home-widget-empty">
-          <p>No activity yet. Start using tools to see your activity here.</p>
+          <p>No drafts yet. Create an invoice, client, project, or note to see them here.</p>
         </div>
       `;
     }
-    this.gridView.appendChild(actSection);
-
-    // View All button
-    setTimeout(() => {
-      const viewAllBtn = actSection.querySelector('#al-view-all');
-      viewAllBtn?.addEventListener('click', () => this.activityLog?.open());
-    }, 0);
+    this.gridView.appendChild(draftsSection);
 
     // ── Favorites ──
     const favSection = document.createElement('div');
@@ -682,15 +682,12 @@ export class Home {
     return new Date(timestamp).toLocaleDateString(this.locale, { month: 'short', day: 'numeric' });
   }
 
-  private getActivityIcon(type: string): string {
+  private getDraftIcon(type: string): string {
     const icons: Record<string, string> = {
       'invoice': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-      'client-add': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
-      'client-update': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
-      'note-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-      'project-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
-      'project-update': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>',
-      'tool-action': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+      'client': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
+      'project': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+      'note': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
     };
     return icons[type] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
   }
@@ -1049,6 +1046,53 @@ export class Home {
         font-family: var(--font-mono);
         flex-shrink: 0;
       }
+      .home-drafts {
+        margin-bottom: var(--space-4);
+      }
+      .home-drafts__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: var(--space-3);
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: var(--space-1);
+      }
+      .home-draft-card {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        background: var(--bg-deep);
+        border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+      .home-draft-card:hover {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .home-draft-card__icon {
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .home-draft-card__info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .home-draft-card__title {
+        font-size: var(--text-sm);
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .home-draft-card__subtitle {
+        font-size: var(--text-xs);
+        color: var(--text-ghost);
+      }
       .home-project-card__deadline--urgent {
         color: var(--color-error) !important;
       }
@@ -1087,6 +1131,18 @@ export class Home {
         display: flex;
         align-items: center;
         gap: var(--space-3);
+      }
+      .home-usage-bar--clickable {
+        cursor: pointer;
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+        transition: background 150ms ease;
+      }
+      .home-usage-bar--clickable:hover {
+        background: var(--bg-glass);
+      }
+      .home-usage-bar--clickable:hover .home-usage-bar__name {
+        color: var(--accent);
       }
       .home-usage-bar__name {
         width: 100px;
@@ -1258,8 +1314,6 @@ export class Home {
   destroy(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
     if (this._routeHandler) events.off(ROUTES.CHANGE, this._routeHandler);
-    this.activityLog?.destroy();
-    this.activityLog = null;
     this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
     this.toolInstances.clear();
     this.navTabsEl = null;

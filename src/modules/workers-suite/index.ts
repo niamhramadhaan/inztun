@@ -1242,6 +1242,15 @@ export class WorkerSuite {
       .pdf-file-remove { color: var(--text-muted); }
       .pdf-file-remove:hover { color: var(--color-error); }
 
+      .pdf-info-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: var(--space-2) var(--space-3);
+        background: var(--bg-deep); border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-md); margin-bottom: var(--space-3);
+        font-size: var(--text-sm); color: var(--text-secondary);
+        font-family: var(--font-mono);
+      }
+
       .pdf-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
 
       .pdf-note {
@@ -1254,7 +1263,7 @@ export class WorkerSuite {
       /* Split */
       .pdf-split-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0; }
       .pdf-thumb {
-        display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+        position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
         padding: var(--space-2); border: 2px solid transparent;
         border-radius: var(--radius-md); cursor: pointer; transition: all 150ms ease;
       }
@@ -1262,7 +1271,12 @@ export class WorkerSuite {
       .pdf-thumb--selected { border-color: var(--accent); background: var(--accent-dim); }
       .pdf-thumb-canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
       .pdf-thumb-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
-      .pdf-split-range { display: flex; flex-direction: column; gap: var(--space-2); }
+      .pdf-thumb-check {
+        position: absolute; top: 6px; left: 6px;
+        accent-color: var(--accent); z-index: 2;
+        width: 16px; height: 16px; cursor: pointer;
+      }
+      .pdf-select-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
       .pdf-split-info { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
 
       /* Compress */
@@ -1291,12 +1305,19 @@ export class WorkerSuite {
       }
       .pdf-sign-canvas { width: 100%; height: auto; display: block; }
       .pdf-sign-overlay {
-        position: absolute; left: 65%; top: 80%;
+        position: absolute;
         min-width: 40px; min-height: 20px;
         border: 2px dashed var(--accent);
         border-radius: var(--radius-sm); cursor: move;
         display: flex; align-items: center; justify-content: center;
         background: rgba(255,255,255,0.8); touch-action: none;
+      }
+      .pdf-sign-loading {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5); color: var(--text-primary);
+        font-size: var(--text-sm); border-radius: var(--radius-md);
+        z-index: 5;
       }
       .pdf-sign-sig-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
       .pdf-sign-sig-placeholder { font-size: var(--text-xs); color: var(--text-ghost); pointer-events: none; }

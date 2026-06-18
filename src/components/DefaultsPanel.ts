@@ -2,13 +2,6 @@ import { db } from '../core/db';
 import { Toast } from './Toast';
 import { CURRENCIES } from './SettingsPanel';
 
-const SIGN_FONTS = [
-  "'Dancing Script', cursive",
-  "'Great Vibes', cursive",
-  "'Pacifico', cursive",
-  "cursive",
-];
-
 const DPI_OPTIONS = [
   { label: '72 DPI (Screen)', value: 72 },
   { label: '96 DPI (Standard)', value: 96 },
@@ -90,7 +83,7 @@ export class DefaultsPanel {
         border-radius: var(--radius-md); border: 1px solid var(--border-hairline);
         margin-bottom: var(--space-3); min-height: 60px;
       }
-      .defaults-sig-preview img { max-width: 100%; max-height: 80px; }
+      .defaults-sig-preview img { max-width: 100%; max-height: 80px; background: white; padding: 4px; border-radius: var(--radius-sm); }
       .defaults-sig-placeholder { font-size: var(--text-sm); color: var(--text-ghost); }
       .defaults-draw-canvas {
         width: 100%; height: 100px; border: 1px solid var(--border-hairline);
@@ -149,20 +142,10 @@ export class DefaultsPanel {
             </div>
             <div class="defaults-sig-tabs" id="defaults-sig-tabs">
               <button class="btn btn--ghost btn--sm defaults-sig-tab active" data-mode="draw">Draw</button>
-              <button class="btn btn--ghost btn--sm defaults-sig-tab" data-mode="type">Type</button>
               <button class="btn btn--ghost btn--sm defaults-sig-tab" data-mode="upload">Upload</button>
             </div>
             <div id="defaults-draw-panel">
               <canvas id="defaults-draw-canvas" class="defaults-draw-canvas" width="400" height="100"></canvas>
-            </div>
-            <div id="defaults-type-panel" style="display:none;">
-              <div class="defaults-row-2col" style="margin-bottom:var(--space-2);">
-                <input type="text" class="input" id="defaults-type-input" placeholder="Type your name">
-                <select class="input" id="defaults-type-font">
-                  ${SIGN_FONTS.map(f => `<option value="${f}">${f.split(',')[0].replace(/'/g, '')}</option>`).join('')}
-                </select>
-              </div>
-              <button class="btn btn--ghost btn--sm" id="defaults-type-apply">Apply</button>
             </div>
             <div id="defaults-upload-panel" style="display:none;">
               <input type="file" id="defaults-upload-input" accept="image/*">
@@ -279,29 +262,6 @@ export class DefaultsPanel {
     });
     this.drawCanvas.addEventListener('pointerleave', () => { this.isDrawing = false; });
 
-    // Type signature
-    const typeInput = this.overlay.querySelector('#defaults-type-input') as HTMLInputElement;
-    const typeFont = this.overlay.querySelector('#defaults-type-font') as HTMLSelectElement;
-    const typeApply = this.overlay.querySelector('#defaults-type-apply')!;
-
-    const renderType = () => {
-      const text = typeInput.value.trim();
-      if (!text) return;
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 100;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#000';
-      ctx.font = `36px ${typeFont.value}`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, 10, 50);
-      this.signatureDataUrl = canvas.toDataURL('image/png');
-      this.showSigPreview(this.signatureDataUrl);
-    };
-
-    typeApply.addEventListener('click', renderType);
-    typeInput.addEventListener('input', renderType);
-
     // Upload signature
     const uploadInput = this.overlay.querySelector('#defaults-upload-input') as HTMLInputElement;
     uploadInput.addEventListener('change', () => {
@@ -322,7 +282,6 @@ export class DefaultsPanel {
         tab.classList.add('active');
         const mode = (tab as HTMLElement).dataset.mode;
         (this.overlay!.querySelector('#defaults-draw-panel') as HTMLElement).style.display = mode === 'draw' ? '' : 'none';
-        (this.overlay!.querySelector('#defaults-type-panel') as HTMLElement).style.display = mode === 'type' ? '' : 'none';
         (this.overlay!.querySelector('#defaults-upload-panel') as HTMLElement).style.display = mode === 'upload' ? '' : 'none';
       });
     });

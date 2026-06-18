@@ -31,6 +31,11 @@ export const MARKETING_LAB_TOOL_DATA: Record<string, ToolInfo> = {
     tips: ['Center-crop ensures the most important part stays visible', 'Each preset shows the platform name and exact pixel dimensions', 'PNG export preserves quality — no compression artifacts', 'Start with the largest image you have for best results'],
     related: ['og-preview', 'image-compress'],
   },
+  'brand-extractor': {
+    useCases: ['Extracting brand colors and fonts from a competitor\'s website', 'Building a style guide from an existing site before a redesign', 'Grabbing logo and favicon URLs for client onboarding', 'Pulling OG meta data for social media audits'],
+    tips: ['Some sites block cross-origin requests — try another URL if extraction fails', 'Colors include CSS custom properties and inline styles', 'Fonts are extracted from font-family declarations and @font-face rules', 'Copy as CSS variables to drop directly into your project'],
+    related: ['color-palette', 'brand-kit'],
+  },
 };
 
 export function getMarketingLabToolInfo(toolId: string): ToolInfo {

@@ -1,10 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
 import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export class PdfCompress {
   id = 'pdf-compress';
@@ -28,6 +29,10 @@ export class PdfCompress {
           <input type="file" accept=".pdf" hidden>
         </div>
         <div class="pdf-compress-controls" id="pdfc-controls" style="display:none;">
+          <div class="pdf-info-bar">
+            <span id="pdfc-info"></span>
+            <button class="btn btn--ghost btn--sm" id="pdfc-change">Change File</button>
+          </div>
           <canvas id="pdfc-preview" class="pdf-preview-canvas" style="display:none;"></canvas>
           <div class="pdf-compress-info">
             <div class="pdf-stat">
@@ -54,7 +59,7 @@ export class PdfCompress {
   }
 
   init(root: HTMLElement): void {
-    const dropZone = root.querySelector('#pdfc-dropzone')!;
+    const dropZone = root.querySelector('#pdfc-dropzone') as HTMLDivElement;
     this.containerEl = root.querySelector('#pdfc-controls')!;
     this.previewCanvas = root.querySelector('#pdfc-preview')!;
     this.originalSizeEl = root.querySelector('#pdfc-original')!;
@@ -80,12 +85,23 @@ export class PdfCompress {
     });
 
     this.compressBtn.addEventListener('click', () => this.compress());
+
+    root.querySelector('#pdfc-change')?.addEventListener('click', () => {
+      this.file = null;
+      this.previewCanvas.style.display = 'none';
+      this.containerEl.style.display = 'none';
+      dropZone.style.display = '';
+      this.compressedSizeEl.textContent = '—';
+      this.savingsEl.textContent = '—';
+    });
   }
 
   private async loadFile(file: File, dropZone: HTMLDivElement): Promise<void> {
     this.file = file;
     dropZone.style.display = 'none';
     this.containerEl.style.display = '';
+    const infoEl = this.containerEl.querySelector('#pdfc-info')!;
+    infoEl.textContent = `${file.name} · ${formatBytes(file.size)}`;
     this.originalSizeEl.textContent = formatBytes(file.size);
     this.compressedSizeEl.textContent = '—';
     this.savingsEl.textContent = '—';
@@ -98,9 +114,10 @@ export class PdfCompress {
       const viewport = page.getViewport({ scale: 0.8 });
       this.previewCanvas.width = viewport.width;
       this.previewCanvas.height = viewport.height;
-      await page.render({ canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
+      await page.render({ canvas: this.previewCanvas, canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
       this.previewCanvas.style.display = '';
-    } catch {
+    } catch (e) {
+      console.warn('PDF preview failed:', e);
       this.previewCanvas.style.display = 'none';
     }
   }

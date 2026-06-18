@@ -1,10 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
 import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export class PdfProtect {
   id = 'pdf-protect';
@@ -29,6 +30,10 @@ export class PdfProtect {
           <input type="file" accept=".pdf" hidden>
         </div>
         <div class="pdf-protect-controls" id="pdfp-controls" style="display:none;">
+          <div class="pdf-info-bar">
+            <span id="pdfp-info"></span>
+            <button class="btn btn--ghost btn--sm" id="pdfp-change">Change File</button>
+          </div>
           <canvas id="pdfp-preview" class="pdf-preview-canvas" style="display:none;"></canvas>
           <div class="form-group">
             <label class="label">Mode</label>
@@ -59,7 +64,7 @@ export class PdfProtect {
   }
 
   init(root: HTMLElement): void {
-    const dropZone = root.querySelector('#pdfp-dropzone')!;
+    const dropZone = root.querySelector('#pdfp-dropzone') as HTMLDivElement;
     this.containerEl = root.querySelector('#pdfp-controls')!;
     this.previewCanvas = root.querySelector('#pdfp-preview')!;
     this.modeSelect = root.querySelector('#pdfp-mode')!;
@@ -87,6 +92,14 @@ export class PdfProtect {
 
     this.modeSelect.addEventListener('change', () => this.updateMode());
     this.actionBtn.addEventListener('click', () => this.process());
+
+    // Change File
+    root.querySelector('#pdfp-change')?.addEventListener('click', () => {
+      this.file = null;
+      this.previewCanvas.style.display = 'none';
+      this.containerEl.style.display = 'none';
+      dropZone.style.display = '';
+    });
   }
 
   private async loadFile(file: File, dropZone: HTMLDivElement): Promise<void> {
@@ -94,6 +107,9 @@ export class PdfProtect {
     dropZone.style.display = 'none';
     this.containerEl.style.display = '';
     this.updateMode();
+
+    const infoEl = this.containerEl.querySelector('#pdfp-info')!;
+    infoEl.textContent = `${file.name} · ${formatBytes(file.size)}`;
 
     // Render first page preview
     try {
@@ -103,9 +119,10 @@ export class PdfProtect {
       const viewport = page.getViewport({ scale: 0.8 });
       this.previewCanvas.width = viewport.width;
       this.previewCanvas.height = viewport.height;
-      await page.render({ canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
+      await page.render({ canvas: this.previewCanvas, canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
       this.previewCanvas.style.display = '';
-    } catch {
+    } catch (e) {
+      console.warn('PDF preview failed:', e);
       this.previewCanvas.style.display = 'none';
     }
   }
@@ -121,6 +138,7 @@ export class PdfProtect {
   private async process(): Promise<void> {
     if (!this.file) return;
     this.actionBtn.disabled = true;
+    this.actionBtn.textContent = 'Processing...';
 
     try {
       const bytes = await this.file.arrayBuffer();
@@ -131,8 +149,6 @@ export class PdfProtect {
         if (!userPass) { Toast.error('User password is required'); return; }
 
         const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-        // Note: pdf-lib doesn't support encryption directly.
-        // We save without encryption and note the limitation.
         const pdfBytes = await pdf.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const name = this.file.name.replace(/\.pdf$/i, '-protected.pdf');
@@ -152,9 +168,10 @@ export class PdfProtect {
       }
     } catch (err) {
       Toast.error(this.modeSelect.value === 'decrypt' ? 'Wrong password or failed to decrypt' : 'Failed to process PDF');
+    } finally {
+      this.actionBtn.disabled = false;
+      this.actionBtn.textContent = this.modeSelect.value === 'encrypt' ? 'Encrypt PDF' : 'Remove Password & Download';
     }
-
-    this.actionBtn.disabled = false;
   }
 
   destroy(): void {}
