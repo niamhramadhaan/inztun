@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class PasswordGenerator {
   id = 'password-gen';
@@ -77,12 +78,13 @@ export class PasswordGenerator {
       this.lengthValEl.textContent = this.lengthEl.value;
     });
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('pg-generate', () => this.generateSingle());
     bind('pg-generate-5', () => this.generateMultiple(5));
     bind('pg-copy', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('Password');
     });
 
@@ -121,16 +123,20 @@ export class PasswordGenerator {
     this.outputEl.textContent = passwords[0];
     this.updateStrength(passwords[0]);
 
-    this.listEl.innerHTML = passwords.map((p: string) => `
+    this.listEl.innerHTML = passwords
+      .map(
+        (p: string) => `
       <div class="password-item">
         <span class="password-item__value">${p}</span>
         <button class="btn btn--ghost btn--sm password-item__copy">Copy</button>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     this.listEl.querySelectorAll('.password-item__copy').forEach((btn: Element, i: number) => {
       (btn as HTMLElement).addEventListener('click', () => {
-        navigator.clipboard.writeText(passwords[i]);
+        void copyToClipboard(passwords[i]);
         Toast.copied('Password');
       });
     });
@@ -152,8 +158,10 @@ export class PasswordGenerator {
 
     this.strengthEl.innerHTML = `
       <div class="strength-bar">
-        ${Array.from({ length: 5 }, (_: unknown, i: number) =>
-          `<div class="strength-segment" style="background: ${i <= level ? colors[level] : 'var(--bg-glass)'}"></div>`
+        ${Array.from(
+          { length: 5 },
+          (_: unknown, i: number) =>
+            `<div class="strength-segment" style="background: ${i <= level ? colors[level] : 'var(--bg-glass)'}"></div>`,
         ).join('')}
       </div>
       <span class="strength-label" style="color: ${colors[level]}">${levels[level]}</span>

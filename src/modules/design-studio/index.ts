@@ -1,29 +1,39 @@
-import { ToolView } from '../../components/ToolView';
-import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
 import type { Category } from '../../components/ModuleHelpers';
-import { router } from '../../core/router';
-import { events } from '../../core/events';
-import { db } from '../../core/db';
+import {
+  createCategorySection,
+  createTipsPanel,
+  createToolCard,
+} from '../../components/ModuleHelpers';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
 import { Toast } from '../../components/Toast';
+import { ToolView } from '../../components/ToolView';
+import { db } from '../../core/db';
+import { events } from '../../core/events';
+import { router } from '../../core/router';
+import type {
+  SortMode,
+  Tool,
+  ToolClass,
+  ToolInfo,
+  ToolRegistryEntry,
+  ToolViewOptions,
+} from '../../types/index';
 import { getDesignStudioToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
-
-import { CssGradient } from './tools/css-gradient';
 import { BorderRadius } from './tools/border-radius';
-import { TypographyScale } from './tools/typography-scale';
-import { SpacingSystem } from './tools/spacing-system';
-import { ImageCompress } from './tools/image-compress';
-import { ImageResize } from './tools/image-resize';
-import { ImageConvert } from './tools/image-convert';
+import { BrandGuidelines } from './tools/brand-guidelines';
 import { ContrastChecker } from './tools/contrast-checker';
+import { CssGradient } from './tools/css-gradient';
 import { FaviconGenerator } from './tools/favicon-generator';
-import { LogoBuilder } from './tools/logo-builder';
+import { FontPairer } from './tools/font-pairer';
+import { ImageCompress } from './tools/image-compress';
+import { ImageConvert } from './tools/image-convert';
 import { ImageCrop } from './tools/image-crop';
 import { ImageFilters } from './tools/image-filters';
 import { ImageMetadata } from './tools/image-metadata';
-import { FontPairer } from './tools/font-pairer';
-import { BrandKit } from './tools/brand-kit';
+import { ImageResize } from './tools/image-resize';
+import { LogoBuilder } from './tools/logo-builder';
+import { SpacingSystem } from './tools/spacing-system';
+import { TypographyScale } from './tools/typography-scale';
 
 const CATEGORIES: Category[] = [
   {
@@ -61,18 +71,18 @@ const CATEGORIES: Category[] = [
   {
     id: 'branding',
     name: 'Branding',
-    tooltip: 'Favicons, logos, fonts, and brand kits',
+    tooltip: 'Favicons, logos, fonts, and brand guidelines',
     tools: [
       { id: 'favicon-generator', Tool: FaviconGenerator, span: { col: 6, row: 1 } },
       { id: 'logo-builder', Tool: LogoBuilder, span: { col: 6, row: 1 } },
       { id: 'font-pairer', Tool: FontPairer, span: { col: 6, row: 1 } },
-      { id: 'brand-kit', Tool: BrandKit, span: { col: 6, row: 1 } },
+      { id: 'brand-guidelines', Tool: BrandGuidelines, span: { col: 6, row: 1 }, featured: true },
     ],
   },
 ];
 
-const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
-  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap((cat) =>
+  cat.tools.map((t) => ({ ...t, category: cat.id, categoryName: cat.name })),
 );
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -90,7 +100,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'image-filters': 'Apply filters like grayscale, sepia, brightness, contrast, and blur.',
   'image-metadata': 'Read and strip EXIF metadata from images.',
   'font-pairer': 'Browse curated font pairings for headings and body text.',
-  'brand-kit': 'Build and export your brand colors, fonts, and logo as CSS.',
+  'brand-guidelines': 'Generate a premium brand guidelines board as PNG or PDF.',
 };
 
 interface ToolInstance {
@@ -127,7 +137,7 @@ export class DesignStudio {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('ds-favorites', []) as string[];
+    const saved = (await db.getPreference('ds-favorites', [])) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -189,7 +199,7 @@ export class DesignStudio {
     const isSearching = this.searchQuery.length > 0;
 
     if (this.sortMode === 'favorites' && !isSearching) {
-      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      const favTools = ALL_TOOLS.filter((t) => this.favorites.has(t.id));
       if (favTools.length === 0) {
         this.categoriesContainer!.innerHTML = `
           <div class="empty-state">
@@ -203,7 +213,12 @@ export class DesignStudio {
       }
 
       const section = createCategorySection({
-        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        category: {
+          id: 'favorites',
+          name: '★ Favorites',
+          tooltip: 'Your pinned tools',
+          tools: favTools,
+        },
         collapsed: false,
         onToggleCollapse: () => {},
         createCard: (entry, index) => this.makeToolCard(entry, index),
@@ -212,14 +227,18 @@ export class DesignStudio {
       return;
     }
 
-    CATEGORIES.forEach(cat => {
+    CATEGORIES.forEach((cat) => {
       let tools = [...cat.tools];
 
       if (isSearching) {
-        tools = tools.filter(t => {
+        tools = tools.filter((t) => {
           const name = new t.Tool().name.toLowerCase();
           const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+          return (
+            name.includes(this.searchQuery) ||
+            desc.includes(this.searchQuery) ||
+            t.id.includes(this.searchQuery)
+          );
         });
         if (tools.length === 0) return;
       }
@@ -266,7 +285,7 @@ export class DesignStudio {
   }
 
   private showTool(toolId: string): void {
-    const registry = ALL_TOOLS.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find((t) => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -293,8 +312,8 @@ export class DesignStudio {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
-    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex((t) => t.id === toolId);
+    const toolsList = ALL_TOOLS.map((t) => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -316,20 +335,22 @@ export class DesignStudio {
 
     const tipsData = getDesignStudioToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      contentEl.appendChild(createTipsPanel({
-        toolId,
-        data: tipsData,
-        moduleId: this.moduleId,
-        allTools: ALL_TOOLS,
-        onNavigate: (modId, tId) => router.navigate(modId, tId),
-      }));
+      contentEl.appendChild(
+        createTipsPanel({
+          toolId,
+          data: tipsData,
+          moduleId: this.moduleId,
+          allTools: ALL_TOOLS,
+          onNavigate: (modId, tId) => router.navigate(modId, tId),
+        }),
+      );
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -641,18 +662,34 @@ export class DesignStudio {
         gap: var(--space-2);
       }
       .lb-shape-picker {
-        display: flex;
-        gap: var(--space-1);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
       }
       .lb-shape-btn {
-        width: 36px;
-        height: 36px;
-        font-size: var(--text-lg);
+        width: 100%;
+        height: 30px;
+        font-size: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
       }
       .lb-shape-btn--active {
+        background: var(--accent-dim);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
+      .lb-fill-toggle {
+        display: flex;
+        gap: var(--space-1);
+      }
+      .lb-fill-btn {
+        flex: 1;
+        padding: var(--space-1) var(--space-2);
+        font-size: var(--text-xs);
+        text-align: center;
+      }
+      .lb-fill-btn--active {
         background: var(--accent-dim);
         border-color: var(--accent-border);
         color: var(--accent);
@@ -698,6 +735,9 @@ export class DesignStudio {
         display: flex;
         flex-wrap: wrap;
         gap: 4px;
+        max-height: 160px;
+        overflow-y: auto;
+        padding: var(--space-1);
       }
       .lb-icon-btn {
         width: 32px;
@@ -727,6 +767,28 @@ export class DesignStudio {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+      }
+      .lb-upload-input {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .lb-upload-drop {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60px;
+        border: 2px dashed var(--border-hairline);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+        cursor: pointer;
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        transition: border-color 150ms;
+      }
+      .lb-upload-drop:hover {
+        border-color: var(--accent);
+        color: var(--text-secondary);
       }
       .lb-slider {
         width: 100%;
@@ -773,37 +835,29 @@ export class DesignStudio {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
+        align-items: center;
       }
       .lb-canvas-stack {
         position: relative;
-        width: 256px;
-        height: 256px;
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 1;
       }
       .lb-canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-md);
-        background-image: linear-gradient(45deg, var(--bg-deep) 25%, transparent 25%),
-          linear-gradient(-45deg, var(--bg-deep) 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, var(--bg-deep) 75%),
-          linear-gradient(-45deg, transparent 75%, var(--bg-deep) 75%);
-        background-size: 16px 16px;
-        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        background: #1a1a1a;
       }
       .lb-canvas--overlay {
         position: absolute;
         top: 0;
         left: 0;
+        width: 100%;
+        height: 100%;
         pointer-events: none;
-      }
-      .lb-preview-canvas {
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-md);
-        background-image: linear-gradient(45deg, var(--bg-deep) 25%, transparent 25%),
-          linear-gradient(-45deg, var(--bg-deep) 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, var(--bg-deep) 75%),
-          linear-gradient(-45deg, transparent 75%, var(--bg-deep) 75%);
-        background-size: 16px 16px;
-        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
       }
       @media (max-width: 768px) {
         .lb-layout {
@@ -871,27 +925,27 @@ export class DesignStudio {
       .fp-css-output { margin-bottom: var(--space-4); }
       @media (max-width: 768px) { .fp-controls { grid-template-columns: 1fr; } }
 
-      /* ── Brand Kit ── */
-      .bk-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); align-items: start; }
-      .bk-controls { display: flex; flex-direction: column; gap: var(--space-3); }
-      .bk-logo-upload { cursor: pointer; }
-      .bk-logo-preview { display: flex; align-items: center; justify-content: center; min-height: 80px; border: 2px dashed var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-3); }
-      .bk-logo-placeholder { font-size: var(--text-sm); color: var(--text-muted); }
-      .bk-colors { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
-      .bk-color-item { display: flex; align-items: center; gap: var(--space-1); }
-      .bk-color-input { width: 32px; height: 28px; border: none; border-radius: var(--radius-sm); cursor: pointer; background: transparent; }
-      .bk-color-hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
-      .bk-color-remove { padding: 0; width: 20px; height: 20px; }
-      .bk-preview { }
-      .bk-preview-card { padding: var(--space-6); background: var(--bg-deep); border-radius: var(--radius-lg); }
-      .bk-preview-logo { margin-bottom: var(--space-4); }
-      .bk-preview-name { font-size: var(--text-2xl); font-weight: 700; color: var(--text-primary); margin-bottom: var(--space-1); }
-      .bk-preview-tagline { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-4); }
-      .bk-preview-palette { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
-      .bk-palette-swatch { width: 40px; height: 40px; border-radius: var(--radius-md); border: 1px solid var(--border-hairline); }
-      .bk-preview-sample h3 { margin-bottom: var(--space-2); color: var(--text-primary); }
-      .bk-preview-sample p { color: var(--text-secondary); line-height: 1.6; }
-      @media (max-width: 768px) { .bk-layout { grid-template-columns: 1fr; } }
+      /* ── Brand Guidelines ── */
+      .bgl-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); align-items: start; }
+      .bgl-controls { display: flex; flex-direction: column; gap: var(--space-3); }
+      .bgl-logo-upload { cursor: pointer; }
+      .bgl-logo-preview { display: flex; align-items: center; justify-content: center; min-height: 60px; border: 2px dashed var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-3); }
+      .bgl-logo-placeholder { font-size: var(--text-sm); color: var(--text-muted); }
+      .bgl-colors { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+      .bgl-color-item { display: flex; align-items: center; gap: var(--space-1); }
+      .bgl-color-input { width: 32px; height: 28px; border: none; border-radius: var(--radius-sm); cursor: pointer; background: transparent; }
+      .bgl-color-hex { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+      .bgl-color-remove { padding: 0; width: 20px; height: 20px; }
+      .bgl-color-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+      .bgl-palette-grid { display: flex; flex-direction: column; gap: var(--space-2); max-height: 300px; overflow-y: auto; }
+      .bgl-palette-card { cursor: pointer; padding: var(--space-2); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); transition: border-color 150ms, transform 150ms; }
+      .bgl-palette-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+      .bgl-palette-strip { display: flex; height: 32px; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-1); }
+      .bgl-palette-cell { flex: 1; }
+      .bgl-palette-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
+      .bgl-preview-area { overflow: auto; max-height: 80vh; }
+      .bgl-canvas { width: 100%; height: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-hairline); }
+      @media (max-width: 768px) { .bgl-layout { grid-template-columns: 1fr; } }
     `;
     document.head.appendChild(style);
   }
@@ -901,7 +955,10 @@ export class DesignStudio {
       events.off('route:change', this._routeHandler);
     }
     this.toolbar?.destroy();
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';
   }

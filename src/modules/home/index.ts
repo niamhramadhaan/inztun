@@ -1,123 +1,400 @@
+import { getCurrencySymbol } from '../../components/SettingsPanel';
 import { Tile } from '../../components/Tile';
 import { ToolView } from '../../components/ToolView';
-import { getCurrencySymbol } from '../../components/SettingsPanel';
-import { router, ROUTES } from '../../core/router';
-import { events } from '../../core/events';
 import { db } from '../../core/db';
+import { events } from '../../core/events';
 import { ICONS } from '../../core/icons';
+import { ROUTES, router } from '../../core/router';
 import type { Tool, ToolClass, ToolRegistryEntry, ToolViewOptions } from '../../types/index';
-
-import { JsonFormatter } from '../workers-suite/tools/json-formatter';
-import { Base64Tool } from '../workers-suite/tools/base64';
-import { HashGenerator } from '../workers-suite/tools/hash-generator';
-import { UuidGenerator } from '../workers-suite/tools/uuid-generator';
-import { LoremIpsum } from '../workers-suite/tools/lorem-ipsum';
-import { CharacterCounter } from '../workers-suite/tools/char-counter';
-import { UrlEncoder } from '../workers-suite/tools/url-encoder';
-import { MarkdownPreview } from '../workers-suite/tools/markdown-preview';
-import { MarkdownToHtml } from '../workers-suite/tools/markdown-html';
-import { PasswordGenerator } from '../workers-suite/tools/password-gen';
-import { CssUnitConverter } from '../workers-suite/tools/css-unit';
-import { Scratchpad } from '../workers-suite/tools/scratchpad';
-import { TypingTest } from '../playground/tools/typing-test';
-import { BannerGenerator } from '../playground/tools/ascii-art';
-import { PixelArt } from '../playground/tools/pixel-art';
-import { CssGradient } from '../design-studio/tools/css-gradient';
+import { getRecentDownloads } from '../../utils/download-tracker';
 import { BorderRadius } from '../design-studio/tools/border-radius';
-import { TypographyScale } from '../design-studio/tools/typography-scale';
-import { SpacingSystem } from '../design-studio/tools/spacing-system';
-import { ImageCompress } from '../design-studio/tools/image-compress';
-import { ImageResize } from '../design-studio/tools/image-resize';
-import { ImageConvert } from '../design-studio/tools/image-convert';
+import { BrandGuidelines } from '../design-studio/tools/brand-guidelines';
 import { ContrastChecker } from '../design-studio/tools/contrast-checker';
+import { CssGradient } from '../design-studio/tools/css-gradient';
 import { FaviconGenerator } from '../design-studio/tools/favicon-generator';
-import { LogoBuilder } from '../design-studio/tools/logo-builder';
+import { FontPairer } from '../design-studio/tools/font-pairer';
+import { ImageCompress } from '../design-studio/tools/image-compress';
+import { ImageConvert } from '../design-studio/tools/image-convert';
 import { ImageCrop } from '../design-studio/tools/image-crop';
 import { ImageFilters } from '../design-studio/tools/image-filters';
 import { ImageMetadata } from '../design-studio/tools/image-metadata';
-import { FontPairer } from '../design-studio/tools/font-pairer';
-import { BrandKit } from '../design-studio/tools/brand-kit';
-import { UtmBuilder } from '../marketing-lab/tools/utm-builder';
-import { SeoMeta } from '../marketing-lab/tools/seo-meta';
-import { SocialCounter } from '../marketing-lab/tools/social-counter';
+import { ImageResize } from '../design-studio/tools/image-resize';
+import { LogoBuilder } from '../design-studio/tools/logo-builder';
+import { SpacingSystem } from '../design-studio/tools/spacing-system';
+import { TypographyScale } from '../design-studio/tools/typography-scale';
+import { ClientManager } from '../freelance-core/tools/client-manager';
+import { ContractTemplates } from '../freelance-core/tools/contract-templates';
+import { ExpenseTracker } from '../freelance-core/tools/expense-tracker';
+import { InvoiceGenerator } from '../freelance-core/tools/invoice-generator';
+import { ProjectManager } from '../freelance-core/tools/project-manager';
+import { RateCalculator } from '../freelance-core/tools/rate-calculator';
+import { TaxEstimator } from '../freelance-core/tools/tax-estimator';
+import { TimeTracker } from '../freelance-core/tools/time-tracker';
+import { TimezoneConverter } from '../freelance-core/tools/timezone-converter';
 import { ColorPalette } from '../marketing-lab/tools/color-palette';
 import { OgPreview } from '../marketing-lab/tools/og-preview';
+import { SeoMeta } from '../marketing-lab/tools/seo-meta';
+import { SocialCounter } from '../marketing-lab/tools/social-counter';
 import { SocialResizer } from '../marketing-lab/tools/social-resizer';
-import { InvoiceGenerator } from '../freelance-core/tools/invoice-generator';
-import { RateCalculator } from '../freelance-core/tools/rate-calculator';
-import { TimeTracker } from '../freelance-core/tools/time-tracker';
-import { ExpenseTracker } from '../freelance-core/tools/expense-tracker';
-import { ContractTemplates } from '../freelance-core/tools/contract-templates';
-import { ClientManager } from '../freelance-core/tools/client-manager';
-import { TaxEstimator } from '../freelance-core/tools/tax-estimator';
-import { TimezoneConverter } from '../freelance-core/tools/timezone-converter';
-import { ProjectManager } from '../freelance-core/tools/project-manager';
-import { PdfMerge } from '../workers-suite/tools/pdf-merge';
-import { PdfSplit } from '../workers-suite/tools/pdf-split';
+import { SocialScheduler } from '../marketing-lab/tools/social-scheduler';
+import { UtmBuilder } from '../marketing-lab/tools/utm-builder';
+import { BannerGenerator } from '../playground/tools/ascii-art';
+import { PixelArt } from '../playground/tools/pixel-art';
+import { TypingTest } from '../playground/tools/typing-test';
+import { Base64Tool } from '../workers-suite/tools/base64';
+import { CharacterCounter } from '../workers-suite/tools/char-counter';
+import { ChartCreator } from '../workers-suite/tools/chart-creator';
+import { CssUnitConverter } from '../workers-suite/tools/css-unit';
+import { HashGenerator } from '../workers-suite/tools/hash-generator';
+import { JsonFormatter } from '../workers-suite/tools/json-formatter';
+import { LoremIpsum } from '../workers-suite/tools/lorem-ipsum';
+import { MarkdownToHtml } from '../workers-suite/tools/markdown-html';
+import { MarkdownPreview } from '../workers-suite/tools/markdown-preview';
+import { MdTable } from '../workers-suite/tools/md-table';
+import { PasswordGenerator } from '../workers-suite/tools/password-gen';
 import { PdfCompress } from '../workers-suite/tools/pdf-compress';
-import { PdfProtect } from '../workers-suite/tools/pdf-protect';
-import { PdfSign } from '../workers-suite/tools/pdf-sign';
-import { PdfToImages } from '../workers-suite/tools/pdf-to-images';
+import { PdfMerge } from '../workers-suite/tools/pdf-merge';
 import { PdfMetadata } from '../workers-suite/tools/pdf-metadata';
+import { PdfSign } from '../workers-suite/tools/pdf-sign';
+import { PdfSplit } from '../workers-suite/tools/pdf-split';
+import { QrGenerator } from '../workers-suite/tools/qr-generator';
+import { Scratchpad } from '../workers-suite/tools/scratchpad';
+import { UrlEncoder } from '../workers-suite/tools/url-encoder';
+import { UuidGenerator } from '../workers-suite/tools/uuid-generator';
 
-const ALL_TOOLS: Record<string, { Tool: ToolClass; module: string; name: string; description: string }> = {
-  'json-formatter': { Tool: JsonFormatter, module: 'workers-suite', name: 'JSON Formatter', description: 'Pretty-print, minify, and validate JSON data.' },
-  'base64': { Tool: Base64Tool, module: 'workers-suite', name: 'Base64', description: 'Encode and decode Base64 strings.' },
-  'hash-generator': { Tool: HashGenerator, module: 'workers-suite', name: 'Hash Generator', description: 'Generate SHA-256, SHA-1, and MD5 hashes.' },
-  'uuid-generator': { Tool: UuidGenerator, module: 'workers-suite', name: 'UUID Generator', description: 'Generate v4 UUIDs in bulk.' },
-  'lorem-ipsum': { Tool: LoremIpsum, module: 'workers-suite', name: 'Lorem Ipsum', description: 'Generate placeholder text for designs.' },
-  'char-counter': { Tool: CharacterCounter, module: 'workers-suite', name: 'Char Counter', description: 'Count characters, words, lines, sentences, reading time.' },
-  'url-encoder': { Tool: UrlEncoder, module: 'workers-suite', name: 'URL Encoder', description: 'Encode/decode URLs and parse URL structure.' },
-  'markdown-preview': { Tool: MarkdownPreview, module: 'workers-suite', name: 'MD Preview', description: 'Live markdown preview with GFM support.' },
-  'markdown-html': { Tool: MarkdownToHtml, module: 'workers-suite', name: 'MD→HTML', description: 'Convert markdown to clean HTML.' },
-  'password-gen': { Tool: PasswordGenerator, module: 'workers-suite', name: 'Password Gen', description: 'Generate secure passwords with customizable options.' },
-  'css-unit': { Tool: CssUnitConverter, module: 'workers-suite', name: 'CSS Unit', description: 'Convert between px, rem, em, vw, vh, and more.' },
-  'scratchpad': { Tool: Scratchpad, module: 'workers-suite', name: 'Scratchpad', description: 'Markdown notes with auto-save, search, and client/project linking.' },
-  'typing-test': { Tool: TypingTest, module: 'playground', name: 'Typing Test', description: 'Test your typing speed with WPM and accuracy tracking.' },
-  'banner-generator': { Tool: BannerGenerator, module: 'playground', name: 'Banner Generator', description: 'Generate text banners for terminal, README, and CLI headers.' },
-  'pixel-art': { Tool: PixelArt, module: 'playground', name: 'Pixel Art', description: 'Draw pixel art on a grid and export as PNG.' },
-  'css-gradient': { Tool: CssGradient, module: 'design-studio', name: 'CSS Gradient', description: 'Build and preview CSS gradients with live output.' },
-  'border-radius': { Tool: BorderRadius, module: 'design-studio', name: 'Border Radius', description: 'Preview and customize border radius for any shape.' },
-  'typography-scale': { Tool: TypographyScale, module: 'design-studio', name: 'Type Scale', description: 'Generate modular type scales with CSS custom properties.' },
-  'spacing-system': { Tool: SpacingSystem, module: 'design-studio', name: 'Spacing', description: 'Create consistent spacing tokens for your design system.' },
-  'image-compress': { Tool: ImageCompress, module: 'design-studio', name: 'Image Compress', description: 'Shrink image file sizes for web without losing visible quality.' },
-  'image-resize': { Tool: ImageResize, module: 'design-studio', name: 'Image Resize', description: 'Scale images to exact pixel dimensions with aspect ratio lock.' },
-  'image-convert': { Tool: ImageConvert, module: 'design-studio', name: 'Image Convert', description: 'Convert between PNG, JPEG, and WebP formats.' },
-  'contrast-checker': { Tool: ContrastChecker, module: 'design-studio', name: 'Contrast Checker', description: 'Check WCAG contrast ratios for accessible text on any background.' },
-  'favicon-generator': { Tool: FaviconGenerator, module: 'design-studio', name: 'Favicon Gen', description: 'Generate favicons in all standard sizes from any image.' },
-  'logo-builder': { Tool: LogoBuilder, module: 'design-studio', name: 'Logo Builder', description: 'Build logos with shapes, icons, and text. Export as PNG.' },
-  'utm-builder': { Tool: UtmBuilder, module: 'marketing-lab', name: 'UTM Builder', description: 'Build campaign tracking URLs with UTM parameters.' },
-  'seo-meta': { Tool: SeoMeta, module: 'marketing-lab', name: 'SEO Meta', description: 'Generate meta tags and preview search result snippets.' },
-  'social-counter': { Tool: SocialCounter, module: 'marketing-lab', name: 'Social Counter', description: 'Check character counts across social platforms.' },
-  'color-palette': { Tool: ColorPalette, module: 'marketing-lab', name: 'Color Palette', description: 'Generate harmonious color palettes from any base color.' },
-  'og-preview': { Tool: OgPreview, module: 'marketing-lab', name: 'OG Preview', description: 'Preview how your page looks on Twitter, Facebook, and LinkedIn.' },
-  'social-resizer': { Tool: SocialResizer, module: 'marketing-lab', name: 'Social Resizer', description: 'Crop and resize images to exact social media platform dimensions.' },
-  'invoice-generator': { Tool: InvoiceGenerator, module: 'freelance-core', name: 'Invoice', description: 'Create professional invoices with line items, totals, and tax.' },
-  'rate-calculator': { Tool: RateCalculator, module: 'freelance-core', name: 'Rate Calc', description: 'Calculate hourly and daily rates with overhead and tax.' },
-  'time-tracker': { Tool: TimeTracker, module: 'freelance-core', name: 'Time Tracker', description: 'Track time with a live timer or manual entry.' },
-  'expense-tracker': { Tool: ExpenseTracker, module: 'freelance-core', name: 'Expenses', description: 'Log and categorize business expenses.' },
-  'contract-templates': { Tool: ContractTemplates, module: 'freelance-core', name: 'Contracts', description: 'Pre-built contract templates with variable inputs.' },
-  'client-manager': { Tool: ClientManager, module: 'freelance-core', name: 'Clients', description: 'Organize client information and project notes.' },
-  'tax-estimator': { Tool: TaxEstimator, module: 'freelance-core', name: 'Tax Estimator', description: 'Estimate US federal income tax by bracket with effective rate.' },
-  'timezone-converter': { Tool: TimezoneConverter, module: 'freelance-core', name: 'Timezone', description: 'Convert times across multiple time zones with meeting planner.' },
-  'project-manager': { Tool: ProjectManager, module: 'freelance-core', name: 'Projects', description: 'Manage all projects across clients — create, track, and organize.' },
-  'image-crop': { Tool: ImageCrop, module: 'design-studio', name: 'Image Crop', description: 'Crop images with interactive handles and preset aspect ratios.' },
-  'image-filters': { Tool: ImageFilters, module: 'design-studio', name: 'Image Filters', description: 'Apply grayscale, sepia, brightness, contrast, blur, and sharpen filters.' },
-  'image-metadata': { Tool: ImageMetadata, module: 'design-studio', name: 'Image Metadata', description: 'Read and strip EXIF metadata from images.' },
-  'font-pairer': { Tool: FontPairer, module: 'design-studio', name: 'Font Pairer', description: 'Browse curated font pairings for headings and body text.' },
-  'brand-kit': { Tool: BrandKit, module: 'design-studio', name: 'Brand Kit', description: 'Build and export your brand colors, fonts, and logo as CSS.' },
-  'pdf-merge': { Tool: PdfMerge, module: 'workers-suite', name: 'PDF Merge', description: 'Combine multiple PDF files into one with drag-to-reorder.' },
-  'pdf-split': { Tool: PdfSplit, module: 'workers-suite', name: 'PDF Split', description: 'Extract specific pages or split every page into individual PDFs.' },
-  'pdf-compress': { Tool: PdfCompress, module: 'workers-suite', name: 'PDF Compress', description: 'Reduce PDF file size by stripping unused objects and metadata.' },
-  'pdf-protect': { Tool: PdfProtect, module: 'workers-suite', name: 'PDF Protect', description: 'Add or remove password protection from PDF files.' },
-  'pdf-sign': { Tool: PdfSign, module: 'workers-suite', name: 'PDF Sign', description: 'Place a visual signature on PDF — draw, type, or upload.' },
-  'pdf-to-images': { Tool: PdfToImages, module: 'workers-suite', name: 'PDF to Images', description: 'Convert PDF pages to PNG images at configurable DPI.' },
-  'pdf-metadata': { Tool: PdfMetadata, module: 'workers-suite', name: 'PDF Metadata', description: 'View and edit PDF metadata — title, author, keywords, and more.' },
+const ALL_TOOLS: Record<
+  string,
+  { Tool: ToolClass; module: string; name: string; description: string }
+> = {
+  'json-formatter': {
+    Tool: JsonFormatter,
+    module: 'workers-suite',
+    name: 'JSON Formatter',
+    description: 'Pretty-print, minify, and validate JSON data.',
+  },
+  base64: {
+    Tool: Base64Tool,
+    module: 'workers-suite',
+    name: 'Base64',
+    description: 'Encode and decode Base64 strings.',
+  },
+  'hash-generator': {
+    Tool: HashGenerator,
+    module: 'workers-suite',
+    name: 'Hash Generator',
+    description: 'Generate SHA-256, SHA-1, and MD5 hashes.',
+  },
+  'uuid-generator': {
+    Tool: UuidGenerator,
+    module: 'workers-suite',
+    name: 'UUID Generator',
+    description: 'Generate v4 UUIDs in bulk.',
+  },
+  'lorem-ipsum': {
+    Tool: LoremIpsum,
+    module: 'workers-suite',
+    name: 'Lorem Ipsum',
+    description: 'Generate placeholder text for designs.',
+  },
+  'char-counter': {
+    Tool: CharacterCounter,
+    module: 'workers-suite',
+    name: 'Char Counter',
+    description: 'Count characters, words, lines, sentences, reading time.',
+  },
+  'url-encoder': {
+    Tool: UrlEncoder,
+    module: 'workers-suite',
+    name: 'URL Encoder',
+    description: 'Encode/decode URLs and parse URL structure.',
+  },
+  'markdown-preview': {
+    Tool: MarkdownPreview,
+    module: 'workers-suite',
+    name: 'MD Preview',
+    description: 'Live markdown preview with GFM support.',
+  },
+  'markdown-html': {
+    Tool: MarkdownToHtml,
+    module: 'workers-suite',
+    name: 'MD→HTML',
+    description: 'Convert markdown to clean HTML.',
+  },
+  'password-gen': {
+    Tool: PasswordGenerator,
+    module: 'workers-suite',
+    name: 'Password Gen',
+    description: 'Generate secure passwords with customizable options.',
+  },
+  'css-unit': {
+    Tool: CssUnitConverter,
+    module: 'workers-suite',
+    name: 'CSS Unit',
+    description: 'Convert between px, rem, em, vw, vh, and more.',
+  },
+  scratchpad: {
+    Tool: Scratchpad,
+    module: 'workers-suite',
+    name: 'Scratchpad',
+    description: 'Markdown notes with auto-save, search, and client/project linking.',
+  },
+  'qr-generator': {
+    Tool: QrGenerator,
+    module: 'workers-suite',
+    name: 'QR Generator',
+    description: 'Generate scannable QR codes from text or URLs. Export PNG/SVG.',
+  },
+  'md-table': {
+    Tool: MdTable,
+    module: 'workers-suite',
+    name: 'Markdown Table',
+    description: 'Convert between markdown tables and CSV/JSON. Bidirectional.',
+  },
+  'chart-creator': {
+    Tool: ChartCreator,
+    module: 'workers-suite',
+    name: 'Chart Creator',
+    description: 'Create bar, line, pie, and doughnut charts from table data.',
+  },
+  'typing-test': {
+    Tool: TypingTest,
+    module: 'playground',
+    name: 'Typing Test',
+    description: 'Test your typing speed with WPM and accuracy tracking.',
+  },
+  'banner-generator': {
+    Tool: BannerGenerator,
+    module: 'playground',
+    name: 'Banner Generator',
+    description: 'Generate text banners for terminal, README, and CLI headers.',
+  },
+  'pixel-art': {
+    Tool: PixelArt,
+    module: 'playground',
+    name: 'Pixel Art',
+    description: 'Draw pixel art on a grid and export as PNG.',
+  },
+  'css-gradient': {
+    Tool: CssGradient,
+    module: 'design-studio',
+    name: 'CSS Gradient',
+    description: 'Build and preview CSS gradients with live output.',
+  },
+  'border-radius': {
+    Tool: BorderRadius,
+    module: 'design-studio',
+    name: 'Border Radius',
+    description: 'Preview and customize border radius for any shape.',
+  },
+  'typography-scale': {
+    Tool: TypographyScale,
+    module: 'design-studio',
+    name: 'Type Scale',
+    description: 'Generate modular type scales with CSS custom properties.',
+  },
+  'spacing-system': {
+    Tool: SpacingSystem,
+    module: 'design-studio',
+    name: 'Spacing',
+    description: 'Create consistent spacing tokens for your design system.',
+  },
+  'image-compress': {
+    Tool: ImageCompress,
+    module: 'design-studio',
+    name: 'Image Compress',
+    description: 'Shrink image file sizes for web without losing visible quality.',
+  },
+  'image-resize': {
+    Tool: ImageResize,
+    module: 'design-studio',
+    name: 'Image Resize',
+    description: 'Scale images to exact pixel dimensions with aspect ratio lock.',
+  },
+  'image-convert': {
+    Tool: ImageConvert,
+    module: 'design-studio',
+    name: 'Image Convert',
+    description: 'Convert between PNG, JPEG, and WebP formats.',
+  },
+  'contrast-checker': {
+    Tool: ContrastChecker,
+    module: 'design-studio',
+    name: 'Contrast Checker',
+    description: 'Check WCAG contrast ratios for accessible text on any background.',
+  },
+  'favicon-generator': {
+    Tool: FaviconGenerator,
+    module: 'design-studio',
+    name: 'Favicon Gen',
+    description: 'Generate favicons in all standard sizes from any image.',
+  },
+  'logo-builder': {
+    Tool: LogoBuilder,
+    module: 'design-studio',
+    name: 'Logo Builder',
+    description: 'Build logos with shapes, icons, and text. Export as PNG.',
+  },
+  'utm-builder': {
+    Tool: UtmBuilder,
+    module: 'marketing-lab',
+    name: 'UTM Builder',
+    description: 'Build campaign tracking URLs with UTM parameters.',
+  },
+  'seo-meta': {
+    Tool: SeoMeta,
+    module: 'marketing-lab',
+    name: 'SEO Meta',
+    description: 'Generate meta tags and preview search result snippets.',
+  },
+  'social-counter': {
+    Tool: SocialCounter,
+    module: 'marketing-lab',
+    name: 'Social Counter',
+    description: 'Check character counts across social platforms.',
+  },
+  'color-palette': {
+    Tool: ColorPalette,
+    module: 'marketing-lab',
+    name: 'Color Palette',
+    description: 'Generate harmonious color palettes from any base color.',
+  },
+  'og-preview': {
+    Tool: OgPreview,
+    module: 'marketing-lab',
+    name: 'OG Preview',
+    description: 'Preview how your page looks on Twitter, Facebook, and LinkedIn.',
+  },
+  'social-resizer': {
+    Tool: SocialResizer,
+    module: 'marketing-lab',
+    name: 'Social Resizer',
+    description: 'Crop and resize images to exact social media platform dimensions.',
+  },
+  'social-scheduler': {
+    Tool: SocialScheduler,
+    module: 'marketing-lab',
+    name: 'Social Scheduler',
+    description: 'Generate optimized social media schedules with calendar view.',
+  },
+  'invoice-generator': {
+    Tool: InvoiceGenerator,
+    module: 'freelance-core',
+    name: 'Invoice',
+    description: 'Create professional invoices with line items, totals, and tax.',
+  },
+  'rate-calculator': {
+    Tool: RateCalculator,
+    module: 'freelance-core',
+    name: 'Rate Calc',
+    description: 'Calculate hourly and daily rates with overhead and tax.',
+  },
+  'time-tracker': {
+    Tool: TimeTracker,
+    module: 'freelance-core',
+    name: 'Time Tracker',
+    description: 'Track time with a live timer or manual entry.',
+  },
+  'expense-tracker': {
+    Tool: ExpenseTracker,
+    module: 'freelance-core',
+    name: 'Expenses',
+    description: 'Log and categorize business expenses.',
+  },
+  'contract-templates': {
+    Tool: ContractTemplates,
+    module: 'freelance-core',
+    name: 'Contracts',
+    description: 'Pre-built contract templates with variable inputs.',
+  },
+  'client-manager': {
+    Tool: ClientManager,
+    module: 'freelance-core',
+    name: 'Clients',
+    description: 'Organize client information and project notes.',
+  },
+  'tax-estimator': {
+    Tool: TaxEstimator,
+    module: 'freelance-core',
+    name: 'Tax Estimator',
+    description: 'Estimate US federal income tax by bracket with effective rate.',
+  },
+  'timezone-converter': {
+    Tool: TimezoneConverter,
+    module: 'freelance-core',
+    name: 'Timezone',
+    description: 'Convert times across multiple time zones with meeting planner.',
+  },
+  'project-manager': {
+    Tool: ProjectManager,
+    module: 'freelance-core',
+    name: 'Projects',
+    description: 'Manage all projects across clients — create, track, and organize.',
+  },
+  'image-crop': {
+    Tool: ImageCrop,
+    module: 'design-studio',
+    name: 'Image Crop',
+    description: 'Crop images with interactive handles and preset aspect ratios.',
+  },
+  'image-filters': {
+    Tool: ImageFilters,
+    module: 'design-studio',
+    name: 'Image Filters',
+    description: 'Apply grayscale, sepia, brightness, contrast, blur, and sharpen filters.',
+  },
+  'image-metadata': {
+    Tool: ImageMetadata,
+    module: 'design-studio',
+    name: 'Image Metadata',
+    description: 'Read and strip EXIF metadata from images.',
+  },
+  'font-pairer': {
+    Tool: FontPairer,
+    module: 'design-studio',
+    name: 'Font Pairer',
+    description: 'Browse curated font pairings for headings and body text.',
+  },
+  'brand-guidelines': {
+    Tool: BrandGuidelines,
+    module: 'design-studio',
+    name: 'Brand Guidelines',
+    description: 'Generate a premium brand guidelines board as PNG or PDF.',
+  },
+  'pdf-merge': {
+    Tool: PdfMerge,
+    module: 'workers-suite',
+    name: 'PDF Merge',
+    description: 'Combine multiple PDF files into one with drag-to-reorder.',
+  },
+  'pdf-split': {
+    Tool: PdfSplit,
+    module: 'workers-suite',
+    name: 'PDF Split',
+    description: 'Preview pages and download selected ones as a new PDF.',
+  },
+  'pdf-compress': {
+    Tool: PdfCompress,
+    module: 'workers-suite',
+    name: 'PDF Compress',
+    description: 'Reduce PDF file size by stripping unused objects and metadata.',
+  },
+  'pdf-sign': {
+    Tool: PdfSign,
+    module: 'workers-suite',
+    name: 'PDF Sign',
+    description: 'Place a visual signature on PDF — draw, type, or upload.',
+  },
+  'pdf-metadata': {
+    Tool: PdfMetadata,
+    module: 'workers-suite',
+    name: 'PDF Metadata',
+    description: 'View and edit PDF metadata — title, author, keywords, and more.',
+  },
 };
 
 const MODULE_NAMES: Record<string, string> = {
   'workers-suite': "Worker's Suite",
-  'playground': 'Playground',
+  playground: 'Playground',
   'design-studio': 'Design Studio',
   'marketing-lab': 'Marketing Lab',
   'freelance-core': 'Freelance Core',
@@ -169,7 +446,7 @@ export class Home {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    this.renderGrid().catch(err => {
+    this.renderGrid().catch((err) => {
       console.error('Home renderGrid failed:', err);
       this.container!.innerHTML = `
         <div class="module-grid" style="grid-column:1/-1;min-height:60vh;display:flex;align-items:center;justify-content:center;">
@@ -181,7 +458,11 @@ export class Home {
       `;
     });
 
-    this._routeHandler = ({ current }: { current: { module: string | null; tool: string | null } }) => {
+    this._routeHandler = ({
+      current,
+    }: {
+      current: { module: string | null; tool: string | null };
+    }) => {
       this.setActiveTab(current.module || 'home');
       if (current.module !== this.moduleId) return;
       if (current.tool) this.showTool(current.tool);
@@ -201,7 +482,7 @@ export class Home {
     // Dynamic greeting
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const userName = await db.getPreference('userName', '') as string;
+    const userName = (await db.getPreference('userName', '')) as string;
     const greetName = userName ? `, ${userName}` : '';
 
     const header = document.createElement('div');
@@ -222,9 +503,20 @@ export class Home {
 
     // Load all data in parallel — each call is individually safe
     const [
-      activeTimer, invoices, usage, projects, clients, notes, defaultLocale, defaultCurrency,
-      wsFavorites, fcFavorites, dsFavorites, mlFavorites, pgFavorites
-    ] = await Promise.all([
+      activeTimer,
+      invoices,
+      usage,
+      projects,
+      clients,
+      notes,
+      defaultLocale,
+      defaultCurrency,
+      wsFavorites,
+      fcFavorites,
+      dsFavorites,
+      mlFavorites,
+      pgFavorites,
+    ] = (await Promise.all([
       db.getPreference('fc-active-timer').catch(() => null),
       db.getHistory('invoice', 100).catch(() => []),
       db.getToolUsage().catch(() => ({})),
@@ -238,22 +530,36 @@ export class Home {
       db.getPreference('ds-favorites', []).catch(() => []),
       db.getPreference('ml-favorites', []).catch(() => []),
       db.getPreference('pg-favorites', []).catch(() => []),
-    ]) as [
+    ])) as [
       { project: string; startTime: number } | null,
       Array<{ id: number; tool: string; data: unknown; timestamp: number }>,
       Record<string, number>,
-      Array<{ id: number; clientId: number; name: string; status: string; deadline?: string; budget?: number; currency?: string }>,
+      Array<{
+        id: number;
+        clientId: number;
+        name: string;
+        status: string;
+        deadline?: string;
+        budget?: number;
+        currency?: string;
+      }>,
       Array<{ id: number; name: string; createdAt?: number }>,
       Array<{ id: number; title: string; content: string; updatedAt: number }>,
       string,
       string,
-      string[], string[], string[], string[], string[],
+      string[],
+      string[],
+      string[],
+      string[],
+      string[],
     ];
     this.locale = defaultLocale || 'en-US';
-    const allFavorites = [...new Set([...wsFavorites, ...fcFavorites, ...dsFavorites, ...mlFavorites, ...pgFavorites])];
+    const allFavorites = [
+      ...new Set([...wsFavorites, ...fcFavorites, ...dsFavorites, ...mlFavorites, ...pgFavorites]),
+    ];
 
-    const clientMap = new Map(clients.map(c => [c.id, c.name]));
-    const activeProjects = projects.filter(p => p.status === 'active').slice(0, 3);
+    const clientMap = new Map(clients.map((c) => [c.id, c.name]));
+    const activeProjects = projects.filter((p) => p.status === 'active').slice(0, 3);
 
     // ── Stats Row ──
     const statsRow = document.createElement('div');
@@ -322,7 +628,7 @@ export class Home {
       invWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Invoices</span></div>
         <div class="home-stat-widget__value">${invoiceCount}</div>
-        <div class="home-stat-widget__detail">${getCurrencySymbol(defaultCurrency as string || 'USD')}${totalAmount.toFixed(0)} total</div>
+        <div class="home-stat-widget__detail">${getCurrencySymbol((defaultCurrency as string) || 'USD')}${totalAmount.toFixed(0)} total</div>
       `;
     } else {
       invWidget.innerHTML = `
@@ -331,7 +637,9 @@ export class Home {
         <div class="home-stat-widget__detail">No invoices yet — create your first</div>
       `;
     }
-    invWidget.addEventListener('click', () => router.navigate('freelance-core', 'invoice-generator'));
+    invWidget.addEventListener('click', () =>
+      router.navigate('freelance-core', 'invoice-generator'),
+    );
     invWidget.style.cursor = 'pointer';
     statsRow.appendChild(invWidget);
 
@@ -343,19 +651,24 @@ export class Home {
       notesWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Quick Notes</span></div>
         <div class="home-notes-grid">
-          ${recentNotes.map(n => {
-            const preview = (n.content || '').replace(/[#*`\[\]>_~-]/g, '').trim().slice(0, 40);
-            return `
+          ${recentNotes
+            .map((n) => {
+              const preview = (n.content || '')
+                .replace(/[#*`[\]>_~-]/g, '')
+                .trim()
+                .slice(0, 40);
+              return `
               <div class="home-note-mini" data-id="${n.id}">
                 <div class="home-note-mini__title">${n.title || 'Untitled'}</div>
                 <div class="home-note-mini__time">${this.relativeTime(n.updatedAt)}</div>
               </div>
             `;
-          }).join('')}
+            })
+            .join('')}
         </div>
       `;
       setTimeout(() => {
-        notesWidget.querySelectorAll('.home-note-mini').forEach(card => {
+        notesWidget.querySelectorAll('.home-note-mini').forEach((card) => {
           card.addEventListener('click', async () => {
             const id = (card as HTMLElement).dataset.id!;
             await db.setPreference('sp-active-note', parseInt(id));
@@ -380,29 +693,33 @@ export class Home {
     // Usage chart widget
     const usageWidget = document.createElement('div');
     usageWidget.className = 'home-stat-widget home-stat-widget--wide';
-    const sorted = Object.entries(usage).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const sorted = Object.entries(usage)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
     const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
     if (sorted.length > 0) {
       usageWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Most Used Tools</span></div>
         <div class="home-usage-chart">
-          ${sorted.map(([id, count]) => {
-            const data = ALL_TOOLS[id];
-            const name = data ? data.name : id;
-            const module = data ? data.module : '';
-            const pct = Math.round((count / maxCount) * 100);
-            return `
+          ${sorted
+            .map(([id, count]) => {
+              const data = ALL_TOOLS[id];
+              const name = data ? data.name : id;
+              const module = data ? data.module : '';
+              const pct = Math.round((count / maxCount) * 100);
+              return `
               <div class="home-usage-bar home-usage-bar--clickable" data-tool-id="${id}" data-module="${module}">
                 <span class="home-usage-bar__name">${name}</span>
                 <div class="home-usage-bar__track"><div class="home-usage-bar__fill" style="width:${pct}%"></div></div>
                 <span class="home-usage-bar__count">${count}</span>
               </div>
             `;
-          }).join('')}
+            })
+            .join('')}
         </div>
       `;
       setTimeout(() => {
-        usageWidget.querySelectorAll('.home-usage-bar--clickable').forEach(bar => {
+        usageWidget.querySelectorAll('.home-usage-bar--clickable').forEach((bar) => {
           bar.addEventListener('click', () => {
             const toolId = (bar as HTMLElement).dataset.toolId!;
             const module = (bar as HTMLElement).dataset.module!;
@@ -426,21 +743,26 @@ export class Home {
       projWidget.innerHTML = `
         <div class="home-stat-widget__header"><span class="home-stat-widget__label">Active Projects</span></div>
         <div class="home-projects-list">
-          ${activeProjects.map(p => {
-            const deadline = p.deadline ? this.formatProjectDeadline(p.deadline) : '';
-            const isUrgent = p.deadline && this.getDeadlineDays(p.deadline) <= 7 && this.getDeadlineDays(p.deadline) >= 0;
-            return `
+          ${activeProjects
+            .map((p) => {
+              const deadline = p.deadline ? this.formatProjectDeadline(p.deadline) : '';
+              const isUrgent =
+                p.deadline &&
+                this.getDeadlineDays(p.deadline) <= 7 &&
+                this.getDeadlineDays(p.deadline) >= 0;
+              return `
               <div class="home-project-mini" data-project-id="${p.id}" data-project-name="${p.name}">
                 <div class="home-project-mini__name">${p.name}</div>
                 <div class="home-project-mini__client">${clientMap.get(p.clientId) || 'Unknown'}</div>
                 ${deadline ? `<div class="home-project-mini__deadline ${isUrgent ? 'home-project-mini__deadline--urgent' : ''}">${deadline}</div>` : ''}
               </div>
             `;
-          }).join('')}
+            })
+            .join('')}
         </div>
       `;
       setTimeout(() => {
-        projWidget.querySelectorAll('.home-project-mini').forEach(card => {
+        projWidget.querySelectorAll('.home-project-mini').forEach((card) => {
           card.addEventListener('click', () => {
             const projectId = parseInt((card as HTMLElement).dataset.projectId!);
             const projectName = (card as HTMLElement).dataset.projectName!;
@@ -502,42 +824,110 @@ export class Home {
     this.gridView.appendChild(quickActions);
 
     setTimeout(() => {
-      quickActions.querySelectorAll('.home-qa-btn').forEach(btn => {
+      quickActions.querySelectorAll('.home-qa-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const action = (btn as HTMLElement).dataset.action;
           switch (action) {
-            case 'new-invoice': router.navigate('freelance-core', 'invoice-generator'); break;
-            case 'start-timer': router.navigate('freelance-core', 'time-tracker'); break;
-            case 'new-note':
+            case 'new-invoice':
+              router.navigate('freelance-core', 'invoice-generator');
+              break;
+            case 'start-timer':
+              router.navigate('freelance-core', 'time-tracker');
+              break;
+            case 'new-note': {
               const note = await db.createNote({ title: '', content: '' });
               await db.setPreference('sp-active-note', note.id);
               router.navigate('workers-suite', 'scratchpad');
               break;
-            case 'new-client': router.navigate('freelance-core', 'client-manager'); break;
-            case 'settings': events.emit('palette:open-settings'); break;
-            case 'defaults': events.emit('palette:open-defaults'); break;
-            case 'shortcuts': events.emit('shortcuts:open'); break;
+            }
+            case 'new-client':
+              router.navigate('freelance-core', 'client-manager');
+              break;
+            case 'settings':
+              events.emit('palette:open-settings');
+              break;
+            case 'defaults':
+              events.emit('palette:open-defaults');
+              break;
+            case 'shortcuts':
+              events.emit('shortcuts:open');
+              break;
           }
         });
       });
     }, 0);
 
     // ── Recent Drafts ──
-    const drafts: Array<{ type: string; title: string; subtitle: string; time: number; module: string; tool: string }> = [];
+    const drafts: Array<{
+      type: string;
+      title: string;
+      subtitle: string;
+      time: number;
+      module: string;
+      tool: string;
+    }> = [];
 
-    invoices.slice(-5).forEach(inv => {
+    invoices.slice(-5).forEach((inv) => {
       const d = inv.data as any;
-      drafts.push({ type: 'invoice', title: `Invoice ${d.number || '#' + inv.id}`, subtitle: d.client || 'No client', time: inv.timestamp, module: 'freelance-core', tool: 'invoice-generator' });
+      drafts.push({
+        type: 'invoice',
+        title: `Invoice ${d.number || '#' + inv.id}`,
+        subtitle: d.client || 'No client',
+        time: inv.timestamp,
+        module: 'freelance-core',
+        tool: 'invoice-generator',
+      });
     });
-    clients.slice(-3).forEach(c => {
-      drafts.push({ type: 'client', title: c.name, subtitle: 'Client', time: (c as any).createdAt || Date.now(), module: 'freelance-core', tool: 'client-manager' });
+    clients.slice(-3).forEach((c) => {
+      drafts.push({
+        type: 'client',
+        title: c.name,
+        subtitle: 'Client',
+        time: (c as any).createdAt || Date.now(),
+        module: 'freelance-core',
+        tool: 'client-manager',
+      });
     });
-    projects.filter(p => p.status === 'active').slice(-3).forEach(p => {
-      drafts.push({ type: 'project', title: p.name, subtitle: clientMap.get(p.clientId) || 'No client', time: Date.now(), module: 'freelance-core', tool: 'project-manager' });
+    projects
+      .filter((p) => p.status === 'active')
+      .slice(-3)
+      .forEach((p) => {
+        drafts.push({
+          type: 'project',
+          title: p.name,
+          subtitle: clientMap.get(p.clientId) || 'No client',
+          time: Date.now(),
+          module: 'freelance-core',
+          tool: 'project-manager',
+        });
+      });
+    notes.slice(-3).forEach((n) => {
+      drafts.push({
+        type: 'note',
+        title: n.title || 'Untitled note',
+        subtitle: 'Note',
+        time: n.updatedAt,
+        module: 'workers-suite',
+        tool: 'scratchpad',
+      });
     });
-    notes.slice(-3).forEach(n => {
-      drafts.push({ type: 'note', title: n.title || 'Untitled note', subtitle: 'Note', time: n.updatedAt, module: 'workers-suite', tool: 'scratchpad' });
-    });
+
+    // Downloaded files
+    try {
+      const downloads = await getRecentDownloads(5);
+      downloads.forEach((dl) => {
+        drafts.push({
+          type: 'download',
+          title: dl.name,
+          subtitle: dl.toolName,
+          time: dl.timestamp,
+          module: 'workers-suite',
+          tool: dl.toolId,
+        });
+      });
+    } catch {
+      /* ignore */
+    }
 
     drafts.sort((a, b) => b.time - a.time);
     const recentDrafts = drafts.slice(0, 12);
@@ -548,7 +938,9 @@ export class Home {
       draftsSection.innerHTML = `
         <div class="home-section-label"><span>Recent Drafts</span></div>
         <div class="home-drafts__grid">
-          ${recentDrafts.map(d => `
+          ${recentDrafts
+            .map(
+              (d) => `
             <div class="home-draft-card" data-module="${d.module}" data-tool="${d.tool}">
               <span class="home-draft-card__icon">${this.getDraftIcon(d.type)}</span>
               <div class="home-draft-card__info">
@@ -556,11 +948,13 @@ export class Home {
                 <span class="home-draft-card__subtitle">${d.subtitle}</span>
               </div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
       `;
       setTimeout(() => {
-        draftsSection.querySelectorAll('.home-draft-card').forEach(card => {
+        draftsSection.querySelectorAll('.home-draft-card').forEach((card) => {
           card.addEventListener('click', () => {
             const mod = (card as HTMLElement).dataset.module!;
             const tool = (card as HTMLElement).dataset.tool!;
@@ -625,15 +1019,17 @@ export class Home {
 
     this.navTabsEl = document.createElement('div');
     this.navTabsEl.className = 'home-nav__tabs';
-    this.navTabsEl.innerHTML = HOME_TABS.map(tab => `
+    this.navTabsEl.innerHTML = HOME_TABS.map(
+      (tab) => `
       <button class="home-nav__tab ${tab.id === this.moduleId ? 'home-nav__tab--active' : ''}" data-module="${tab.id}">
         <span class="home-nav__tab-icon">${tab.icon}</span>
         <span class="home-nav__tab-label">${tab.label}</span>
       </button>
-    `).join('');
+    `,
+    ).join('');
     nav.appendChild(this.navTabsEl);
 
-    this.navTabsEl.querySelectorAll('.home-nav__tab').forEach(btn => {
+    this.navTabsEl.querySelectorAll('.home-nav__tab').forEach((btn) => {
       btn.addEventListener('click', () => {
         const moduleId = (btn as HTMLElement).dataset.module!;
         router.navigate(moduleId);
@@ -645,7 +1041,7 @@ export class Home {
 
   private setActiveTab(moduleId: string): void {
     if (!this.navTabsEl) return;
-    this.navTabsEl.querySelectorAll('.home-nav__tab').forEach(tab => {
+    this.navTabsEl.querySelectorAll('.home-nav__tab').forEach((tab) => {
       const isActive = (tab as HTMLElement).dataset.module === moduleId;
       tab.classList.toggle('home-nav__tab--active', isActive);
     });
@@ -684,12 +1080,20 @@ export class Home {
 
   private getDraftIcon(type: string): string {
     const icons: Record<string, string> = {
-      'invoice': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-      'client': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
-      'project': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
-      'note': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      invoice:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      client:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
+      project:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+      note: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      download:
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
     };
-    return icons[type] || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+    return (
+      icons[type] ||
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>'
+    );
   }
 
   private createToolCard(toolId: string, tool: Tool, moduleId: string, index: number): HTMLElement {
@@ -763,7 +1167,7 @@ export class Home {
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -1314,7 +1718,10 @@ export class Home {
   destroy(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
     if (this._routeHandler) events.off(ROUTES.CHANGE, this._routeHandler);
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.navTabsEl = null;
     this.workspace.innerHTML = '';

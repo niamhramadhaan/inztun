@@ -1,18 +1,14 @@
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
-import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+import { logDownload } from '../../../utils/download-tracker';
+import { downloadBlob, escapeHtml, formatBytes, stampPdfMetadata } from '../../../utils/image';
 
 interface PdfFile {
   file: File;
   name: string;
   pageCount: number;
   size: string;
-  thumbDataUrl?: string;
 }
 
 export class PdfMerge {
@@ -51,12 +47,19 @@ export class PdfMerge {
     const fileInput = this.dropZone.querySelector('input')!;
 
     this.dropZone.addEventListener('click', () => fileInput.click());
-    this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('pdf-drop-zone--active'); });
-    this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('pdf-drop-zone--active'));
+    this.dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      this.dropZone.classList.add('pdf-drop-zone--active');
+    });
+    this.dropZone.addEventListener('dragleave', () =>
+      this.dropZone.classList.remove('pdf-drop-zone--active'),
+    );
     this.dropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
       this.dropZone.classList.remove('pdf-drop-zone--active');
-      const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type === 'application/pdf');
+      const files = Array.from(e.dataTransfer?.files || []).filter(
+        (f) => f.type === 'application/pdf',
+      );
       await this.addFiles(files);
     });
 
@@ -78,13 +81,11 @@ export class PdfMerge {
       try {
         const bytes = await file.arrayBuffer();
         const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
-        const thumbDataUrl = await this.renderFirstPageToDataUrl(file);
         this.pdfFiles.push({
           file,
           name: file.name,
           pageCount: pdf.getPageCount(),
           size: formatBytes(file.size),
-          thumbDataUrl,
         });
       } catch {
         Toast.error(`Failed to read ${file.name}`);
@@ -93,28 +94,12 @@ export class PdfMerge {
     this.renderList();
   }
 
-  private async renderFirstPageToDataUrl(file: File): Promise<string> {
-    try {
-      const bytes = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 0.4 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d')!;
-      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-      return canvas.toDataURL('image/png');
-    } catch (e) {
-      console.warn('PDF thumbnail failed:', e);
-      return '';
-    }
-  }
-
   private renderList(): void {
     if (this.pdfFiles.length === 0) {
       this.listEl.style.display = 'none';
-      this.listEl.parentElement?.querySelector('.pdf-actions')?.setAttribute('style', 'display:none;');
+      this.listEl.parentElement
+        ?.querySelector('.pdf-actions')
+        ?.setAttribute('style', 'display:none;');
       return;
     }
 
@@ -122,22 +107,23 @@ export class PdfMerge {
     this.listEl.parentElement?.querySelector('.pdf-actions')?.removeAttribute('style');
     this.mergeBtn.disabled = this.pdfFiles.length < 2;
 
-    this.listEl.innerHTML = this.pdfFiles.map((f, i) => `
+    this.listEl.innerHTML = this.pdfFiles
+      .map(
+        (f, i) => `
       <div class="pdf-file-item" draggable="true" data-index="${i}">
         <span class="pdf-file-handle">⠿</span>
-        ${f.thumbDataUrl
-          ? `<img class="pdf-merge-thumb" src="${f.thumbDataUrl}" alt="Page 1 of ${f.name}">`
-          : '<span class="pdf-file-icon">📄</span>'}
+        <span class="pdf-file-icon">📄</span>
         <div class="pdf-file-info">
-          <span class="pdf-file-name">${f.name}</span>
+          <span class="pdf-file-name">${escapeHtml(f.name)}</span>
           <span class="pdf-file-meta">${f.pageCount} pages · ${f.size}</span>
         </div>
         <button class="btn btn--ghost btn--sm pdf-file-remove" data-index="${i}">×</button>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    // Drag & drop reordering
-    this.listEl.querySelectorAll('.pdf-file-item').forEach(item => {
+    this.listEl.querySelectorAll('.pdf-file-item').forEach((item) => {
       item.addEventListener('dragstart', (e) => {
         this.draggedIndex = parseInt((item as HTMLElement).dataset.index!);
         (e as DragEvent).dataTransfer!.effectAllowed = 'move';
@@ -162,7 +148,7 @@ export class PdfMerge {
       });
     });
 
-    this.listEl.querySelectorAll('.pdf-file-remove').forEach(btn => {
+    this.listEl.querySelectorAll('.pdf-file-remove').forEach((btn) => {
       btn.addEventListener('click', () => {
         const idx = parseInt((btn as HTMLElement).dataset.index!);
         this.pdfFiles.splice(idx, 1);
@@ -182,12 +168,14 @@ export class PdfMerge {
         const bytes = await pdfFile.file.arrayBuffer();
         const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
         const pages = await merged.copyPages(pdf, pdf.getPageIndices());
-        pages.forEach(page => merged.addPage(page));
+        pages.forEach((page) => merged.addPage(page));
       }
+      stampPdfMetadata(merged);
 
       const pdfBytes = await merged.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       downloadBlob(blob, 'merged.pdf');
+      logDownload('pdf-merge', 'PDF Merger', blob, 'merged.pdf');
       Toast.success(`Merged ${this.pdfFiles.length} PDFs`);
       logToolAction('pdf-merge', 'Merged PDFs');
     } catch {

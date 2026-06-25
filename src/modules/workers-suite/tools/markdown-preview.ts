@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class MarkdownPreview {
   id = 'markdown-preview';
@@ -68,12 +69,12 @@ export class MarkdownPreview {
     });
 
     root.querySelector('#md-copy-html')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.innerHTML);
+      void copyToClipboard(this.outputEl.innerHTML);
       Toast.copied('HTML');
     });
 
     root.querySelector('#md-copy-md')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.inputEl.value);
+      void copyToClipboard(this.inputEl.value);
       Toast.copied('Markdown');
     });
 
@@ -95,53 +96,84 @@ export class MarkdownPreview {
     let html = md;
 
     // Code blocks (triple backtick)
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(_match: string, lang: string, code: string): string {
-      return '<pre class="md-code-block"><code class="language-' + lang + '">' + escapeHtml(code.trim()) + '</code></pre>';
-    });
+    html = html.replace(
+      /```(\w*)\n([\s\S]*?)```/g,
+      (_match: string, lang: string, code: string): string =>
+        '<pre class="md-code-block"><code class="language-' +
+        lang +
+        '">' +
+        escapeHtml(code.trim()) +
+        '</code></pre>',
+    );
 
     // Inline code (single backtick)
-    html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
+    html = html.replace(
+      /`([^`]+)`/g,
+      (_m, code: string) => '<code class="md-inline-code">' + escapeHtml(code) + '</code>',
+    );
 
     // Headers
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    html = html.replace(/^### (.+)$/gm, (_m, t: string) => '<h3>' + escapeHtml(t) + '</h3>');
+    html = html.replace(/^## (.+)$/gm, (_m, t: string) => '<h2>' + escapeHtml(t) + '</h2>');
+    html = html.replace(/^# (.+)$/gm, (_m, t: string) => '<h1>' + escapeHtml(t) + '</h1>');
 
     // Bold and italic
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    html = html.replace(
+      /\*\*(.+?)\*\*/g,
+      (_m, t: string) => '<strong>' + escapeHtml(t) + '</strong>',
+    );
+    html = html.replace(/\*(.+?)\*/g, (_m, t: string) => '<em>' + escapeHtml(t) + '</em>');
+    html = html.replace(/~~(.+?)~~/g, (_m, t: string) => '<del>' + escapeHtml(t) + '</del>');
 
     // Links and images
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="md-img">');
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    html = html.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (_m, alt: string, src: string) =>
+        '<img src="' + escapeAttr(src) + '" alt="' + escapeAttr(alt) + '" class="md-img">',
+    );
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_m, text: string, href: string) =>
+        '<a href="' +
+        escapeAttr(href) +
+        '" target="_blank" rel="noopener">' +
+        escapeHtml(text) +
+        '</a>',
+    );
 
     // Blockquotes
-    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(
+      /^> (.+)$/gm,
+      (_m, t: string) => '<blockquote>' + escapeHtml(t) + '</blockquote>',
+    );
 
     // Horizontal rules
     html = html.replace(/^---$/gm, '<hr>');
 
     // Unordered lists
-    html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^[-*] (.+)$/gm, (_m, t: string) => '<li>' + escapeHtml(t) + '</li>');
     html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
     // Ordered lists
-    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^\d+\. (.+)$/gm, (_m, t: string) => '<li>' + escapeHtml(t) + '</li>');
 
     // Tables
-    html = html.replace(/^\|(.+)\|$/gm, function(_match: string, content: string): string {
-      const cells = content.split('|').map(function(c: string): string { return c.trim(); });
-      if (cells.every(function(c: string): boolean { return /^[-:]+$/.test(c); })) return '<!-- table separator -->';
-      return '<tr>' + cells.map(function(c: string): string { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+    html = html.replace(/^\|(.+)\|$/gm, (_match: string, content: string): string => {
+      const cells = content.split('|').map((c: string): string => c.trim());
+      if (cells.every((c: string): boolean => /^[-:]+$/.test(c))) return '<!-- table separator -->';
+      return (
+        '<tr>' +
+        cells.map((c: string): string => '<td>' + escapeHtml(c) + '</td>').join('') +
+        '</tr>'
+      );
     });
-    html = html.replace(/(<tr>.*<\/tr>\n?)+/g, function(match: string): string {
+    html = html.replace(/(<tr>.*<\/tr>\n?)+/g, (match: string): string => {
       const clean = match.replace(/<!-- table separator -->\n?/g, '');
       return '<table class="md-table">' + clean + '</table>';
     });
 
     // Paragraphs
-    html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, '<p>$1</p>');
+    html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, (_m, t: string) => '<p>' + escapeHtml(t) + '</p>');
 
     // Clean up extra newlines
     html = html.replace(/\n{2,}/g, '\n');
@@ -154,4 +186,12 @@ export class MarkdownPreview {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeAttr(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class UuidGenerator {
   id = 'uuid-generator';
@@ -46,7 +47,8 @@ export class UuidGenerator {
     this.countEl = root.querySelector('#uuid-count') as HTMLInputElement;
     this.formatEl = root.querySelector('#uuid-format') as HTMLSelectElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('uuid-generate', () => this.generate());
     bind('uuid-copy-all', () => this.copyAll());
@@ -59,15 +61,19 @@ export class UuidGenerator {
     const format = this.formatEl.value;
     const uuids = Array.from({ length: count }, () => this.formatUuid(this.v4(), format));
 
-    this.listEl.innerHTML = `<div class="uuid-list">${uuids.map((uuid: string) => `
+    this.listEl.innerHTML = `<div class="uuid-list">${uuids
+      .map(
+        (uuid: string) => `
       <div class="uuid-item">
         <span>${uuid}</span>
         <button class="btn btn--ghost btn--sm uuid-copy-btn">Copy</button>
-      </div>`).join('')}</div>`;
+      </div>`,
+      )
+      .join('')}</div>`;
 
     this.listEl.querySelectorAll('.uuid-copy-btn').forEach((btn: Element, i: number) => {
       (btn as HTMLElement).addEventListener('click', () => {
-        navigator.clipboard.writeText(uuids[i]);
+        void copyToClipboard(uuids[i]);
         Toast.copied('UUID');
       });
     });
@@ -75,34 +81,43 @@ export class UuidGenerator {
 
   formatUuid(uuid: string, format: string): string {
     switch (format) {
-      case 'upper': return uuid.toUpperCase();
-      case 'braces': return `{${uuid}}`;
-      default: return uuid;
+      case 'upper':
+        return uuid.toUpperCase();
+      case 'braces':
+        return `{${uuid}}`;
+      default:
+        return uuid;
     }
   }
 
   v4(): string {
     if (crypto.randomUUID) return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c: string) => {
-      const r = Math.random() * 16 | 0;
-      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
     });
   }
 
   async copyAll(): Promise<void> {
     const items = this.listEl.querySelectorAll('.uuid-item span');
-    await navigator.clipboard.writeText(Array.from(items).map((el: Element) => el.textContent || '').join('\n'));
+    await copyToClipboard(
+      Array.from(items)
+        .map((el: Element) => el.textContent || '')
+        .join('\n'),
+    );
     Toast.copied('All UUIDs');
   }
 
   download(): void {
     const items = this.listEl.querySelectorAll('.uuid-item span');
-    const text = Array.from(items).map((el: Element) => el.textContent || '').join('\n');
+    const text = Array.from(items)
+      .map((el: Element) => el.textContent || '')
+      .join('\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'uuids.txt';
+    a.download = `[Inztun] uuids-${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     Toast.success('Downloaded');

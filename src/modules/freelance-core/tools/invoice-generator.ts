@@ -1,10 +1,18 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import {
+  PDFDocument,
+  type PDFFont,
+  type PDFImage,
+  type PDFPage,
+  rgb,
+  StandardFonts,
+} from 'pdf-lib';
+import { CURRENCIES } from '../../../components/SettingsPanel';
 import { Toast } from '../../../components/Toast';
-import { db, type Client, type Project } from '../../../core/db';
+import { type Client, db, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-import { CURRENCIES } from '../../../components/SettingsPanel';
-import { downloadBlob } from '../../../utils/image';
+import { logDownload } from '../../../utils/download-tracker';
+import { copyToClipboard, downloadBlob, escapeHtml, stampPdfMetadata } from '../../../utils/image';
 
 interface LineItem {
   description: string;
@@ -72,7 +80,7 @@ export class InvoiceGenerator {
               <div class="form-group"><label class="label">Due Date</label><input type="date" class="input" id="fci-due-date" style="width:150px"></div>
               <div class="form-group"><label class="label">Currency</label>
                 <select class="input" id="fci-currency" style="width:140px">
-                  ${CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.code}</option>`).join('')}
+                  ${CURRENCIES.map((c) => `<option value="${c.code}">${c.symbol} ${c.code}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -125,17 +133,19 @@ export class InvoiceGenerator {
     this.historyEl = root.querySelector('#fci-history-list')!;
 
     // Load defaults from settings
-    const [defaultCurrency, defaultEmail, defaultCompany, defaultTaxRate, defaultPaymentTerms] = await Promise.all([
-      db.getPreference('defaultCurrency', 'USD') as Promise<string>,
-      db.getPreference('defaultEmail', '') as Promise<string>,
-      db.getPreference('defaultCompany', '') as Promise<string>,
-      db.getPreference('defaultTaxRate', '') as Promise<number | string>,
-      db.getPreference('defaultPaymentTerms', 30) as Promise<number>,
-    ]);
+    const [defaultCurrency, defaultEmail, defaultCompany, defaultTaxRate, defaultPaymentTerms] =
+      await Promise.all([
+        db.getPreference('defaultCurrency', 'USD') as Promise<string>,
+        db.getPreference('defaultEmail', '') as Promise<string>,
+        db.getPreference('defaultCompany', '') as Promise<string>,
+        db.getPreference('defaultTaxRate', '') as Promise<number | string>,
+        db.getPreference('defaultPaymentTerms', 30) as Promise<number>,
+      ]);
 
     (root.querySelector('#fci-date') as HTMLInputElement).valueAsDate = new Date();
     const dueDate = new Date();
-    const terms = typeof defaultPaymentTerms === 'number' && defaultPaymentTerms > 0 ? defaultPaymentTerms : 30;
+    const terms =
+      typeof defaultPaymentTerms === 'number' && defaultPaymentTerms > 0 ? defaultPaymentTerms : 30;
     dueDate.setDate(dueDate.getDate() + terms);
     (root.querySelector('#fci-due-date') as HTMLInputElement).valueAsDate = dueDate;
 
@@ -143,10 +153,10 @@ export class InvoiceGenerator {
     const currencySelect = root.querySelector('#fci-currency') as HTMLSelectElement;
     if (defaultCurrency) {
       currencySelect.value = defaultCurrency;
-      this.currency = CURRENCIES.find(c => c.code === defaultCurrency) || CURRENCIES[0];
+      this.currency = CURRENCIES.find((c) => c.code === defaultCurrency) || CURRENCIES[0];
     }
     currencySelect.addEventListener('change', () => {
-      this.currency = CURRENCIES.find(c => c.code === currencySelect.value) || CURRENCIES[0];
+      this.currency = CURRENCIES.find((c) => c.code === currencySelect.value) || CURRENCIES[0];
       this.update();
     });
 
@@ -187,7 +197,7 @@ export class InvoiceGenerator {
 
     root.querySelector('#fci-copy')!.addEventListener('click', () => {
       const text = this.buildPlainText();
-      navigator.clipboard.writeText(text);
+      void copyToClipboard(text);
       Toast.copied('Invoice');
     });
 
@@ -203,11 +213,17 @@ export class InvoiceGenerator {
       list.style.display = isOpen ? 'none' : '';
     });
 
-    [root.querySelector('#fci-from-name'), root.querySelector('#fci-from-company'),
-     root.querySelector('#fci-from-email'), root.querySelector('#fci-client'),
-     root.querySelector('#fci-client-email'), root.querySelector('#fci-number'),
-     root.querySelector('#fci-date'), root.querySelector('#fci-due-date'),
-     root.querySelector('#fci-notes')].forEach(el => {
+    [
+      root.querySelector('#fci-from-name'),
+      root.querySelector('#fci-from-company'),
+      root.querySelector('#fci-from-email'),
+      root.querySelector('#fci-client'),
+      root.querySelector('#fci-client-email'),
+      root.querySelector('#fci-number'),
+      root.querySelector('#fci-date'),
+      root.querySelector('#fci-due-date'),
+      root.querySelector('#fci-notes'),
+    ].forEach((el) => {
       el?.addEventListener('input', () => this.update());
     });
 
@@ -220,27 +236,29 @@ export class InvoiceGenerator {
 
   private renderItems(): void {
     const sym = this.currency.symbol;
-    this.itemsEl.innerHTML = this.items.map((item, i) => {
-      if (item._group) {
-        return `
+    this.itemsEl.innerHTML = this.items
+      .map((item, i) => {
+        if (item._group) {
+          return `
           <div class="fcinv-item fcinv-item--group">
-            <span class="fcinv-item__group-label">${item.description}</span>
+            <span class="fcinv-item__group-label">${escapeHtml(item.description)}</span>
             <button class="btn btn--ghost btn--sm fcinv-remove" data-i="${i}">×</button>
           </div>
         `;
-      }
-      return `
+        }
+        return `
         <div class="fcinv-item">
-          <input type="text" class="input" placeholder="Description" value="${item.description}" data-i="${i}" data-field="description">
+          <input type="text" class="input" placeholder="Description" value="${escapeHtml(item.description)}" data-i="${i}" data-field="description">
           <input type="number" class="input" placeholder="Qty" value="${item.quantity}" min="1" style="width:70px" data-i="${i}" data-field="quantity">
           <input type="number" class="input" placeholder="Rate" value="${item.rate || ''}" min="0" step="0.01" style="width:100px" data-i="${i}" data-field="rate">
           <span class="fcinv-item__amount">${sym}${(item.quantity * item.rate).toFixed(2)}</span>
           ${this.items.length > 1 ? `<button class="btn btn--ghost btn--sm fcinv-remove" data-i="${i}">×</button>` : ''}
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
-    this.itemsEl.querySelectorAll('input').forEach(el => {
+    this.itemsEl.querySelectorAll('input').forEach((el) => {
       el.addEventListener('input', (e) => {
         const i = parseInt((e.target as HTMLElement).dataset.i!);
         const field = (e.target as HTMLElement).dataset.field!;
@@ -252,7 +270,7 @@ export class InvoiceGenerator {
       });
     });
 
-    this.itemsEl.querySelectorAll('.fcinv-remove').forEach(btn => {
+    this.itemsEl.querySelectorAll('.fcinv-remove').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const i = parseInt((e.target as HTMLElement).dataset.i!);
         this.items.splice(i, 1);
@@ -265,7 +283,10 @@ export class InvoiceGenerator {
   }
 
   private update(): void {
-    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
+    const subtotal = this.items.reduce(
+      (sum, item) => (item._group ? sum : sum + item.quantity * item.rate),
+      0,
+    );
     const taxRate = parseFloat(this.taxInput.value) || 0;
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
@@ -300,20 +321,22 @@ export class InvoiceGenerator {
       ? `<img src="${this.logoDataUrl}" class="fci-paper__logo" alt="Logo">`
       : '';
 
-    const itemRows = this.items.map(item => {
-      if (item._group) {
-        return `<tr class="fci-paper__group-row">
-          <td colspan="4" style="font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--accent);padding-top:12px;">${item.description}</td>
+    const itemRows = this.items
+      .map((item) => {
+        if (item._group) {
+          return `<tr class="fci-paper__group-row">
+          <td colspan="4" style="font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--accent);padding-top:12px;">${escapeHtml(item.description)}</td>
         </tr>`;
-      }
-      const amt = (item.quantity * item.rate).toFixed(2);
-      return `<tr>
-        <td>${item.description || '—'}</td>
+        }
+        const amt = (item.quantity * item.rate).toFixed(2);
+        return `<tr>
+        <td>${escapeHtml(item.description) || '—'}</td>
         <td class="fci-num">${item.quantity}</td>
         <td class="fci-num">${sym}${item.rate.toFixed(2)}</td>
         <td class="fci-num">${sym}${amt}</td>
       </tr>`;
-    }).join('');
+      })
+      .join('');
 
     this.previewEl.innerHTML = `
       <div class="fci-paper__inner">
@@ -321,25 +344,25 @@ export class InvoiceGenerator {
           <div class="fci-paper__header-left">
             ${logoHtml}
             <div class="fci-paper__from">
-              <strong>${f.fromName || 'Your Name'}</strong>
-              ${f.fromCompany ? `<br>${f.fromCompany}` : ''}
-              ${f.fromEmail ? `<br>${f.fromEmail}` : ''}
+              <strong>${escapeHtml(f.fromName) || 'Your Name'}</strong>
+              ${f.fromCompany ? `<br>${escapeHtml(f.fromCompany)}` : ''}
+              ${f.fromEmail ? `<br>${escapeHtml(f.fromEmail)}` : ''}
             </div>
           </div>
           <div class="fci-paper__header-right">
             <div class="fci-paper__title">INVOICE</div>
-            <div class="fci-paper__number">${f.number || 'INV-001'}</div>
+            <div class="fci-paper__number">${escapeHtml(f.number) || 'INV-001'}</div>
             <div class="fci-paper__dates">
-              <span>Date: ${f.date || '—'}</span>
-              <span>Due: ${f.dueDate || '—'}</span>
+              <span>Date: ${escapeHtml(f.date) || '—'}</span>
+              <span>Due: ${escapeHtml(f.dueDate) || '—'}</span>
             </div>
           </div>
         </div>
 
         <div class="fci-paper__to">
           <div class="fci-paper__to-label">Bill To</div>
-          <strong>${f.client || 'Client Name'}</strong>
-          ${f.clientEmail ? `<br>${f.clientEmail}` : ''}
+          <strong>${escapeHtml(f.client) || 'Client Name'}</strong>
+          ${f.clientEmail ? `<br>${escapeHtml(f.clientEmail)}` : ''}
         </div>
 
         <table class="fci-paper__table">
@@ -359,24 +382,31 @@ export class InvoiceGenerator {
             <span>Subtotal</span>
             <span>${sym}${subtotal.toFixed(2)}</span>
           </div>
-          ${taxRate > 0 ? `<div class="fci-paper__totals-row">
+          ${
+            taxRate > 0
+              ? `<div class="fci-paper__totals-row">
             <span>Tax (${taxRate}%)</span>
             <span>${sym}${tax.toFixed(2)}</span>
-          </div>` : ''}
+          </div>`
+              : ''
+          }
           <div class="fci-paper__totals-row fci-paper__totals-row--total">
             <span>Total</span>
             <span>${sym}${total.toFixed(2)}</span>
           </div>
         </div>
 
-        ${f.notes ? `<div class="fci-paper__notes">${f.notes}</div>` : ''}
+        ${f.notes ? `<div class="fci-paper__notes">${escapeHtml(f.notes)}</div>` : ''}
       </div>
     `;
   }
 
   private buildPlainText(): string {
     const f = this.getFormValues();
-    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
+    const subtotal = this.items.reduce(
+      (sum, item) => (item._group ? sum : sum + item.quantity * item.rate),
+      0,
+    );
     const taxRate = parseFloat(this.taxInput.value) || 0;
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
@@ -387,7 +417,7 @@ export class InvoiceGenerator {
     text += `To: ${f.client}\n\n`;
     text += `DESCRIPTION          QTY    RATE    AMOUNT\n`;
     text += `${'─'.repeat(50)}\n`;
-    this.items.forEach(item => {
+    this.items.forEach((item) => {
       if (item._group) {
         text += `\n── ${item.description} ──\n`;
         return;
@@ -405,21 +435,63 @@ export class InvoiceGenerator {
 
   private async downloadPdf(): Promise<void> {
     const f = this.getFormValues();
-    const subtotal = this.items.reduce((sum, item) => item._group ? sum : sum + item.quantity * item.rate, 0);
+    const subtotal = this.items.reduce(
+      (sum, item) => (item._group ? sum : sum + item.quantity * item.rate),
+      0,
+    );
     const taxRate = parseFloat(this.taxInput.value) || 0;
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
     const sym = this.currency.symbol;
 
+    // ponytail: WinAnsiEncoding only — replace non-Latin-1 symbols with codes
+    const safe = (s: string) =>
+      s.replace(/[^\x00-\xFF]/g, (c) => {
+        const map: Record<string, string> = {
+          '€': 'EUR',
+          '₹': 'INR',
+          '₩': 'KRW',
+          '₱': 'PHP',
+          '฿': 'THB',
+        };
+        return map[c] || '?';
+      });
+
     const pdf = await PDFDocument.create();
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdf.embedFont(StandardFonts.HelveticaBold);
-    const page = pdf.addPage([595, 842]); // A4
+
+    // Embed logo if uploaded
+    let logoImg: PDFImage | null = null;
+    if (this.logoDataUrl) {
+      try {
+        const base64 = this.logoDataUrl.split(',')[1];
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const isPng = this.logoDataUrl.includes('image/png');
+        logoImg = isPng ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+      } catch {
+        /* bad image data — skip logo */
+      }
+    }
+
+    let page = pdf.addPage([595, 842]); // A4
     const { width, height } = page.getSize();
     let y = height - 50;
 
     const draw = (text: string, x: number, yPos: number, size = 10, isBold = false) => {
-      page.drawText(text, { x, y: yPos, size, font: isBold ? boldFont : font, color: rgb(0, 0, 0) });
+      page.drawText(safe(text), {
+        x,
+        y: yPos,
+        size,
+        font: isBold ? boldFont : font,
+        color: rgb(0, 0, 0),
+      });
+    };
+
+    const newPage = () => {
+      page = pdf.addPage([595, 842]);
+      y = height - 50;
+      return page;
     };
 
     // Header
@@ -428,34 +500,70 @@ export class InvoiceGenerator {
     draw(`#${f.number || 'INV-001'}`, 50, y, 12);
     y -= 40;
 
+    // Logo (top-right)
+    if (logoImg) {
+      const maxLogoW = 100;
+      const maxLogoH = 60;
+      const dims = logoImg.scale(1);
+      const scale = Math.min(maxLogoW / dims.width, maxLogoH / dims.height, 1);
+      const w = dims.width * scale;
+      const h = dims.height * scale;
+      page.drawImage(logoImg, { x: width - 50 - w, y: height - 50 - h, width: w, height: h });
+    }
+
     // From
-    if (f.fromName) { draw(f.fromName, 50, y, 11, true); y -= 16; }
-    if (f.fromCompany) { draw(f.fromCompany, 50, y, 10); y -= 14; }
-    if (f.fromEmail) { draw(f.fromEmail, 50, y, 10); y -= 14; }
+    if (f.fromName) {
+      draw(f.fromName, 50, y, 11, true);
+      y -= 16;
+    }
+    if (f.fromCompany) {
+      draw(f.fromCompany, 50, y, 10);
+      y -= 14;
+    }
+    if (f.fromEmail) {
+      draw(f.fromEmail, 50, y, 10);
+      y -= 14;
+    }
     y -= 20;
 
-    // To
-    draw('Bill To:', 50, y, 10, true); y -= 16;
-    if (f.client) { draw(f.client, 50, y, 11, true); y -= 16; }
-    if (f.clientEmail) { draw(f.clientEmail, 50, y, 10); y -= 14; }
-    y -= 10;
-
-    // Dates
-    draw(`Date: ${f.date || '—'}`, 350, height - 80, 10);
-    draw(`Due: ${f.dueDate || '—'}`, 350, height - 95, 10);
+    // To + Dates (dates draw after Bill To, relative to y)
+    draw('Bill To:', 50, y, 10, true);
+    draw(`Date: ${f.date || '—'}`, 350, y, 10);
+    y -= 16;
+    if (f.client) {
+      draw(f.client, 50, y, 11, true);
+      draw(`Due: ${f.dueDate || '—'}`, 350, y, 10);
+      y -= 16;
+    }
+    if (f.clientEmail) {
+      draw(f.clientEmail, 50, y, 10);
+      y -= 14;
+    }
     y -= 20;
 
     // Table header
-    const tableTop = y;
-    page.drawRectangle({ x: 50, y: y - 2, width: width - 100, height: 18, color: rgb(0.95, 0.95, 0.95) });
-    draw('Description', 55, y, 9, true);
-    draw('Qty', 340, y, 9, true);
-    draw('Rate', 390, y, 9, true);
-    draw('Amount', 470, y, 9, true);
-    y -= 20;
+    const drawTableHeader = () => {
+      page.drawRectangle({
+        x: 50,
+        y: y - 2,
+        width: width - 100,
+        height: 18,
+        color: rgb(0.95, 0.95, 0.95),
+      });
+      draw('Description', 55, y, 9, true);
+      draw('Qty', 340, y, 9, true);
+      draw('Rate', 390, y, 9, true);
+      draw('Amount', 470, y, 9, true);
+      y -= 20;
+    };
+    drawTableHeader();
 
-    // Items
+    // Items with pagination
     for (const item of this.items) {
+      if (y < 60) {
+        newPage();
+        drawTableHeader();
+      }
       if (item._group) {
         draw(item.description, 55, y, 9, true);
         y -= 18;
@@ -471,33 +579,61 @@ export class InvoiceGenerator {
 
     // Line
     y -= 5;
-    page.drawLine({ start: { x: 50, y }, end: { x: width - 50, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+    if (y < 60) {
+      newPage();
+    }
+    page.drawLine({
+      start: { x: 50, y },
+      end: { x: width - 50, y },
+      thickness: 0.5,
+      color: rgb(0.8, 0.8, 0.8),
+    });
     y -= 20;
 
     // Totals
-    draw('Subtotal:', 380, y, 10); draw(`${sym}${subtotal.toFixed(2)}`, 470, y, 10);
+    if (y < 100) {
+      newPage();
+    }
+    draw('Subtotal:', 380, y, 10);
+    draw(`${sym}${subtotal.toFixed(2)}`, 470, y, 10);
     y -= 18;
     if (taxRate > 0) {
-      draw(`Tax (${taxRate}%):`, 380, y, 10); draw(`${sym}${tax.toFixed(2)}`, 470, y, 10);
+      draw(`Tax (${taxRate}%):`, 380, y, 10);
+      draw(`${sym}${tax.toFixed(2)}`, 470, y, 10);
       y -= 18;
     }
     page.drawRectangle({ x: 370, y: y - 4, width: 180, height: 20, color: rgb(0.95, 0.95, 0.95) });
-    draw('TOTAL:', 380, y, 12, true); draw(`${sym}${total.toFixed(2)}`, 470, y, 12, true);
+    draw('TOTAL:', 380, y, 12, true);
+    draw(`${sym}${total.toFixed(2)}`, 470, y, 12, true);
     y -= 30;
 
     // Notes
     if (f.notes) {
-      draw('Notes:', 50, y, 10, true); y -= 16;
+      if (y < 80) {
+        newPage();
+      }
+      draw('Notes:', 50, y, 10, true);
+      y -= 16;
       const lines = f.notes.split('\n');
       for (const line of lines) {
+        if (y < 50) {
+          newPage();
+        }
         draw(line, 50, y, 9);
         y -= 14;
       }
     }
 
+    stampPdfMetadata(pdf);
     const pdfBytes = await pdf.save();
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
     downloadBlob(blob, `invoice-${f.number || 'INV-001'}.pdf`);
+    logDownload(
+      'invoice-generator',
+      'Invoice Generator',
+      blob,
+      `invoice-${f.number || 'INV-001'}.pdf`,
+    );
     Toast.success('PDF downloaded');
   }
 
@@ -511,7 +647,11 @@ export class InvoiceGenerator {
     };
     await db.addHistory('invoice', data);
     const clientName = this.getFormValues().client || 'Unknown';
-    db.logActivity('invoice', `Invoice saved for ${clientName}`, `INV-${this.getFormValues().number || '001'}`);
+    db.logActivity(
+      'invoice',
+      `Invoice saved for ${clientName}`,
+      `INV-${this.getFormValues().number || '001'}`,
+    );
     Toast.success('Invoice saved to history');
     this.loadHistory();
   }
@@ -519,33 +659,38 @@ export class InvoiceGenerator {
   private async loadHistory(): Promise<void> {
     const entries = await db.getHistory('invoice', 20);
     if (entries.length === 0) {
-      this.historyEl.innerHTML = '<p style="color:var(--text-ghost);font-size:var(--text-xs);padding:var(--space-2);">No saved invoices yet.</p>';
+      this.historyEl.innerHTML =
+        '<p style="color:var(--text-ghost);font-size:var(--text-xs);padding:var(--space-2);">No saved invoices yet.</p>';
       return;
     }
 
-    this.historyEl.innerHTML = entries.map((entry, i) => {
-      const d = entry.data as Record<string, unknown>;
-      const form = d.form as Record<string, string> || {};
-      const date = new Date(entry.timestamp).toLocaleDateString();
-      return `
+    this.historyEl.innerHTML = entries
+      .map((entry, i) => {
+        const d = entry.data as Record<string, unknown>;
+        const form = (d.form as Record<string, string>) || {};
+        const date = new Date(entry.timestamp).toLocaleDateString();
+        return `
         <div class="fci-history-item" data-index="${i}">
-          <span class="fci-history-item__name">${form.client || 'Unknown'}</span>
+          <span class="fci-history-item__name">${escapeHtml(form.client || 'Unknown')}</span>
           <span class="fci-history-item__date">${date}</span>
-          <span class="fci-history-item__num">${form.number || ''}</span>
+          <span class="fci-history-item__num">${escapeHtml(form.number || '')}</span>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     this.historyEl.querySelectorAll('.fci-history-item').forEach((el, i) => {
-      el.addEventListener('click', () => this.loadFromHistory(entries[i].data as Record<string, unknown>));
+      el.addEventListener('click', () =>
+        this.loadFromHistory(entries[i].data as Record<string, unknown>),
+      );
     });
   }
 
   private loadFromHistory(data: Record<string, unknown>): void {
-    const form = data.form as Record<string, string> || {};
-    const items = data.items as LineItem[] || [{ description: '', quantity: 1, rate: 0 }];
-    const currCode = data.currency as string || 'USD';
-    const taxRate = data.taxRate as number || 0;
+    const form = (data.form as Record<string, string>) || {};
+    const items = (data.items as LineItem[]) || [{ description: '', quantity: 1, rate: 0 }];
+    const currCode = (data.currency as string) || 'USD';
+    const taxRate = (data.taxRate as number) || 0;
     const logo = data.logoDataUrl as string | null;
 
     const set = (id: string, val: string) => {
@@ -566,7 +711,7 @@ export class InvoiceGenerator {
 
     const currencySelect = document.getElementById('fci-currency') as HTMLSelectElement;
     if (currencySelect) currencySelect.value = currCode;
-    this.currency = CURRENCIES.find(c => c.code === currCode) || CURRENCIES[0];
+    this.currency = CURRENCIES.find((c) => c.code === currCode) || CURRENCIES[0];
 
     this.items = items;
     this.logoDataUrl = logo;
@@ -582,14 +727,14 @@ export class InvoiceGenerator {
 
     const refresh = async () => {
       clients = await db.getAllClients();
-      datalist.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
+      datalist.innerHTML = clients.map((c) => `<option value="${escapeHtml(c.name)}">`).join('');
     };
 
     await refresh();
     clientInput.addEventListener('focus', refresh);
 
     clientInput.addEventListener('change', () => {
-      const match = clients.find(c => c.name === clientInput.value);
+      const match = clients.find((c) => c.name === clientInput.value);
       if (match && match.email && !emailInput.value) {
         emailInput.value = match.email;
         emailInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -598,17 +743,17 @@ export class InvoiceGenerator {
   }
 
   private async loadPendingItems(): Promise<void> {
-    const pending = await db.getPreference('fc-pending-invoice-items') as LineItem[] | null;
+    const pending = (await db.getPreference('fc-pending-invoice-items')) as LineItem[] | null;
     if (!pending || !Array.isArray(pending) || pending.length === 0) return;
 
     // Group items by projectId
-    const withProject = pending.filter(item => item.projectId);
-    const withoutProject = pending.filter(item => !item.projectId);
+    const withProject = pending.filter((item) => item.projectId);
+    const withoutProject = pending.filter((item) => !item.projectId);
 
     const grouped: LineItem[] = [];
     if (withProject.length > 0) {
       const projects = await db.getAllProjects();
-      const projectMap = new Map(projects.map(p => [p.id, p.name]));
+      const projectMap = new Map(projects.map((p) => [p.id, p.name]));
 
       const byProject = new Map<number, LineItem[]>();
       for (const item of withProject) {
@@ -618,13 +763,19 @@ export class InvoiceGenerator {
       }
 
       for (const [pid, items] of byProject) {
-        grouped.push({ description: projectMap.get(pid) || `Project #${pid}`, quantity: 0, rate: 0, _group: true });
+        grouped.push({
+          description: projectMap.get(pid) || `Project #${pid}`,
+          quantity: 0,
+          rate: 0,
+          _group: true,
+        });
         grouped.push(...items);
       }
     }
     grouped.push(...withoutProject);
 
-    const hasOnlyEmpty = this.items.length === 1 && !this.items[0].description && this.items[0].rate === 0;
+    const hasOnlyEmpty =
+      this.items.length === 1 && !this.items[0].description && this.items[0].rate === 0;
     if (hasOnlyEmpty) {
       this.items = grouped;
     } else {

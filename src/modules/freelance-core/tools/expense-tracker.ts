@@ -1,9 +1,10 @@
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
 import { db, type Expense, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-import { getCurrencySymbol } from '../../../components/SettingsPanel';
-import { logToolAction } from '../../../core/activity';
+import { escapeHtml } from '../../../utils/image';
 
 const CATEGORIES = ['Software', 'Hardware', 'Travel', 'Meals', 'Office', 'Marketing', 'Other'];
 
@@ -28,7 +29,7 @@ export class ExpenseTracker {
       <div class="tool-area">
         <div class="fce-form">
           <div class="form-group"><label class="label">Category</label>
-            <select class="input" id="fce-category">${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+            <select class="input" id="fce-category">${CATEGORIES.map((c) => `<option value="${c}">${c}</option>`).join('')}</select>
           </div>
           <div class="form-group"><label class="label">Amount (${this.currencySymbol})</label><input type="number" class="input" id="fce-amount" placeholder="0.00" min="0" step="0.01" style="width:120px"></div>
           <div class="form-group"><label class="label">Description</label><input type="text" class="input" id="fce-desc" placeholder="What was this for?"></div>
@@ -76,9 +77,10 @@ export class ExpenseTracker {
 
   private populateProjectSelect(): void {
     const select = this.root.querySelector('#fce-project-select') as HTMLSelectElement;
-    const active = this.projects.filter(p => p.status === 'active');
-    select.innerHTML = '<option value="">— None —</option>' +
-      active.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    const active = this.projects.filter((p) => p.status === 'active');
+    select.innerHTML =
+      '<option value="">— None —</option>' +
+      active.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
   }
 
   private getSelectedProjectId(): number | undefined {
@@ -89,7 +91,8 @@ export class ExpenseTracker {
 
   private addExpense(): void {
     const category = (this.root.querySelector('#fce-category') as HTMLSelectElement).value;
-    const amount = parseFloat((this.root.querySelector('#fce-amount') as HTMLInputElement).value) || 0;
+    const amount =
+      parseFloat((this.root.querySelector('#fce-amount') as HTMLInputElement).value) || 0;
     const description = (this.root.querySelector('#fce-desc') as HTMLInputElement).value;
     const date = (this.root.querySelector('#fce-date') as HTMLInputElement).value;
 
@@ -118,7 +121,7 @@ export class ExpenseTracker {
     this.totalEl.textContent = `Total: ${s}${total.toFixed(2)}`;
 
     const byCategory = new Map<string, number>();
-    this.expenses.forEach(e => {
+    this.expenses.forEach((e) => {
       byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
     });
 
@@ -127,41 +130,49 @@ export class ExpenseTracker {
       .map(([cat, amt]) => `<span class="fce-badge">${cat}: ${s}${amt.toFixed(2)}</span>`)
       .join('');
 
-    this.listEl.innerHTML = this.expenses.length === 0
-      ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No expenses yet.</p>'
-      : this.expenses.map(e => `
+    this.listEl.innerHTML =
+      this.expenses.length === 0
+        ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No expenses yet.</p>'
+        : this.expenses
+            .map(
+              (e) => `
         <div class="fce-item">
           <span class="fce-item__cat">${e.category}</span>
-          <span class="fce-item__desc">${e.description}</span>
+          <span class="fce-item__desc">${escapeHtml(e.description)}</span>
           ${e.projectId ? '<span class="fce-item__linked" title="Linked project">◆</span>' : ''}
           <span class="fce-item__amount">${s}${e.amount.toFixed(2)}</span>
           <span class="fce-item__date">${e.date}</span>
           <button class="btn btn--ghost btn--sm fce-invoice" data-id="${e.id}" title="Add to Invoice">↗</button>
           <button class="btn btn--ghost btn--sm fce-delete" data-id="${e.id}">×</button>
         </div>
-      `).join('');
+      `,
+            )
+            .join('');
 
-    this.listEl.querySelectorAll('.fce-delete').forEach(btn => {
+    this.listEl.querySelectorAll('.fce-delete').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
+        if (!confirm('Delete this expense?')) return;
         const id = parseInt((ev.target as HTMLElement).dataset.id!);
-        this.expenses = this.expenses.filter(exp => exp.id !== id);
+        this.expenses = this.expenses.filter((exp) => exp.id !== id);
         db.deleteExpense(id);
         this.renderList();
         Toast.success('Expense deleted');
       });
     });
 
-    this.listEl.querySelectorAll('.fce-invoice').forEach(btn => {
+    this.listEl.querySelectorAll('.fce-invoice').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
         const id = parseInt((ev.target as HTMLElement).dataset.id!);
-        const entry = this.expenses.find(exp => exp.id === id);
+        const entry = this.expenses.find((exp) => exp.id === id);
         if (!entry) return;
-        const items = [{
-          description: `${entry.category}: ${entry.description}`,
-          quantity: 1,
-          rate: entry.amount,
-          projectId: entry.projectId,
-        }];
+        const items = [
+          {
+            description: `${entry.category}: ${entry.description}`,
+            quantity: 1,
+            rate: entry.amount,
+            projectId: entry.projectId,
+          },
+        ];
         db.setPreference('fc-pending-invoice-items', items);
         Toast.info('Sent to Invoice Generator');
         router.navigate('freelance-core', 'invoice-generator');

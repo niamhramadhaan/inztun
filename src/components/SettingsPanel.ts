@@ -21,7 +21,7 @@ export const CURRENCIES = [
 ];
 
 export function getCurrencySymbol(code: string): string {
-  return CURRENCIES.find(c => c.code === code)?.symbol || '$';
+  return CURRENCIES.find((c) => c.code === code)?.symbol || '$';
 }
 
 const ACCENT_PRESETS = [
@@ -239,12 +239,14 @@ export class SettingsPanel {
           <div class="settings-section">
             <div class="settings-label">Accent Color</div>
             <div class="accent-grid" id="accent-grid">
-              ${ACCENT_PRESETS.map(p => `
+              ${ACCENT_PRESETS.map(
+                (p) => `
                 <div class="accent-option" data-hex="${p.hex}" data-rgb="${p.rgb}">
                   <span class="accent-swatch" style="background: ${p.hex};"></span>
                   <span class="accent-name">${p.name}</span>
                 </div>
-              `).join('')}
+              `,
+              ).join('')}
             </div>
             <div class="custom-accent">
               <input class="input custom-accent__input" id="custom-hex" type="text" placeholder="#c9a96e" maxlength="7">
@@ -258,18 +260,6 @@ export class SettingsPanel {
               <button class="btn btn--ghost" id="settings-import">Import</button>
             </div>
             <input type="file" id="settings-import-file" accept=".json" style="display:none">
-          </div>
-          <div class="settings-section">
-            <div class="settings-label">Security</div>
-            <label class="checkbox-label" style="margin-bottom:var(--space-3);">
-              <input type="checkbox" id="settings-lock-toggle"> Enable PIN Lock
-            </label>
-            <div id="settings-pin-setup" style="display:none;">
-              <div class="form-group"><label class="label">New PIN (4 digits)</label><input type="password" class="input" id="settings-pin-new" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••"></div>
-              <div class="form-group"><label class="label">Confirm PIN</label><input type="password" class="input" id="settings-pin-confirm" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••"></div>
-              <button class="btn btn--primary" id="settings-pin-save" style="width:100%;">Save PIN</button>
-            </div>
-            <p class="pdf-note" style="margin-top:var(--space-2);">PIN protects access on this device only. Data is stored locally and is not encrypted.</p>
           </div>
           <div class="settings-section" id="settings-install-section" style="display:none">
             <div class="settings-label">App</div>
@@ -285,9 +275,9 @@ export class SettingsPanel {
     document.body.appendChild(this.overlay);
 
     // Load saved name
-    db.getPreference('userName', '').then(name => {
+    db.getPreference('userName', '').then((name) => {
       const nameInput = this.overlay!.querySelector('#settings-name') as HTMLInputElement;
-      if (nameInput && name) nameInput.value = name;
+      if (nameInput && name) nameInput.value = String(name);
     });
 
     // Save name on change
@@ -297,7 +287,9 @@ export class SettingsPanel {
     });
 
     this.overlay.querySelector('#settings-close')?.addEventListener('click', () => this.close());
-    this.overlay.addEventListener('click', (e) => { if (e.target === this.overlay) this.close(); });
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.close();
+    });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.overlay?.classList.contains('settings-overlay--open')) {
         e.preventDefault();
@@ -305,12 +297,14 @@ export class SettingsPanel {
       }
     });
 
-    this.overlay.querySelectorAll('.accent-option').forEach(option => {
+    this.overlay.querySelectorAll('.accent-option').forEach((option) => {
       option.addEventListener('click', () => {
         const hex = (option as HTMLElement).dataset.hex;
         const rgb = (option as HTMLElement).dataset.rgb;
         this.applyAccent(hex!, rgb!);
-        this.overlay!.querySelectorAll('.accent-option').forEach(o => o.classList.remove('accent-option--active'));
+        this.overlay!.querySelectorAll('.accent-option').forEach((o) =>
+          o.classList.remove('accent-option--active'),
+        );
         option.classList.add('accent-option--active');
       });
     });
@@ -335,14 +329,16 @@ export class SettingsPanel {
       const a = document.createElement('a');
       const date = new Date().toISOString().split('T')[0];
       a.href = url;
-      a.download = `inztun-backup-${date}.json`;
+      a.download = `[Inztun] backup-${date}.json`;
       a.click();
       URL.revokeObjectURL(url);
       Toast.success('Backup downloaded');
     });
 
     const fileInput = this.overlay.querySelector('#settings-import-file') as HTMLInputElement;
-    this.overlay.querySelector('#settings-import')?.addEventListener('click', () => fileInput.click());
+    this.overlay
+      .querySelector('#settings-import')
+      ?.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files?.[0];
       if (!file) return;
@@ -373,47 +369,6 @@ export class SettingsPanel {
       const section = this.overlay!.querySelector('#settings-install-section') as HTMLElement;
       if (section) section.style.display = 'none';
     });
-
-    // PIN lock setup
-    const lockToggle = this.overlay.querySelector('#settings-lock-toggle') as HTMLInputElement;
-    const pinSetup = this.overlay.querySelector('#settings-pin-setup') as HTMLElement;
-    const pinNew = this.overlay.querySelector('#settings-pin-new') as HTMLInputElement;
-    const pinConfirm = this.overlay.querySelector('#settings-pin-confirm') as HTMLInputElement;
-    const pinSave = this.overlay.querySelector('#settings-pin-save') as HTMLButtonElement;
-
-    db.getPreference('lockEnabled', false).then(enabled => {
-      lockToggle.checked = enabled as boolean;
-      pinSetup.style.display = enabled ? '' : 'none';
-    });
-
-    lockToggle.addEventListener('change', () => {
-      if (lockToggle.checked) {
-        pinSetup.style.display = '';
-      } else {
-        db.setPreference('lockEnabled', false);
-        db.setPreference('lockPinHash', null);
-        pinSetup.style.display = 'none';
-        Toast.info('PIN lock disabled');
-      }
-    });
-
-    pinSave.addEventListener('click', async () => {
-      const pin = pinNew.value.trim();
-      const confirm = pinConfirm.value.trim();
-      if (!/^\d{4}$/.test(pin)) { Toast.error('PIN must be exactly 4 digits'); return; }
-      if (pin !== confirm) { Toast.error('PINs do not match'); return; }
-
-      const msgBuffer = new TextEncoder().encode(pin);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      await db.setPreference('lockPinHash', hash);
-      await db.setPreference('lockEnabled', true);
-      pinNew.value = '';
-      pinConfirm.value = '';
-      Toast.success('PIN lock enabled');
-    });
   }
 
   private applyAccent(hex: string, rgb: string): void {
@@ -430,8 +385,11 @@ export class SettingsPanel {
     this.overlay!.classList.add('settings-overlay--open');
 
     const current = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-    this.overlay!.querySelectorAll('.accent-option').forEach(option => {
-      option.classList.toggle('accent-option--active', (option as HTMLElement).dataset.hex === current);
+    this.overlay!.querySelectorAll('.accent-option').forEach((option) => {
+      option.classList.toggle(
+        'accent-option--active',
+        (option as HTMLElement).dataset.hex === current,
+      );
     });
   }
 

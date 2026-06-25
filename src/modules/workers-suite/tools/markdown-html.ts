@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class MarkdownToHtml {
   id = 'markdown-html';
@@ -43,11 +44,12 @@ This is **bold** text.</textarea>
     this.outputEl = root.querySelector('#mh-output') as HTMLPreElement;
     this.countEl = root.querySelector('#mh-input-count') as HTMLSpanElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('mh-convert', () => this.convert());
     bind('mh-copy', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('HTML');
     });
 
@@ -66,21 +68,39 @@ This is **bold** text.</textarea>
     const md = this.inputEl.value;
     let html = md;
 
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_match: string, lang: string, code: string): string =>
-      `<pre><code class="language-${lang}">${this.escapeHtml(code.trim())}</code></pre>`
+    html = html.replace(
+      /```(\w*)\n([\s\S]*?)```/g,
+      (_match: string, lang: string, code: string): string =>
+        `<pre><code class="language-${lang}">${this.escapeHtml(code.trim())}</code></pre>`,
     );
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(
+      /`([^`]+)`/g,
+      (_m, code: string) => '<code>' + this.escapeHtml(code) + '</code>',
+    );
+    html = html.replace(/^### (.+)$/gm, (_m, t: string) => '<h3>' + this.escapeHtml(t) + '</h3>');
+    html = html.replace(/^## (.+)$/gm, (_m, t: string) => '<h2>' + this.escapeHtml(t) + '</h2>');
+    html = html.replace(/^# (.+)$/gm, (_m, t: string) => '<h1>' + this.escapeHtml(t) + '</h1>');
+    html = html.replace(
+      /\*\*(.+?)\*\*/g,
+      (_m, t: string) => '<strong>' + this.escapeHtml(t) + '</strong>',
+    );
+    html = html.replace(/\*(.+?)\*/g, (_m, t: string) => '<em>' + this.escapeHtml(t) + '</em>');
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_m, text: string, href: string) =>
+        '<a href="' + this.escapeHtml(href) + '">' + this.escapeHtml(text) + '</a>',
+    );
+    html = html.replace(
+      /^> (.+)$/gm,
+      (_m, t: string) => '<blockquote>' + this.escapeHtml(t) + '</blockquote>',
+    );
     html = html.replace(/^---$/gm, '<hr>');
-    html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^[-*] (.+)$/gm, (_m, t: string) => '<li>' + this.escapeHtml(t) + '</li>');
     html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-    html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, '<p>$1</p>');
+    html = html.replace(
+      /^(?!<[a-z]|$)(.+)$/gm,
+      (_m, t: string) => '<p>' + this.escapeHtml(t) + '</p>',
+    );
 
     this.outputEl.textContent = html;
     Toast.success('Converted');

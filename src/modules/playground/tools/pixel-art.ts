@@ -1,9 +1,22 @@
 import { Toast } from '../../../components/Toast';
 
 const PALETTE = [
-  '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00',
-  '#ff00ff', '#00ffff', '#ff8800', '#8800ff', '#0088ff', '#88ff00',
-  '#ff0088', '#008800', '#880000', '#888888',
+  '#000000',
+  '#ffffff',
+  '#ff0000',
+  '#00ff00',
+  '#0000ff',
+  '#ffff00',
+  '#ff00ff',
+  '#00ffff',
+  '#ff8800',
+  '#8800ff',
+  '#0088ff',
+  '#88ff00',
+  '#ff0088',
+  '#008800',
+  '#880000',
+  '#888888',
 ];
 
 export class PixelArt {
@@ -55,7 +68,7 @@ export class PixelArt {
           <div class="form-group">
             <label class="label">Color</label>
             <div class="px-palette" id="px-palette">
-              ${PALETTE.map(c => `<button class="px-swatch${c === '#000000' ? ' px-swatch--active' : ''}" data-color="${c}" style="background:${c};"></button>`).join('')}
+              ${PALETTE.map((c) => `<button class="px-swatch${c === '#000000' ? ' px-swatch--active' : ''}" data-color="${c}" style="background:${c};"></button>`).join('')}
               <input type="color" id="px-custom" value="#000000" class="px-custom-color">
             </div>
           </div>
@@ -88,17 +101,17 @@ export class PixelArt {
       this.draw();
     });
 
-    root.querySelectorAll('.px-tool').forEach(btn => {
+    root.querySelectorAll('.px-tool').forEach((btn) => {
       btn.addEventListener('click', () => {
-        root.querySelectorAll('.px-tool').forEach(b => b.classList.remove('px-tool--active'));
+        root.querySelectorAll('.px-tool').forEach((b) => b.classList.remove('px-tool--active'));
         btn.classList.add('px-tool--active');
         this.tool = (btn as HTMLElement).dataset.tool as typeof this.tool;
       });
     });
 
-    root.querySelectorAll('.px-swatch').forEach(btn => {
+    root.querySelectorAll('.px-swatch').forEach((btn) => {
       btn.addEventListener('click', () => {
-        root.querySelectorAll('.px-swatch').forEach(b => b.classList.remove('px-swatch--active'));
+        root.querySelectorAll('.px-swatch').forEach((b) => b.classList.remove('px-swatch--active'));
         btn.classList.add('px-swatch--active');
         this.color = (btn as HTMLElement).dataset.color!;
       });
@@ -107,19 +120,35 @@ export class PixelArt {
     const customColor = root.querySelector('#px-custom') as HTMLInputElement;
     customColor.addEventListener('input', () => {
       this.color = customColor.value;
-      root.querySelectorAll('.px-swatch').forEach(b => b.classList.remove('px-swatch--active'));
+      root.querySelectorAll('.px-swatch').forEach((b) => b.classList.remove('px-swatch--active'));
     });
 
     const gridToggle = root.querySelector('#px-grid') as HTMLInputElement;
-    gridToggle.addEventListener('change', () => { this.showGrid = gridToggle.checked; this.draw(); });
+    gridToggle.addEventListener('change', () => {
+      this.showGrid = gridToggle.checked;
+      this.draw();
+    });
 
-    this.canvas.addEventListener('mousedown', (e) => { this.isDrawing = true; this.handleDraw(e); });
-    this.canvas.addEventListener('mousemove', (e) => { if (this.isDrawing) this.handleDraw(e); });
-    this.canvas.addEventListener('mouseup', () => { this.isDrawing = false; });
-    this.canvas.addEventListener('mouseleave', () => { this.isDrawing = false; });
+    this.canvas.addEventListener('mousedown', (e) => {
+      this.isDrawing = true;
+      this.handleDraw(e);
+    });
+    this.canvas.addEventListener('mousemove', (e) => {
+      if (this.isDrawing) this.handleDraw(e);
+    });
+    this.canvas.addEventListener('mouseup', () => {
+      this.isDrawing = false;
+    });
+    this.canvas.addEventListener('mouseleave', () => {
+      this.isDrawing = false;
+    });
 
     root.querySelector('#px-undo')!.addEventListener('click', () => this.undo());
-    root.querySelector('#px-clear')!.addEventListener('click', () => { this.saveUndo(); this.initGrid(); this.draw(); });
+    root.querySelector('#px-clear')!.addEventListener('click', () => {
+      this.saveUndo();
+      this.initGrid();
+      this.draw();
+    });
     root.querySelector('#px-export')!.addEventListener('click', () => this.exportPng());
   }
 
@@ -193,7 +222,7 @@ export class PixelArt {
   }
 
   private saveUndo(): void {
-    this.undoStack.push(this.pixels.map(row => [...row]));
+    this.undoStack.push(this.pixels.map((row) => [...row]));
     if (this.undoStack.length > 30) this.undoStack.shift();
   }
 
@@ -223,7 +252,7 @@ export class PixelArt {
       if (!blob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `pixel-art-${this.gridSize}x${this.gridSize}.png`;
+      a.download = `[Inztun] pixel-art-${this.gridSize}x${this.gridSize}-${new Date().toISOString().slice(0, 10)}.png`;
       a.click();
       URL.revokeObjectURL(a.href);
       Toast.success('Exported');

@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class UrlEncoder {
   id = 'url-encoder';
@@ -46,13 +47,14 @@ export class UrlEncoder {
     this.partsEl = root.querySelector('#ue-parts') as HTMLDivElement;
     this.countEl = root.querySelector('#ue-input-count') as HTMLSpanElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('ue-encode', () => this.encode());
     bind('ue-decode', () => this.decode());
     bind('ue-parse', () => this.parseUrl());
     bind('ue-copy', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied();
     });
 
@@ -96,14 +98,24 @@ export class UrlEncoder {
         ${url.port ? `<div class="url-part"><span class="url-part__label">Port</span><span class="url-part__value">${url.port}</span></div>` : ''}
         <div class="url-part"><span class="url-part__label">Pathname</span><span class="url-part__value">${url.pathname}</span></div>
         <div class="url-part"><span class="url-part__label">Search</span><span class="url-part__value">${url.search || '(none)'}</span></div>
-        ${Object.keys(params).length ? `
+        ${
+          Object.keys(params).length
+            ? `
           <div class="url-part"><span class="url-part__label">Params</span>
-            <div class="url-params">${Object.entries(params).map(([k, v]) => `<span class="url-param"><strong>${k}</strong>=${v}</span>`).join('')}</div>
+            <div class="url-params">${Object.entries(params)
+              .map(([k, v]) => `<span class="url-param"><strong>${k}</strong>=${v}</span>`)
+              .join('')}</div>
           </div>
-        ` : ''}
+        `
+            : ''
+        }
         ${url.hash ? `<div class="url-part"><span class="url-part__label">Hash</span><span class="url-part__value">${url.hash}</span></div>` : ''}
       `;
-      this.outputEl.textContent = JSON.stringify({ protocol: url.protocol, host: url.host, pathname: url.pathname, params, hash: url.hash }, null, 2);
+      this.outputEl.textContent = JSON.stringify(
+        { protocol: url.protocol, host: url.host, pathname: url.pathname, params, hash: url.hash },
+        null,
+        2,
+      );
       Toast.success('URL parsed');
     } catch {
       this.partsEl.innerHTML = '';

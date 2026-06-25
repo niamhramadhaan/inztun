@@ -86,7 +86,10 @@ class Database {
           db.createObjectStore('preferences', { keyPath: 'key' });
         }
         if (!db.objectStoreNames.contains('history')) {
-          const historyStore = db.createObjectStore('history', { keyPath: 'id', autoIncrement: true });
+          const historyStore = db.createObjectStore('history', {
+            keyPath: 'id',
+            autoIncrement: true,
+          });
           historyStore.createIndex('tool', 'tool', { unique: false });
           historyStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
@@ -127,11 +130,21 @@ class Database {
           ac.createIndex('type', 'type', { unique: false });
           ac.createIndex('createdAt', 'createdAt', { unique: false });
         }
+        if (!db.objectStoreNames.contains('social-schedule')) {
+          const ss = db.createObjectStore('social-schedule', {
+            keyPath: 'id',
+            autoIncrement: true,
+          });
+          ss.createIndex('date', 'date', { unique: false });
+          ss.createIndex('platform', 'platform', { unique: false });
+        }
 
         // Add projectId index to existing stores on upgrade
         if (event.oldVersion < 3) {
           try {
-            const teStore = (event.target as IDBOpenDBRequest).transaction!.objectStore('timeEntries');
+            const teStore = (event.target as IDBOpenDBRequest).transaction!.objectStore(
+              'timeEntries',
+            );
             if (!teStore.indexNames.contains('projectId')) {
               teStore.createIndex('projectId', 'projectId', { unique: false });
             }
@@ -147,7 +160,10 @@ class Database {
     });
   }
 
-  private async getStore(storeName: string, mode: IDBTransactionMode = 'readonly'): Promise<IDBObjectStore> {
+  private async getStore(
+    storeName: string,
+    mode: IDBTransactionMode = 'readonly',
+  ): Promise<IDBObjectStore> {
     await this.ready;
     const transaction = this.db!.transaction(storeName, mode);
     return transaction.objectStore(storeName);
@@ -186,15 +202,16 @@ class Database {
     });
   }
 
-  async getHistory(tool: string, limit = 50): Promise<Array<{ id: IDBValidKey; tool: string; data: unknown; timestamp: number }>> {
+  async getHistory(
+    tool: string,
+    limit = 50,
+  ): Promise<Array<{ id: IDBValidKey; tool: string; data: unknown; timestamp: number }>> {
     const store = await this.getStore('history');
     const index = store.index('tool');
     return new Promise((resolve) => {
       const request = index.getAll(tool);
       request.onsuccess = () => {
-        const results = request.result
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, limit);
+        const results = request.result.sort((a, b) => b.timestamp - a.timestamp).slice(0, limit);
         resolve(results);
       };
       request.onerror = () => resolve([]);
@@ -233,7 +250,11 @@ class Database {
     });
   }
 
-  async getSavedItems(tool: string): Promise<Array<{ id: IDBValidKey; tool: string; name: string; data: unknown; createdAt: number }>> {
+  async getSavedItems(
+    tool: string,
+  ): Promise<
+    Array<{ id: IDBValidKey; tool: string; name: string; data: unknown; createdAt: number }>
+  > {
     const store = await this.getStore('saved');
     const index = store.index('tool');
     return new Promise((resolve) => {
@@ -350,7 +371,7 @@ class Database {
   async createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     const full: Project = {
       ...project,
-      id: Date.now(),
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -414,7 +435,7 @@ class Database {
   async createNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
     const full: Note = {
       ...note,
-      id: Date.now(),
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -486,7 +507,13 @@ class Database {
 
   // Activity
   async logActivity(type: string, label: string, meta?: string): Promise<void> {
-    const entry: Activity = { id: Date.now(), type, label, meta, createdAt: Date.now() };
+    const entry: Activity = {
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+      type,
+      label,
+      meta,
+      createdAt: Date.now(),
+    };
     const store = await this.getStore('activity', 'readwrite');
     return new Promise((resolve, reject) => {
       const request = store.add(entry);
@@ -499,7 +526,8 @@ class Database {
     const store = await this.getStore('activity');
     return new Promise((resolve) => {
       const request = store.getAll();
-      request.onsuccess = () => resolve(request.result.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit));
+      request.onsuccess = () =>
+        resolve(request.result.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit));
       request.onerror = () => resolve([]);
     });
   }
@@ -540,35 +568,91 @@ class Database {
     });
   }
 
+  // Social Schedule
+  async getAllSocialSchedule(): Promise<unknown[]> {
+    const store = await this.getStore('social-schedule');
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve([]);
+    });
+  }
+
+  async addSocialSchedulePost(post: unknown): Promise<IDBValidKey> {
+    const store = await this.getStore('social-schedule', 'readwrite');
+    return new Promise((resolve, reject) => {
+      const request = store.add(post);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async clearSocialSchedule(): Promise<void> {
+    const store = await this.getStore('social-schedule', 'readwrite');
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async exportAll(): Promise<string> {
-    const [preferences, history, saved, timeEntries, expenses, clients, projects, notes, activity] = await Promise.all([
-      this.getAllFromStore('preferences'),
-      this.getAllFromStore('history'),
-      this.getAllFromStore('saved'),
-      this.getAllFromStore('timeEntries'),
-      this.getAllFromStore('expenses'),
-      this.getAllFromStore('clients'),
-      this.getAllFromStore('projects'),
-      this.getAllFromStore('notes'),
-      this.getAllFromStore('activity'),
-    ]);
-    return JSON.stringify({ preferences, history, saved, timeEntries, expenses, clients, projects, notes, activity, exportedAt: Date.now(), version: DB_VERSION });
+    const [preferences, history, saved, timeEntries, expenses, clients, projects, notes, activity] =
+      await Promise.all([
+        this.getAllFromStore('preferences'),
+        this.getAllFromStore('history'),
+        this.getAllFromStore('saved'),
+        this.getAllFromStore('timeEntries'),
+        this.getAllFromStore('expenses'),
+        this.getAllFromStore('clients'),
+        this.getAllFromStore('projects'),
+        this.getAllFromStore('notes'),
+        this.getAllFromStore('activity'),
+      ]);
+    return JSON.stringify({
+      preferences,
+      history,
+      saved,
+      timeEntries,
+      expenses,
+      clients,
+      projects,
+      notes,
+      activity,
+      exportedAt: Date.now(),
+      version: DB_VERSION,
+    });
   }
 
   async importAll(json: string): Promise<void> {
     const data = JSON.parse(json);
-    const stores = ['preferences', 'history', 'saved', 'timeEntries', 'expenses', 'clients', 'projects', 'notes', 'activity'] as const;
+    const stores = [
+      'preferences',
+      'history',
+      'saved',
+      'timeEntries',
+      'expenses',
+      'clients',
+      'projects',
+      'notes',
+      'activity',
+    ] as const;
 
     for (const storeName of stores) {
       const items = data[storeName];
       if (!Array.isArray(items) || items.length === 0) continue;
       await this.clearStore(storeName);
       const store = await this.getStore(storeName, 'readwrite');
-      await Promise.all(items.map(item => new Promise<void>((resolve, reject) => {
-        const req = store.put(item);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      })));
+      await Promise.all(
+        items.map(
+          (item) =>
+            new Promise<void>((resolve, reject) => {
+              const req = store.put(item);
+              req.onsuccess = () => resolve();
+              req.onerror = () => reject(req.error);
+            }),
+        ),
+      );
     }
   }
 }

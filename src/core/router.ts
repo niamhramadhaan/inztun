@@ -1,5 +1,5 @@
-import { events } from './events';
 import type { Route } from '../types/index';
+import { events } from './events';
 
 export const ROUTES = {
   CHANGE: 'route:change',

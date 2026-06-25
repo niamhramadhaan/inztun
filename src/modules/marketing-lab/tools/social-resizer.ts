@@ -1,6 +1,6 @@
 import { Toast } from '../../../components/Toast';
-import { loadImage, formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
+import { downloadBlob, formatBytes, loadImage } from '../../../utils/image';
 
 const PRESETS = [
   { name: 'Twitter Post', w: 1600, h: 900, platform: 'Twitter' },
@@ -83,10 +83,21 @@ export class SocialResizer {
     this.sizeInfoEl = root.querySelector('#sr-size')!;
 
     this.dropZone.addEventListener('click', () => this.fileInput.click());
-    this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('imgc-drop-zone--active'); });
-    this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('imgc-drop-zone--active'));
-    this.dropZone.addEventListener('drop', (e) => { e.preventDefault(); this.dropZone.classList.remove('imgc-drop-zone--active'); if (e.dataTransfer?.files[0]) this.handleFile(e.dataTransfer.files[0]); });
-    this.fileInput.addEventListener('change', () => { if (this.fileInput.files?.[0]) this.handleFile(this.fileInput.files[0]); });
+    this.dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      this.dropZone.classList.add('imgc-drop-zone--active');
+    });
+    this.dropZone.addEventListener('dragleave', () =>
+      this.dropZone.classList.remove('imgc-drop-zone--active'),
+    );
+    this.dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      this.dropZone.classList.remove('imgc-drop-zone--active');
+      if (e.dataTransfer?.files[0]) this.handleFile(e.dataTransfer.files[0]);
+    });
+    this.fileInput.addEventListener('change', () => {
+      if (this.fileInput.files?.[0]) this.handleFile(this.fileInput.files[0]);
+    });
     this.presetSelect.addEventListener('change', () => this.resize());
 
     root.querySelector('#sr-download')!.addEventListener('click', () => this.download());
@@ -94,7 +105,10 @@ export class SocialResizer {
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image');
+      return;
+    }
     try {
       this.sourceImage = await loadImage(file);
       this.originalFile = file;
@@ -103,7 +117,9 @@ export class SocialResizer {
       this.previewEl.style.display = '';
       this.actionsEl.style.display = '';
       this.resize();
-    } catch { Toast.error('Failed to load image'); }
+    } catch {
+      Toast.error('Failed to load image');
+    }
   }
 
   private resize(): void {
@@ -144,11 +160,15 @@ export class SocialResizer {
     const offscreen = document.createElement('canvas');
     offscreen.width = preset.w;
     offscreen.height = preset.h;
-    offscreen.getContext('2d')!.drawImage(this.sourceImage, sx, sy, sw, sh, 0, 0, preset.w, preset.h);
+    offscreen
+      .getContext('2d')!
+      .drawImage(this.sourceImage, sx, sy, sw, sh, 0, 0, preset.w, preset.h);
 
     offscreen.toBlob((blob) => {
       if (!blob) return;
-      const name = this.originalFile!.name.replace(/\.[^.]+$/, '') + `-${preset.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+      const name =
+        this.originalFile!.name.replace(/\.[^.]+$/, '') +
+        `-${preset.name.toLowerCase().replace(/\s+/g, '-')}.png`;
       downloadBlob(blob, name);
       Toast.success('Downloaded');
       logToolAction('social-resizer', 'Downloaded resized image');

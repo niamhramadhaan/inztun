@@ -1,7 +1,16 @@
 import exifr from 'exifr';
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, createDropZone, bindClipboardPaste, formatBytes, getExtFromMime } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  copyToClipboard,
+  createDropZone,
+  downloadBlob,
+  formatBytes,
+  getExtFromMime,
+  loadImage,
+} from '../../../utils/image';
 
 export class ImageMetadata {
   id = 'image-metadata';
@@ -67,14 +76,17 @@ export class ImageMetadata {
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image file'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image file');
+      return;
+    }
     this.currentFile = file;
     this.currentImage = await loadImage(file);
 
     // Parse metadata
     try {
-      this.metadata = await exifr.parse(file, true) as Record<string, unknown> | null;
-      this.gps = await exifr.gps(file) as { latitude: number; longitude: number } | null;
+      this.metadata = (await exifr.parse(file, true)) as Record<string, unknown> | null;
+      this.gps = (await exifr.gps(file)) as { latitude: number; longitude: number } | null;
     } catch {
       this.metadata = null;
       this.gps = null;
@@ -127,20 +139,28 @@ export class ImageMetadata {
 
     this.metaEl.innerHTML = `
       <div class="imgm-table">
-        ${rows.map(([key, val]) => `
+        ${rows
+          .map(
+            ([key, val]) => `
           <div class="imgm-row">
             <span class="imgm-row__key">${key}</span>
             <span class="imgm-row__val">${val}</span>
           </div>
-        `).join('')}
-        ${this.gps ? `
+        `,
+          )
+          .join('')}
+        ${
+          this.gps
+            ? `
           <div class="imgm-row">
             <span class="imgm-row__key">Map</span>
             <span class="imgm-row__val">
               <a href="https://www.openstreetmap.org/?mlat=${this.gps.latitude}&mlon=${this.gps.longitude}#map=15/${this.gps.latitude}/${this.gps.longitude}" target="_blank" rel="noopener" class="imgm-link">View on OpenStreetMap</a>
             </span>
           </div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
       ${!this.metadata ? '<p class="imgm-empty">No EXIF metadata found in this image.</p>' : ''}
     `;
@@ -171,7 +191,7 @@ export class ImageMetadata {
 
   private copyJson(): void {
     const json = JSON.stringify(this.metadata || {}, null, 2);
-    navigator.clipboard.writeText(json);
+    void copyToClipboard(json);
     Toast.copied('Metadata JSON');
     logToolAction('image-metadata', 'Copied metadata JSON');
   }

@@ -1,23 +1,33 @@
-import { ToolView } from '../../components/ToolView';
-import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
 import type { Category } from '../../components/ModuleHelpers';
-import { router } from '../../core/router';
-import { events } from '../../core/events';
-import { db } from '../../core/db';
+import {
+  createCategorySection,
+  createTipsPanel,
+  createToolCard,
+} from '../../components/ModuleHelpers';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
 import { Toast } from '../../components/Toast';
+import { ToolView } from '../../components/ToolView';
+import { db } from '../../core/db';
+import { events } from '../../core/events';
+import { router } from '../../core/router';
+import type {
+  SortMode,
+  Tool,
+  ToolClass,
+  ToolInfo,
+  ToolRegistryEntry,
+  ToolViewOptions,
+} from '../../types/index';
 import { getFreelanceCoreToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
-
-import { InvoiceGenerator } from './tools/invoice-generator';
-import { RateCalculator } from './tools/rate-calculator';
-import { TimeTracker } from './tools/time-tracker';
-import { ExpenseTracker } from './tools/expense-tracker';
-import { ContractTemplates } from './tools/contract-templates';
 import { ClientManager } from './tools/client-manager';
-import { TaxEstimator } from './tools/tax-estimator';
-import { TimezoneConverter } from './tools/timezone-converter';
+import { ContractTemplates } from './tools/contract-templates';
+import { ExpenseTracker } from './tools/expense-tracker';
+import { InvoiceGenerator } from './tools/invoice-generator';
 import { ProjectManager } from './tools/project-manager';
+import { RateCalculator } from './tools/rate-calculator';
+import { TaxEstimator } from './tools/tax-estimator';
+import { TimeTracker } from './tools/time-tracker';
+import { TimezoneConverter } from './tools/timezone-converter';
 
 const CATEGORIES: Category[] = [
   {
@@ -52,8 +62,8 @@ const CATEGORIES: Category[] = [
   },
 ];
 
-const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
-  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap((cat) =>
+  cat.tools.map((t) => ({ ...t, category: cat.id, categoryName: cat.name })),
 );
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -102,7 +112,7 @@ export class FreelanceCore {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('fc-favorites', []) as string[];
+    const saved = (await db.getPreference('fc-favorites', [])) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -164,7 +174,7 @@ export class FreelanceCore {
     const isSearching = this.searchQuery.length > 0;
 
     if (this.sortMode === 'favorites' && !isSearching) {
-      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      const favTools = ALL_TOOLS.filter((t) => this.favorites.has(t.id));
       if (favTools.length === 0) {
         this.categoriesContainer!.innerHTML = `
           <div class="empty-state">
@@ -178,7 +188,12 @@ export class FreelanceCore {
       }
 
       const section = createCategorySection({
-        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        category: {
+          id: 'favorites',
+          name: '★ Favorites',
+          tooltip: 'Your pinned tools',
+          tools: favTools,
+        },
         collapsed: false,
         onToggleCollapse: () => {},
         createCard: (entry, index) => this.makeToolCard(entry, index),
@@ -187,14 +202,18 @@ export class FreelanceCore {
       return;
     }
 
-    CATEGORIES.forEach(cat => {
+    CATEGORIES.forEach((cat) => {
       let tools = [...cat.tools];
 
       if (isSearching) {
-        tools = tools.filter(t => {
+        tools = tools.filter((t) => {
           const name = new t.Tool().name.toLowerCase();
           const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+          return (
+            name.includes(this.searchQuery) ||
+            desc.includes(this.searchQuery) ||
+            t.id.includes(this.searchQuery)
+          );
         });
         if (tools.length === 0) return;
       }
@@ -241,7 +260,7 @@ export class FreelanceCore {
   }
 
   private showTool(toolId: string): void {
-    const registry = ALL_TOOLS.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find((t) => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -268,8 +287,8 @@ export class FreelanceCore {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
-    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex((t) => t.id === toolId);
+    const toolsList = ALL_TOOLS.map((t) => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -291,20 +310,22 @@ export class FreelanceCore {
 
     const tipsData = getFreelanceCoreToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      contentEl.appendChild(createTipsPanel({
-        toolId,
-        data: tipsData,
-        moduleId: this.moduleId,
-        allTools: ALL_TOOLS,
-        onNavigate: (modId, tId) => router.navigate(modId, tId),
-      }));
+      contentEl.appendChild(
+        createTipsPanel({
+          toolId,
+          data: tipsData,
+          moduleId: this.moduleId,
+          allTools: ALL_TOOLS,
+          onNavigate: (modId, tId) => router.navigate(modId, tId),
+        }),
+      );
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -567,7 +588,6 @@ export class FreelanceCore {
         padding-bottom: 16px;
         border-bottom: 2px solid #1a1a1a;
       }
-      .fcct-paper__logo { max-height: 48px; flex-shrink: 0; }
       .fcct-paper__header-text { flex: 1; text-align: center; }
       .fcct-paper__header-text h1 {
         font-size: 18px;
@@ -590,34 +610,6 @@ export class FreelanceCore {
       .fcct-section p { margin: 4px 0; }
       .fcct-section ul { margin: 4px 0 8px 18px; }
       .fcct-section li { margin: 2px 0; }
-      .fcct-sigs-print {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-        margin-top: auto;
-        padding-top: 24px;
-      }
-      .fcct-sig-block-print { text-align: center; }
-      .fcct-sig-img { object-fit: contain; display: block; margin: 0 auto 6px; }
-      .fcct-sig-line { height: 1px; background: #1a1a1a; margin: 40px auto 6px; }
-      .fcct-sig-block-print p { font-size: 9px; color: #555; margin: 3px 0; }
-      .fcct-sig-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-4);
-        margin-bottom: var(--space-4);
-        padding: var(--space-4);
-        background: var(--bg-deep);
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-md);
-      }
-      .fcct-sig-block { display: flex; flex-direction: column; gap: var(--space-2); }
-      .fcct-sig-canvas {
-        width: 100%; height: 80px;
-        border: 1px solid var(--border-hairline);
-        border-radius: var(--radius-md);
-        background: white; cursor: crosshair; touch-action: none;
-      }
       .fcct-export-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
       .fcct-watermark {
         position: absolute; inset: 0;
@@ -633,14 +625,11 @@ export class FreelanceCore {
         white-space: nowrap; user-select: none;
       }
       .fcct-branding {
-        display: flex; flex-direction: column; gap: var(--space-3);
         padding: var(--space-3);
         background: var(--bg-deep);
         border: 1px solid var(--border-hairline);
         border-radius: var(--radius-md);
       }
-      .fcct-logo-row { display: flex; align-items: center; gap: var(--space-2); }
-      .fcct-logo-thumb { max-height: 40px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); }
       .fcct-preview-header {
         display: flex; justify-content: flex-end; margin-bottom: var(--space-2);
       }
@@ -697,15 +686,6 @@ export class FreelanceCore {
         object-fit: contain;
         pointer-events: none;
       }
-      .fcct-sig-handle {
-        position: absolute; width: 10px; height: 10px;
-        background: var(--accent); border: 1px solid var(--bg-surface);
-        border-radius: 2px; z-index: 11;
-      }
-      .fcct-sig-handle--nw { top: -5px; left: -5px; cursor: nw-resize; }
-      .fcct-sig-handle--ne { top: -5px; right: -5px; cursor: ne-resize; }
-      .fcct-sig-handle--sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-      .fcct-sig-handle--se { bottom: -5px; right: -5px; cursor: se-resize; }
       .fcct-page-break {
         border-top: 1px dashed var(--border-subtle);
         margin: var(--space-4) 0;
@@ -746,11 +726,20 @@ export class FreelanceCore {
         min-width: 36px;
         text-align: right;
       }
-      .fcct-sig-size-row {
-        grid-column: 1 / -1;
-        padding-top: var(--space-2);
-        border-top: 1px solid var(--border-hairline);
+      .fcct-preview-body {
+        display: flex; gap: var(--space-4); align-items: flex-start;
       }
+      .fcct-preview-body .fcct-paper { flex: 1; min-width: 0; }
+      .fcct-preview-mode {
+        display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+        padding: var(--space-4); text-align: center;
+        min-width: 220px; max-width: 260px; flex-shrink: 0;
+        background: var(--bg-deep); border: 1px solid var(--border-hairline);
+        border-radius: var(--radius-lg); position: sticky; top: 80px;
+      }
+      .fcct-preview-mode__header { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+      .fcct-preview-mode__header h3 { font-size: var(--text-lg); color: var(--text-primary); margin: 0; }
+      .fcct-preview-mode__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
       .fccl-layout {
         display: grid;
         grid-template-columns: 280px 1fr;
@@ -1133,7 +1122,10 @@ export class FreelanceCore {
       events.off('route:change', this._routeHandler);
     }
     this.toolbar?.destroy();
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';
   }

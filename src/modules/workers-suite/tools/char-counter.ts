@@ -72,7 +72,16 @@ export class CharacterCounter {
     `;
   }
 
-  calculateStats(text: string): { characters: number; charactersNoSpaces: number; words: number; sentences: number; paragraphs: number; lines: number; readingTime: string; speakingTime: string } {
+  calculateStats(text: string): {
+    characters: number;
+    charactersNoSpaces: number;
+    words: number;
+    sentences: number;
+    paragraphs: number;
+    lines: number;
+    readingTime: string;
+    speakingTime: string;
+  } {
     const characters = text.length;
     const charactersNoSpaces = text.replace(/\s/g, '').length;
     const words = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -82,7 +91,16 @@ export class CharacterCounter {
     const readingTime = this.formatTime(Math.ceil(words / 200));
     const speakingTime = this.formatTime(Math.ceil(words / 150));
 
-    return { characters, charactersNoSpaces, words, sentences, paragraphs, lines, readingTime, speakingTime };
+    return {
+      characters,
+      charactersNoSpaces,
+      words,
+      sentences,
+      paragraphs,
+      lines,
+      readingTime,
+      speakingTime,
+    };
   }
 
   formatTime(minutes: number): string {

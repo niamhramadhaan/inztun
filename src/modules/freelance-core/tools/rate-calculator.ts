@@ -1,7 +1,7 @@
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 import { Toast } from '../../../components/Toast';
 import { db } from '../../../core/db';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-import { getCurrencySymbol } from '../../../components/SettingsPanel';
 
 export class RateCalculator {
   id = 'rate-calculator';
@@ -54,9 +54,11 @@ export class RateCalculator {
     wireSharedInputs(root);
 
     const update = () => this.update();
-    [this.incomeInput, this.weeksInput, this.hoursInput, this.overheadInput, this.taxInput].forEach(el => {
-      el.addEventListener('input', update);
-    });
+    [this.incomeInput, this.weeksInput, this.hoursInput, this.overheadInput, this.taxInput].forEach(
+      (el) => {
+        el.addEventListener('input', update);
+      },
+    );
 
     this.update();
   }

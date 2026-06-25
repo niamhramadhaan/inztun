@@ -1,7 +1,7 @@
-import { router } from '../core/router';
-import { events } from '../core/events';
 import { db } from '../core/db';
+import { events } from '../core/events';
 import { ICONS } from '../core/icons';
+import { router } from '../core/router';
 
 export const PALETTE_EVENTS = {
   OPEN_SETTINGS: 'palette:open-settings',
@@ -19,62 +19,433 @@ interface Command {
 }
 
 const MODULE_COMMANDS: Command[] = [
-  { id: 'nav:home', label: 'Home', category: 'Modules', icon: ICONS.home, action: () => router.navigate('home') },
-  { id: 'nav:workers-suite', label: "Worker's Suite", category: 'Modules', icon: ICONS.workers, action: () => router.navigate('workers-suite'), moduleKey: 'workers-suite' },
-  { id: 'nav:playground', label: "Playground", category: 'Modules', icon: ICONS.play, action: () => router.navigate('playground'), moduleKey: 'playground' },
-  { id: 'nav:freelance-core', label: 'Freelance Core', category: 'Modules', icon: ICONS.freelance, action: () => router.navigate('freelance-core'), moduleKey: 'freelance-core' },
-  { id: 'nav:marketing-lab', label: 'Marketing Lab', category: 'Modules', icon: ICONS.marketing, action: () => router.navigate('marketing-lab'), moduleKey: 'marketing-lab' },
-  { id: 'nav:design-studio', label: 'Design Studio', category: 'Modules', icon: ICONS.design, action: () => router.navigate('design-studio'), moduleKey: 'design-studio' },
+  {
+    id: 'nav:home',
+    label: 'Home',
+    category: 'Modules',
+    icon: ICONS.home,
+    action: () => router.navigate('home'),
+  },
+  {
+    id: 'nav:workers-suite',
+    label: "Worker's Suite",
+    category: 'Modules',
+    icon: ICONS.workers,
+    action: () => router.navigate('workers-suite'),
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'nav:playground',
+    label: 'Playground',
+    category: 'Modules',
+    icon: ICONS.play,
+    action: () => router.navigate('playground'),
+    moduleKey: 'playground',
+  },
+  {
+    id: 'nav:freelance-core',
+    label: 'Freelance Core',
+    category: 'Modules',
+    icon: ICONS.freelance,
+    action: () => router.navigate('freelance-core'),
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'nav:marketing-lab',
+    label: 'Marketing Lab',
+    category: 'Modules',
+    icon: ICONS.marketing,
+    action: () => router.navigate('marketing-lab'),
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'nav:design-studio',
+    label: 'Design Studio',
+    category: 'Modules',
+    icon: ICONS.design,
+    action: () => router.navigate('design-studio'),
+    moduleKey: 'design-studio',
+  },
 ];
 
 const TOOL_COMMANDS: Command[] = [
-  { id: 'tool:json-formatter', label: 'JSON Formatter', category: "Worker's Suite", icon: ICONS.json, action: () => router.navigate('workers-suite', 'json-formatter'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:base64', label: 'Base64 Encoder/Decoder', category: "Worker's Suite", icon: ICONS.base64, action: () => router.navigate('workers-suite', 'base64'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: ICONS.hash, action: () => router.navigate('workers-suite', 'hash-generator'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: ICONS.uuid, action: () => router.navigate('workers-suite', 'uuid-generator'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: ICONS.lorem, action: () => router.navigate('workers-suite', 'lorem-ipsum'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:scratchpad', label: 'Scratchpad', category: "Worker's Suite", icon: ICONS.scratchpad, action: () => router.navigate('workers-suite', 'scratchpad'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-merge', label: 'PDF Merger', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-merge'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-split', label: 'PDF Splitter', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-split'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-compress', label: 'PDF Compressor', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-compress'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-protect', label: 'PDF Password Protection', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-protect'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-sign', label: 'PDF Signature', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-sign'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-to-images', label: 'PDF to Images', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-to-images'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:pdf-metadata', label: 'PDF Metadata Editor', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-metadata'), isTool: true, moduleKey: 'workers-suite' },
-  { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: ICONS.keyboard, action: () => router.navigate('playground', 'typing-test'), isTool: true, moduleKey: 'playground' },
-  { id: 'tool:banner-generator', label: 'Banner Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'banner-generator'), isTool: true, moduleKey: 'playground' },
-  { id: 'tool:css-gradient', label: 'CSS Gradient Builder', category: 'Design Studio', icon: ICONS.gradient, action: () => router.navigate('design-studio', 'css-gradient'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:border-radius', label: 'Border Radius Previewer', category: 'Design Studio', icon: ICONS.borderRadius, action: () => router.navigate('design-studio', 'border-radius'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:typography-scale', label: 'Typography Scale', category: 'Design Studio', icon: ICONS.typeScale, action: () => router.navigate('design-studio', 'typography-scale'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:spacing-system', label: 'Spacing System', category: 'Design Studio', icon: ICONS.spacing, action: () => router.navigate('design-studio', 'spacing-system'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:logo-builder', label: 'Logo Builder', category: 'Design Studio', icon: ICONS.logoBuilder, action: () => router.navigate('design-studio', 'logo-builder'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:image-crop', label: 'Image Cropper', category: 'Design Studio', icon: ICONS.imageCrop, action: () => router.navigate('design-studio', 'image-crop'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:image-filters', label: 'Image Filters', category: 'Design Studio', icon: ICONS.imageFilters, action: () => router.navigate('design-studio', 'image-filters'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:image-metadata', label: 'Image Metadata', category: 'Design Studio', icon: ICONS.imageMetadata, action: () => router.navigate('design-studio', 'image-metadata'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:font-pairer', label: 'Font Pairer', category: 'Design Studio', icon: ICONS.fontPairer, action: () => router.navigate('design-studio', 'font-pairer'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:brand-kit', label: 'Brand Kit', category: 'Design Studio', icon: ICONS.brandKit, action: () => router.navigate('design-studio', 'brand-kit'), isTool: true, moduleKey: 'design-studio' },
-  { id: 'tool:utm-builder', label: 'UTM Builder', category: 'Marketing Lab', icon: ICONS.utm, action: () => router.navigate('marketing-lab', 'utm-builder'), isTool: true, moduleKey: 'marketing-lab' },
-  { id: 'tool:seo-meta', label: 'SEO Meta Generator', category: 'Marketing Lab', icon: ICONS.seo, action: () => router.navigate('marketing-lab', 'seo-meta'), isTool: true, moduleKey: 'marketing-lab' },
-  { id: 'tool:social-counter', label: 'Social Media Counter', category: 'Marketing Lab', icon: ICONS.social, action: () => router.navigate('marketing-lab', 'social-counter'), isTool: true, moduleKey: 'marketing-lab' },
-  { id: 'tool:color-palette', label: 'Color Palette Extractor', category: 'Marketing Lab', icon: ICONS.palette, action: () => router.navigate('marketing-lab', 'color-palette'), isTool: true, moduleKey: 'marketing-lab' },
-  { id: 'tool:invoice-generator', label: 'Invoice Generator', category: 'Freelance Core', icon: ICONS.invoice, action: () => router.navigate('freelance-core', 'invoice-generator'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:rate-calculator', label: 'Rate Calculator', category: 'Freelance Core', icon: ICONS.rate, action: () => router.navigate('freelance-core', 'rate-calculator'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:time-tracker', label: 'Time Tracker', category: 'Freelance Core', icon: ICONS.timeTracker, action: () => router.navigate('freelance-core', 'time-tracker'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:expense-tracker', label: 'Expense Tracker', category: 'Freelance Core', icon: ICONS.expense, action: () => router.navigate('freelance-core', 'expense-tracker'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:contract-templates', label: 'Contract Templates', category: 'Freelance Core', icon: ICONS.contract, action: () => router.navigate('freelance-core', 'contract-templates'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:client-manager', label: 'Client Manager', category: 'Freelance Core', icon: ICONS.clients, action: () => router.navigate('freelance-core', 'client-manager'), isTool: true, moduleKey: 'freelance-core' },
-  { id: 'tool:project-manager', label: 'Projects', category: 'Freelance Core', icon: ICONS.projects, action: () => router.navigate('freelance-core', 'project-manager'), isTool: true, moduleKey: 'freelance-core' },
+  {
+    id: 'tool:json-formatter',
+    label: 'JSON Formatter',
+    category: "Worker's Suite",
+    icon: ICONS.json,
+    action: () => router.navigate('workers-suite', 'json-formatter'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:base64',
+    label: 'Base64 Encoder/Decoder',
+    category: "Worker's Suite",
+    icon: ICONS.base64,
+    action: () => router.navigate('workers-suite', 'base64'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:hash-generator',
+    label: 'Hash Generator',
+    category: "Worker's Suite",
+    icon: ICONS.hash,
+    action: () => router.navigate('workers-suite', 'hash-generator'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:uuid-generator',
+    label: 'UUID Generator',
+    category: "Worker's Suite",
+    icon: ICONS.uuid,
+    action: () => router.navigate('workers-suite', 'uuid-generator'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:lorem-ipsum',
+    label: 'Lorem Ipsum Generator',
+    category: "Worker's Suite",
+    icon: ICONS.lorem,
+    action: () => router.navigate('workers-suite', 'lorem-ipsum'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:scratchpad',
+    label: 'Scratchpad',
+    category: "Worker's Suite",
+    icon: ICONS.scratchpad,
+    action: () => router.navigate('workers-suite', 'scratchpad'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:pdf-merge',
+    label: 'PDF Merger',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-merge'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:pdf-split',
+    label: 'PDF Splitter',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-split'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:pdf-compress',
+    label: 'PDF Compressor',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-compress'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:pdf-sign',
+    label: 'PDF Signature',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-sign'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:pdf-metadata',
+    label: 'PDF Metadata Editor',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-metadata'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:qr-generator',
+    label: 'QR Code Generator',
+    category: "Worker's Suite",
+    icon: ICONS.qrCode,
+    action: () => router.navigate('workers-suite', 'qr-generator'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:md-table',
+    label: 'Markdown Table Converter',
+    category: "Worker's Suite",
+    icon: ICONS.chart,
+    action: () => router.navigate('workers-suite', 'md-table'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:chart-creator',
+    label: 'Chart Creator',
+    category: "Worker's Suite",
+    icon: ICONS.chart,
+    action: () => router.navigate('workers-suite', 'chart-creator'),
+    isTool: true,
+    moduleKey: 'workers-suite',
+  },
+  {
+    id: 'tool:typing-test',
+    label: 'Typing Test',
+    category: 'Playground',
+    icon: ICONS.keyboard,
+    action: () => router.navigate('playground', 'typing-test'),
+    isTool: true,
+    moduleKey: 'playground',
+  },
+  {
+    id: 'tool:banner-generator',
+    label: 'Banner Generator',
+    category: 'Playground',
+    icon: ICONS.asciiArt,
+    action: () => router.navigate('playground', 'banner-generator'),
+    isTool: true,
+    moduleKey: 'playground',
+  },
+  {
+    id: 'tool:css-gradient',
+    label: 'CSS Gradient Builder',
+    category: 'Design Studio',
+    icon: ICONS.gradient,
+    action: () => router.navigate('design-studio', 'css-gradient'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:border-radius',
+    label: 'Border Radius Previewer',
+    category: 'Design Studio',
+    icon: ICONS.borderRadius,
+    action: () => router.navigate('design-studio', 'border-radius'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:typography-scale',
+    label: 'Typography Scale',
+    category: 'Design Studio',
+    icon: ICONS.typeScale,
+    action: () => router.navigate('design-studio', 'typography-scale'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:spacing-system',
+    label: 'Spacing System',
+    category: 'Design Studio',
+    icon: ICONS.spacing,
+    action: () => router.navigate('design-studio', 'spacing-system'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:logo-builder',
+    label: 'Logo Builder',
+    category: 'Design Studio',
+    icon: ICONS.logoBuilder,
+    action: () => router.navigate('design-studio', 'logo-builder'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:image-crop',
+    label: 'Image Cropper',
+    category: 'Design Studio',
+    icon: ICONS.imageCrop,
+    action: () => router.navigate('design-studio', 'image-crop'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:image-filters',
+    label: 'Image Filters',
+    category: 'Design Studio',
+    icon: ICONS.imageFilters,
+    action: () => router.navigate('design-studio', 'image-filters'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:image-metadata',
+    label: 'Image Metadata',
+    category: 'Design Studio',
+    icon: ICONS.imageMetadata,
+    action: () => router.navigate('design-studio', 'image-metadata'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:font-pairer',
+    label: 'Font Pairer',
+    category: 'Design Studio',
+    icon: ICONS.fontPairer,
+    action: () => router.navigate('design-studio', 'font-pairer'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:brand-guidelines',
+    label: 'Brand Guidelines',
+    category: 'Design Studio',
+    icon: ICONS.brandGuidelines,
+    action: () => router.navigate('design-studio', 'brand-guidelines'),
+    isTool: true,
+    moduleKey: 'design-studio',
+  },
+  {
+    id: 'tool:utm-builder',
+    label: 'UTM Builder',
+    category: 'Marketing Lab',
+    icon: ICONS.utm,
+    action: () => router.navigate('marketing-lab', 'utm-builder'),
+    isTool: true,
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'tool:seo-meta',
+    label: 'SEO Meta Generator',
+    category: 'Marketing Lab',
+    icon: ICONS.seo,
+    action: () => router.navigate('marketing-lab', 'seo-meta'),
+    isTool: true,
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'tool:social-counter',
+    label: 'Social Media Counter',
+    category: 'Marketing Lab',
+    icon: ICONS.social,
+    action: () => router.navigate('marketing-lab', 'social-counter'),
+    isTool: true,
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'tool:color-palette',
+    label: 'Color Palette Extractor',
+    category: 'Marketing Lab',
+    icon: ICONS.palette,
+    action: () => router.navigate('marketing-lab', 'color-palette'),
+    isTool: true,
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'tool:social-scheduler',
+    label: 'Social Media Scheduler',
+    category: 'Marketing Lab',
+    icon: ICONS.scheduler,
+    action: () => router.navigate('marketing-lab', 'social-scheduler'),
+    isTool: true,
+    moduleKey: 'marketing-lab',
+  },
+  {
+    id: 'tool:invoice-generator',
+    label: 'Invoice Generator',
+    category: 'Freelance Core',
+    icon: ICONS.invoice,
+    action: () => router.navigate('freelance-core', 'invoice-generator'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:rate-calculator',
+    label: 'Rate Calculator',
+    category: 'Freelance Core',
+    icon: ICONS.rate,
+    action: () => router.navigate('freelance-core', 'rate-calculator'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:time-tracker',
+    label: 'Time Tracker',
+    category: 'Freelance Core',
+    icon: ICONS.timeTracker,
+    action: () => router.navigate('freelance-core', 'time-tracker'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:expense-tracker',
+    label: 'Expense Tracker',
+    category: 'Freelance Core',
+    icon: ICONS.expense,
+    action: () => router.navigate('freelance-core', 'expense-tracker'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:contract-templates',
+    label: 'Contract Templates',
+    category: 'Freelance Core',
+    icon: ICONS.contract,
+    action: () => router.navigate('freelance-core', 'contract-templates'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:client-manager',
+    label: 'Client Manager',
+    category: 'Freelance Core',
+    icon: ICONS.clients,
+    action: () => router.navigate('freelance-core', 'client-manager'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
+  {
+    id: 'tool:project-manager',
+    label: 'Projects',
+    category: 'Freelance Core',
+    icon: ICONS.projects,
+    action: () => router.navigate('freelance-core', 'project-manager'),
+    isTool: true,
+    moduleKey: 'freelance-core',
+  },
 ];
 
 const ALL_COMMANDS: Command[] = [
-  { id: 'settings:accent', label: 'Settings', category: 'Settings', icon: ICONS.settings, action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS) },
-  { id: 'settings:defaults', label: 'Defaults', category: 'Settings', icon: ICONS.defaults, action: () => events.emit('palette:open-defaults') },
-  { id: 'help:shortcuts', label: 'Keyboard Shortcuts', category: 'Help', icon: ICONS.settings, action: () => events.emit('shortcuts:open') },
+  {
+    id: 'settings:accent',
+    label: 'Settings',
+    category: 'Settings',
+    icon: ICONS.settings,
+    action: () => events.emit(PALETTE_EVENTS.OPEN_SETTINGS),
+  },
+  {
+    id: 'settings:defaults',
+    label: 'Defaults',
+    category: 'Settings',
+    icon: ICONS.defaults,
+    action: () => events.emit('palette:open-defaults'),
+  },
+  {
+    id: 'help:shortcuts',
+    label: 'Keyboard Shortcuts',
+    category: 'Help',
+    icon: ICONS.settings,
+    action: () => events.emit('shortcuts:open'),
+  },
   ...MODULE_COMMANDS,
   ...TOOL_COMMANDS,
 ];
 
-const MODULE_ORDER = ['workers-suite', 'playground', 'design-studio', 'marketing-lab', 'freelance-core'];
+const MODULE_ORDER = [
+  'workers-suite',
+  'playground',
+  'design-studio',
+  'marketing-lab',
+  'freelance-core',
+];
 
 export class CommandPalette {
   private isOpen = false;
@@ -476,7 +847,7 @@ export class CommandPalette {
     let bestScore = 0;
 
     for (const modKey of MODULE_ORDER) {
-      const tools = TOOL_COMMANDS.filter(c => c.moduleKey === modKey);
+      const tools = TOOL_COMMANDS.filter((c) => c.moduleKey === modKey);
       let score = 0;
       for (const t of tools) {
         const id = t.id.replace('tool:', '');
@@ -505,7 +876,7 @@ export class CommandPalette {
       this.filteredCommands = this.flattenModuleView();
     } else {
       this.moduleViewData = [];
-      this.filteredCommands = ALL_COMMANDS.filter(cmd => {
+      this.filteredCommands = ALL_COMMANDS.filter((cmd) => {
         const searchText = `${cmd.label} ${cmd.category}`.toLowerCase();
         return this.fuzzyMatch(query, searchText);
       });
@@ -519,16 +890,14 @@ export class CommandPalette {
     const result: Array<{ module: Command; tools: Command[] }> = [];
 
     for (const modKey of MODULE_ORDER) {
-      const modCmd = MODULE_COMMANDS.find(c => c.moduleKey === modKey);
+      const modCmd = MODULE_COMMANDS.find((c) => c.moduleKey === modKey);
       if (!modCmd) continue;
 
-      const tools = TOOL_COMMANDS
-        .filter(c => c.moduleKey === modKey)
-        .sort((a, b) => {
-          const aId = a.id.replace('tool:', '');
-          const bId = b.id.replace('tool:', '');
-          return (this.usageCache[bId] || 0) - (this.usageCache[aId] || 0);
-        });
+      const tools = TOOL_COMMANDS.filter((c) => c.moduleKey === modKey).sort((a, b) => {
+        const aId = a.id.replace('tool:', '');
+        const bId = b.id.replace('tool:', '');
+        return (this.usageCache[bId] || 0) - (this.usageCache[aId] || 0);
+      });
 
       result.push({ module: modCmd, tools });
     }
@@ -562,16 +931,18 @@ export class CommandPalette {
   }
 
   private highlightMatch(text: string, query: string): string {
-    if (!query) return text;
+    if (!query) return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     let result = '';
     let qi = 0;
     for (let i = 0; i < text.length; i++) {
-      if (qi < query.length && text[i].toLowerCase() === query[qi].toLowerCase()) {
-        result += `<mark>${text[i]}</mark>`;
+      const ch = text[i];
+      const escaped = ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '"' ? '&quot;' : ch;
+      if (qi < query.length && ch.toLowerCase() === query[qi].toLowerCase()) {
+        result += `<mark>${escaped}</mark>`;
         qi++;
       } else {
-        result += text[i];
+        result += escaped;
       }
     }
     return result;
@@ -584,7 +955,8 @@ export class CommandPalette {
     }
 
     if (this.filteredCommands.length === 0) {
-      this.resultsList!.innerHTML = `<div class="cmd-empty">No results for "${query}"</div>`;
+      this.resultsList!.innerHTML =
+        `<div class="cmd-empty">No results for "${query.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}"</div>`;
       return;
     }
 
@@ -604,7 +976,8 @@ export class CommandPalette {
         const isDisabled = cmd.disabled;
         const toolId = cmd.id.replace('tool:', '');
         const count = this.usageCache[toolId];
-        const meta = (!query && count && cmd.isTool) ? `<span class="cmd-item__meta">${count}×</span>` : '';
+        const meta =
+          !query && count && cmd.isTool ? `<span class="cmd-item__meta">${count}×</span>` : '';
         html += `
           <div class="cmd-item ${isSelected ? 'cmd-item--selected' : ''} ${isDisabled ? 'cmd-item--disabled' : ''}" 
                data-index="${globalIndex}" 
@@ -673,7 +1046,9 @@ export class CommandPalette {
     }
 
     // Settings and Shortcuts
-    for (const cmd of ALL_COMMANDS.filter(c => c.id === 'settings:accent' || c.id === 'help:shortcuts')) {
+    for (const cmd of ALL_COMMANDS.filter(
+      (c) => c.id === 'settings:accent' || c.id === 'help:shortcuts',
+    )) {
       const isSelected = globalIndex === this.selectedIndex;
       html += `
         <div class="cmd-item ${isSelected ? 'cmd-item--selected' : ''}" data-index="${globalIndex}" data-id="${cmd.id}">
@@ -690,7 +1065,7 @@ export class CommandPalette {
   }
 
   private bindAccordionEvents(): void {
-    this.resultsList!.querySelectorAll('.cmd-module__header').forEach(header => {
+    this.resultsList!.querySelectorAll('.cmd-module__header').forEach((header) => {
       header.addEventListener('click', () => {
         const modKey = (header.closest('.cmd-module') as HTMLElement)?.dataset.module;
         if (!modKey) return;
@@ -707,12 +1082,13 @@ export class CommandPalette {
   }
 
   private bindResultItems(): void {
-    this.resultsList!.querySelectorAll('.cmd-item:not(.cmd-item--disabled)').forEach(item => {
+    this.resultsList!.querySelectorAll('.cmd-item:not(.cmd-item--disabled)').forEach((item) => {
       item.addEventListener('click', () => {
         const cmdId = (item as HTMLElement).dataset.id;
-        const cmd = this.filteredCommands.find(c => c.id === cmdId)
-          || MODULE_COMMANDS.find(c => c.id === cmdId)
-          || ALL_COMMANDS.find(c => c.id === cmdId);
+        const cmd =
+          this.filteredCommands.find((c) => c.id === cmdId) ||
+          MODULE_COMMANDS.find((c) => c.id === cmdId) ||
+          ALL_COMMANDS.find((c) => c.id === cmdId);
         if (cmd?.action) {
           this.close();
           cmd.action();
@@ -729,7 +1105,7 @@ export class CommandPalette {
 
   private moveSelection(delta: number): void {
     const maxIndex = this.filteredCommands.length - 1;
-    const isAccordion = this.moduleViewData.length > 0 && !(this.input?.value.trim());
+    const isAccordion = this.moduleViewData.length > 0 && !this.input?.value.trim();
 
     if (isAccordion) {
       const visibleIndices = this.getVisibleIndices();
@@ -757,7 +1133,7 @@ export class CommandPalette {
   private getVisibleIndices(): number[] {
     const indices: number[] = [];
     const items = this.resultsList!.querySelectorAll('.cmd-item, .cmd-module__header');
-    items.forEach(el => {
+    items.forEach((el) => {
       if (el.closest('.cmd-module__children') && !el.closest('.cmd-module--expanded')) return;
       const idx = parseInt((el as HTMLElement).dataset.index!);
       if (!isNaN(idx)) indices.push(idx);
@@ -769,23 +1145,33 @@ export class CommandPalette {
     this.resultsList!.querySelectorAll('.cmd-item, .cmd-module__header').forEach((item) => {
       const index = parseInt((item as HTMLElement).dataset.index!);
       const isSelected = index === this.selectedIndex;
-      item.classList.toggle('cmd-item--selected', isSelected && item.classList.contains('cmd-item'));
-      item.classList.toggle('cmd-module__header--selected', isSelected && item.classList.contains('cmd-module__header'));
+      item.classList.toggle(
+        'cmd-item--selected',
+        isSelected && item.classList.contains('cmd-item'),
+      );
+      item.classList.toggle(
+        'cmd-module__header--selected',
+        isSelected && item.classList.contains('cmd-module__header'),
+      );
     });
   }
 
   private scrollToSelected(): void {
-    const selected = this.resultsList!.querySelector('.cmd-item--selected, .cmd-module__header--selected');
+    const selected = this.resultsList!.querySelector(
+      '.cmd-item--selected, .cmd-module__header--selected',
+    );
     if (selected) {
       selected.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }
 
   private executeSelected(): void {
-    const isAccordion = this.moduleViewData.length > 0 && !(this.input?.value.trim());
+    const isAccordion = this.moduleViewData.length > 0 && !this.input?.value.trim();
 
     if (isAccordion) {
-      const selectedEl = this.resultsList!.querySelector(`[data-index="${this.selectedIndex}"]`) as HTMLElement;
+      const selectedEl = this.resultsList!.querySelector(
+        `[data-index="${this.selectedIndex}"]`,
+      ) as HTMLElement;
       if (!selectedEl) return;
 
       if (selectedEl.classList.contains('cmd-module__header')) {
@@ -802,7 +1188,7 @@ export class CommandPalette {
       }
 
       const cmdId = selectedEl.dataset.id;
-      const cmd = ALL_COMMANDS.find(c => c.id === cmdId);
+      const cmd = ALL_COMMANDS.find((c) => c.id === cmdId);
       if (cmd && !cmd.disabled && cmd.action) {
         this.close();
         cmd.action();

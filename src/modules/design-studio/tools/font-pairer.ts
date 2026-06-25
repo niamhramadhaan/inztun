@@ -1,6 +1,7 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
 import type { Tool } from '../../../types';
+import { copyToClipboard } from '../../../utils/image';
 
 interface FontPair {
   heading: string;
@@ -36,19 +37,24 @@ export class FontPairer implements Tool {
   private selectedPair = 0;
   private headingSize = 36;
   private bodySize = 16;
-  private customText = { heading: 'Heading Text', body: 'Body text goes here. Try different font pairs to find the perfect combination for your brand.' };
+  private customText = {
+    heading: 'Heading Text',
+    body: 'Body text goes here. Try different font pairs to find the perfect combination for your brand.',
+  };
 
   render(): string {
     return `
       <div class="tool-area">
         <div class="fp-controls">
           <div class="fp-pair-list" id="fp-pair-list">
-            ${FONT_PAIRS.map((pair, i) => `
+            ${FONT_PAIRS.map(
+              (pair, i) => `
               <button class="btn btn--ghost btn--sm fp-pair-btn ${i === 0 ? 'fp-pair-btn--active' : ''}" data-i="${i}">
                 <span class="fp-pair-cat">${pair.category}</span>
                 <span class="fp-pair-name">${pair.heading.split(',')[0]} + ${pair.body.split(',')[0]}</span>
               </button>
-            `).join('')}
+            `,
+            ).join('')}
           </div>
           <div class="fp-settings">
             <div class="form-group">
@@ -106,9 +112,11 @@ export class FontPairer implements Tool {
       ].join('\n');
     };
 
-    root.querySelectorAll('.fp-pair-btn').forEach(btn => {
+    root.querySelectorAll('.fp-pair-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        root.querySelectorAll('.fp-pair-btn').forEach(b => b.classList.remove('fp-pair-btn--active'));
+        root
+          .querySelectorAll('.fp-pair-btn')
+          .forEach((b) => b.classList.remove('fp-pair-btn--active'));
         btn.classList.add('fp-pair-btn--active');
         this.selectedPair = parseInt((btn as HTMLElement).dataset.i!);
         updatePreview();
@@ -128,7 +136,7 @@ export class FontPairer implements Tool {
     });
 
     root.querySelector('#fp-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(cssEl.textContent || '');
+      void copyToClipboard(cssEl.textContent || '');
       Toast.copied('CSS');
       logToolAction('font-pairer', 'Copied font pair CSS');
     });

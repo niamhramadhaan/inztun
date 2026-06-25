@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class CssUnitConverter {
   id = 'css-unit';
@@ -90,17 +91,38 @@ export class CssUnitConverter {
     // Convert to px first
     let px: number;
     switch (from) {
-      case 'px': px = value; break;
-      case 'rem': px = value * baseSize; break;
-      case 'em': px = value * baseSize; break;
-      case 'vw': px = (value / 100) * viewportWidth; break;
-      case 'vh': px = (value / 100) * (viewportWidth * 0.5625); break;
-      case '%': px = (value / 100) * baseSize; break;
-      case 'pt': px = value * 1.333; break;
-      case 'cm': px = value * 37.795; break;
-      case 'mm': px = value * 3.7795; break;
-      case 'in': px = value * 96; break;
-      default: px = value;
+      case 'px':
+        px = value;
+        break;
+      case 'rem':
+        px = value * baseSize;
+        break;
+      case 'em':
+        px = value * baseSize;
+        break;
+      case 'vw':
+        px = (value / 100) * viewportWidth;
+        break;
+      case 'vh':
+        px = (value / 100) * (viewportWidth * 0.5625);
+        break;
+      case '%':
+        px = (value / 100) * baseSize;
+        break;
+      case 'pt':
+        px = value * 1.333;
+        break;
+      case 'cm':
+        px = value * 37.795;
+        break;
+      case 'mm':
+        px = value * 3.7795;
+        break;
+      case 'in':
+        px = value * 96;
+        break;
+      default:
+        px = value;
     }
 
     const results = [
@@ -116,17 +138,21 @@ export class CssUnitConverter {
       { unit: 'in', value: px / 96 },
     ];
 
-    this.resultsEl.innerHTML = results.map((r: { unit: string; value: number }) => `
+    this.resultsEl.innerHTML = results
+      .map(
+        (r: { unit: string; value: number }) => `
       <div class="unit-item">
         <span class="unit-label">${r.unit}</span>
         <span class="unit-value">${r.value.toFixed(4)}</span>
         <button class="btn btn--ghost btn--sm unit-copy" data-value="${r.value.toFixed(4)}${r.unit}">Copy</button>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     this.resultsEl.querySelectorAll('.unit-copy').forEach((btn: Element) => {
       (btn as HTMLElement).addEventListener('click', () => {
-        navigator.clipboard.writeText((btn as HTMLElement).dataset.value || '');
+        void copyToClipboard((btn as HTMLElement).dataset.value || '');
         Toast.copied((btn as HTMLElement).dataset.value || '');
       });
     });

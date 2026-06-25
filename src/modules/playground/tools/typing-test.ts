@@ -68,14 +68,14 @@ const TEXTS: Record<Difficulty, string[]> = {
     'interface StateMachine<S extends string, E extends string> { current: S; transitions: Record<S, Record<E, S>>; dispatch(event: E): void; } function createStateMachine<S extends string, E extends string>(initial: S, transitions: Record<S, Record<E, S>>): StateMachine<S, E> { return { current: initial, transitions, dispatch(event) { const next = this.transitions[this.current]?.[event]; if (next) this.current = next; }; } }',
     'export function mergeSort<T>(arr: T[], compare: (a: T, b: T) => number): T[] { if (arr.length <= 1) return arr; const mid = Math.floor(arr.length / 2); const left = mergeSort(arr.slice(0, mid), compare); const right = mergeSort(arr.slice(mid), compare); const result: T[] = []; let i = 0, j = 0; while (i < left.length && j < right.length) { if (compare(left[i], right[j]) <= 0) result.push(left[i++]); else result.push(right[j++]); } return result.concat(left.slice(i)).concat(right.slice(j)); }',
     'type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E }; function tryCatch<T>(fn: () => T): Result<T> { try { return { ok: true, value: fn() }; } catch (e) { return { ok: false, error: e instanceof Error ? e : new Error(String(e)) }; } }',
-    'SELECT u.name, u.email, COUNT(o.id) AS order_count, SUM(o.total) AS lifetime_value FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.created_at >= \'2025-01-01\' AND u.status = \'active\' GROUP BY u.id, u.name, u.email HAVING COUNT(o.id) > 5 ORDER BY lifetime_value DESC LIMIT 100;',
+    "SELECT u.name, u.email, COUNT(o.id) AS order_count, SUM(o.total) AS lifetime_value FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.created_at >= '2025-01-01' AND u.status = 'active' GROUP BY u.id, u.name, u.email HAVING COUNT(o.id) > 5 ORDER BY lifetime_value DESC LIMIT 100;",
     'class EventEmitter<Events extends Record<string, unknown[]>> { private listeners = new Map<keyof Events, Set<Function>>(); on<K extends keyof Events>(event: K, fn: (...args: Events[K]) => void): void { if (!this.listeners.has(event)) this.listeners.set(event, new Set()); this.listeners.get(event)!.add(fn); } emit<K extends keyof Events>(event: K, ...args: Events[K]): void { this.listeners.get(event)?.forEach(fn => fn(...args)); } }',
     'fn build_pattern(regex: &str) -> Result<Regex, RegexError> { let parsed = parse(regex)?; let nfa = Thompson::build(&parsed); let dfa = Subset::convert(&nfa); let minimized = Hopcroft::minimize(&dfa); Ok(Regex { dfa: minimized, }) }',
     'import hashlib, struct def merkle_root(hashes: list[bytes]) -> bytes: while len(hashes) > 1: if len(hashes) % 2: hashes.append(hashes[-1]) hashes = [hashlib.sha256(hashes[i] + hashes[i+1]).digest() for i in range(0, len(hashes), 2)] return hashes[0]',
     'const pipeline = (...fns: Function[]) => (input: unknown) => fns.reduce((acc, fn) => fn(acc), input); const compose = (...fns: Function[]) => (input: unknown) => fns.reduceRight((acc, fn) => fn(acc), input);',
     'git rebase -i HEAD~5 --autosquash && git push --force-with-lease origin feature/auth-refactor && gh pr create --title "refactor(auth): consolidate session handling" --body "Migrates from JWT to server-side sessions with Redis backing store."',
     'docker compose -f docker-compose.prod.yml up -d --build --remove-orphans && docker exec app npx prisma migrate deploy && docker exec app npx prisma generate && curl -fsSL https://healthcheck.internal/ready | jq .',
-    'SELECT DISTINCT p.name, p.price, c.category_name FROM products p INNER JOIN product_categories pc ON p.id = pc.product_id INNER JOIN categories c ON pc.category_id = c.id WHERE p.price BETWEEN 10.00 AND 100.00 AND c.category_name IN (\'Electronics\', \'Books\') ORDER BY p.price ASC;',
+    "SELECT DISTINCT p.name, p.price, c.category_name FROM products p INNER JOIN product_categories pc ON p.id = pc.product_id INNER JOIN categories c ON pc.category_id = c.id WHERE p.price BETWEEN 10.00 AND 100.00 AND c.category_name IN ('Electronics', 'Books') ORDER BY p.price ASC;",
     'ssh -L 5432:localhost:5432 -N -f -i ~/.ssh/prod_key deploy@bastion.example.com && PGPASSWORD=$(vault read -field=password secret/db/readonly) psql -h localhost -p 5432 -U readonly -d analytics -c "SELECT count(*) FROM events WHERE created_at > now() - interval \'24 hours\';"',
     'type Prettify<T> = { [K in keyof T]: T[K] } & {}; type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T; type RequiredKeys<T> = { [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T];',
     'import numpy as np def attention(Q, K, V, mask=None): d_k = Q.shape[-1] scores = np.matmul(Q, K.transpose(-2, -1)) / np.sqrt(d_k) if mask is not None: scores = np.where(mask, scores, -1e9) weights = np.exp(scores - scores.max(axis=-1, keepdims=True)) weights = weights / weights.sum(axis=-1, keepdims=True) return np.matmul(weights, V)',
@@ -95,7 +95,14 @@ export class TypingTest implements Tool {
   private difficulty: Difficulty = 'easy';
   private mode: Mode = 'words';
   private timedDuration = 30;
-  private state: TypingState = { started: false, startTime: 0, text: '', input: '', errors: 0, finished: false };
+  private state: TypingState = {
+    started: false,
+    startTime: 0,
+    text: '',
+    input: '',
+    errors: 0,
+    finished: false,
+  };
   private bestWpm: Record<Difficulty, number> = { easy: 0, medium: 0, hard: 0 };
 
   private displayEl!: HTMLElement;
@@ -168,13 +175,17 @@ export class TypingTest implements Tool {
     this.resultsEl = root.querySelector('#tt-results') as HTMLElement;
 
     this.inputEl?.addEventListener('input', () => this.onInput());
-    (root.querySelector('#tt-restart') as HTMLElement)?.addEventListener('click', () => this.restart());
+    (root.querySelector('#tt-restart') as HTMLElement)?.addEventListener('click', () =>
+      this.restart(),
+    );
     (root.querySelector('#tt-new') as HTMLElement)?.addEventListener('click', () => this.newText());
 
-    root.querySelectorAll('#tt-difficulty .tt-seg-btn').forEach(btn => {
+    root.querySelectorAll('#tt-difficulty .tt-seg-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.difficulty = (btn as HTMLElement).dataset.val as Difficulty;
-        root.querySelectorAll('#tt-difficulty .tt-seg-btn').forEach(b => b.classList.remove('tt-seg-btn--active'));
+        root
+          .querySelectorAll('#tt-difficulty .tt-seg-btn')
+          .forEach((b) => b.classList.remove('tt-seg-btn--active'));
         btn.classList.add('tt-seg-btn--active');
         this.updateTarget();
         this.updateBest();
@@ -182,10 +193,12 @@ export class TypingTest implements Tool {
       });
     });
 
-    root.querySelectorAll('#tt-mode .tt-seg-btn').forEach(btn => {
+    root.querySelectorAll('#tt-mode .tt-seg-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.mode = (btn as HTMLElement).dataset.val as Mode;
-        root.querySelectorAll('#tt-mode .tt-seg-btn').forEach(b => b.classList.remove('tt-seg-btn--active'));
+        root
+          .querySelectorAll('#tt-mode .tt-seg-btn')
+          .forEach((b) => b.classList.remove('tt-seg-btn--active'));
         btn.classList.add('tt-seg-btn--active');
         const timedSelect = root.querySelector('#tt-timed-select') as HTMLElement;
         const progressWrap = root.querySelector('#tt-progress') as HTMLElement;
@@ -195,10 +208,12 @@ export class TypingTest implements Tool {
       });
     });
 
-    root.querySelectorAll('#tt-timed-select .tt-time-btn').forEach(btn => {
+    root.querySelectorAll('#tt-timed-select .tt-time-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.timedDuration = parseInt((btn as HTMLElement).dataset.val!);
-        root.querySelectorAll('#tt-timed-select .tt-time-btn').forEach(b => b.classList.remove('tt-time-btn--active'));
+        root
+          .querySelectorAll('#tt-timed-select .tt-time-btn')
+          .forEach((b) => b.classList.remove('tt-time-btn--active'));
         btn.classList.add('tt-time-btn--active');
         this.newText();
       });
@@ -210,7 +225,7 @@ export class TypingTest implements Tool {
   }
 
   private loadBest(): void {
-    db.getPreference('typingBest', {}).then(val => {
+    db.getPreference('typingBest', {}).then((val) => {
       if (val && typeof val === 'object') {
         this.bestWpm = { ...this.bestWpm, ...(val as Record<Difficulty, number>) };
       }
@@ -242,7 +257,14 @@ export class TypingTest implements Tool {
   }
 
   restart(): void {
-    this.state = { started: false, startTime: 0, text: this.state.text, input: '', errors: 0, finished: false };
+    this.state = {
+      started: false,
+      startTime: 0,
+      text: this.state.text,
+      input: '',
+      errors: 0,
+      finished: false,
+    };
     this.inputEl.value = '';
     this.inputEl.disabled = false;
     this.resultsEl.style.display = 'none';
@@ -329,8 +351,12 @@ export class TypingTest implements Tool {
     `;
     this.resultsEl.style.display = '';
 
-    this.resultsEl.querySelector('#tt-results-restart')?.addEventListener('click', () => this.restart());
-    this.resultsEl.querySelector('#tt-results-new')?.addEventListener('click', () => this.newText());
+    this.resultsEl
+      .querySelector('#tt-results-restart')
+      ?.addEventListener('click', () => this.restart());
+    this.resultsEl
+      .querySelector('#tt-results-new')
+      ?.addEventListener('click', () => this.newText());
 
     Toast.success(hitTarget ? `WPM target reached! ${wpm} WPM` : `Test complete: ${wpm} WPM`);
   }

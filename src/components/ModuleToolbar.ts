@@ -68,7 +68,9 @@ export class ModuleToolbar {
       this.options.onHome?.();
     });
 
-    this.searchInput = this.element.querySelector(`#${this.options.moduleId}-tool-search`) as HTMLInputElement;
+    this.searchInput = this.element.querySelector(
+      `#${this.options.moduleId}-tool-search`,
+    ) as HTMLInputElement;
 
     this.searchInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
@@ -76,17 +78,24 @@ export class ModuleToolbar {
     });
 
     this.keydownHandler = (e: KeyboardEvent) => {
-      if (e.key === '/' && !e.defaultPrevented && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (
+        e.key === '/' &&
+        !e.defaultPrevented &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
         e.preventDefault();
         this.searchInput?.focus();
       }
     };
     document.addEventListener('keydown', this.keydownHandler);
 
-    this.element.querySelectorAll('.sort-btn').forEach(btn => {
+    this.element.querySelectorAll('.sort-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.sortMode = (btn as HTMLElement).dataset.sort as SortMode;
-        this.element!.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('sort-btn--active'));
+        this.element!.querySelectorAll('.sort-btn').forEach((b) =>
+          b.classList.remove('sort-btn--active'),
+        );
         btn.classList.add('sort-btn--active');
         this.options.onSortChange(this.sortMode);
       });

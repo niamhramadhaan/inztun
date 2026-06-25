@@ -1,6 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, downloadBlob } from '../../../utils/image';
+import { downloadBlob, loadImage } from '../../../utils/image';
 
 const FAVICON_SIZES = [
   { size: 16, label: '16×16', desc: 'Browser tab' },
@@ -55,23 +55,39 @@ export class FaviconGenerator {
     this.actionsEl = root.querySelector('#fav-actions')!;
 
     this.dropZone.addEventListener('click', () => this.fileInput.click());
-    this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('imgc-drop-zone--active'); });
-    this.dropZone.addEventListener('dragleave', () => this.dropZone.classList.remove('imgc-drop-zone--active'));
-    this.dropZone.addEventListener('drop', (e) => { e.preventDefault(); this.dropZone.classList.remove('imgc-drop-zone--active'); if (e.dataTransfer?.files[0]) this.handleFile(e.dataTransfer.files[0]); });
-    this.fileInput.addEventListener('change', () => { if (this.fileInput.files?.[0]) this.handleFile(this.fileInput.files[0]); });
+    this.dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      this.dropZone.classList.add('imgc-drop-zone--active');
+    });
+    this.dropZone.addEventListener('dragleave', () =>
+      this.dropZone.classList.remove('imgc-drop-zone--active'),
+    );
+    this.dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      this.dropZone.classList.remove('imgc-drop-zone--active');
+      if (e.dataTransfer?.files[0]) this.handleFile(e.dataTransfer.files[0]);
+    });
+    this.fileInput.addEventListener('change', () => {
+      if (this.fileInput.files?.[0]) this.handleFile(this.fileInput.files[0]);
+    });
 
     root.querySelector('#fav-reset')!.addEventListener('click', () => this.reset());
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image');
+      return;
+    }
     try {
       this.sourceImage = await loadImage(file);
       this.dropZone.style.display = 'none';
       this.previewGrid.style.display = '';
       this.actionsEl.style.display = '';
       this.renderPreviews();
-    } catch { Toast.error('Failed to load image'); }
+    } catch {
+      Toast.error('Failed to load image');
+    }
   }
 
   private renderPreviews(): void {

@@ -1,8 +1,9 @@
 import { Toast } from '../../../components/Toast';
-import { db, type TimeEntry, type Project } from '../../../core/db';
+import { logToolAction } from '../../../core/activity';
+import { db, type Project, type TimeEntry } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-import { logToolAction } from '../../../core/activity';
+import { escapeHtml } from '../../../utils/image';
 
 export class TimeTracker {
   id = 'time-tracker';
@@ -58,7 +59,11 @@ export class TimeTracker {
 
     this.entries = await db.getAllTimeEntries();
 
-    const activeTimer = await db.getPreference('fc-active-timer') as { project: string; startTime: number; projectId?: number } | null;
+    const activeTimer = (await db.getPreference('fc-active-timer')) as {
+      project: string;
+      startTime: number;
+      projectId?: number;
+    } | null;
     if (activeTimer) {
       this.projectInput.value = activeTimer.project;
       if (activeTimer.projectId) this.projectSelect.value = String(activeTimer.projectId);
@@ -73,7 +78,10 @@ export class TimeTracker {
     }
 
     // Check for pre-selected project from home dashboard
-    const preselect = await db.getPreference('fc-preselect-project') as { projectId: number; projectName: string } | null;
+    const preselect = (await db.getPreference('fc-preselect-project')) as {
+      projectId: number;
+      projectName: string;
+    } | null;
     if (preselect) {
       this.projectSelect.value = String(preselect.projectId);
       if (!this.projectInput.value) this.projectInput.value = preselect.projectName;
@@ -87,7 +95,7 @@ export class TimeTracker {
     this.projectSelect.addEventListener('change', () => {
       const selectedId = parseInt(this.projectSelect.value);
       if (selectedId) {
-        const project = this.projects.find(p => p.id === selectedId);
+        const project = this.projects.find((p) => p.id === selectedId);
         if (project && !this.projectInput.value) {
           this.projectInput.value = project.name;
         }
@@ -99,9 +107,10 @@ export class TimeTracker {
   }
 
   private populateProjectSelect(): void {
-    const active = this.projects.filter(p => p.status === 'active');
-    this.projectSelect.innerHTML = '<option value="">— None —</option>' +
-      active.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    const active = this.projects.filter((p) => p.status === 'active');
+    this.projectSelect.innerHTML =
+      '<option value="">— None —</option>' +
+      active.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
   }
 
   private getSelectedProjectId(): number | undefined {
@@ -132,7 +141,7 @@ export class TimeTracker {
     this.updateButton('Stop', true);
   }
 
-  private stop(): void {
+  private async stop(): Promise<void> {
     this.running = false;
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = null;
@@ -147,7 +156,7 @@ export class TimeTracker {
         date: new Date().toISOString().split('T')[0],
       };
       this.entries.unshift(entry);
-      db.putTimeEntry(entry);
+      await db.putTimeEntry(entry);
       this.renderLog();
       Toast.success('Time entry saved');
       logToolAction('time-tracker', 'Stopped timer and saved entry');
@@ -157,7 +166,7 @@ export class TimeTracker {
     this.updateButton('Start', false);
   }
 
-  private logManual(): void {
+  private async logManual(): Promise<void> {
     const hours = prompt('Enter hours:');
     if (!hours) return;
     const duration = parseFloat(hours) * 3600;
@@ -171,7 +180,7 @@ export class TimeTracker {
         date: new Date().toISOString().split('T')[0],
       };
       this.entries.unshift(entry);
-      db.putTimeEntry(entry);
+      await db.putTimeEntry(entry);
       this.renderLog();
       Toast.success('Entry logged');
       logToolAction('time-tracker', 'Logged manual time entry');
@@ -204,41 +213,49 @@ export class TimeTracker {
     const totalSeconds = this.entries.reduce((sum, e) => sum + e.duration, 0);
     this.totalEl.textContent = `Total: ${this.formatDuration(totalSeconds)}`;
 
-    this.logEl.innerHTML = this.entries.length === 0
-      ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No entries yet. Start the timer or log manually.</p>'
-      : this.entries.map(e => `
+    this.logEl.innerHTML =
+      this.entries.length === 0
+        ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No entries yet. Start the timer or log manually.</p>'
+        : this.entries
+            .map(
+              (e) => `
         <div class="fctt-entry">
-          <span class="fctt-entry__project">${e.project}</span>
+          <span class="fctt-entry__project">${escapeHtml(e.project)}</span>
           ${e.projectId ? '<span class="fctt-entry__linked" title="Linked project">◆</span>' : ''}
           <span class="fctt-entry__duration">${this.formatDuration(e.duration)}</span>
           <span class="fctt-entry__date">${e.date}</span>
           <button class="btn btn--ghost btn--sm fctt-invoice" data-id="${e.id}" title="Send to Invoice">↗</button>
           <button class="btn btn--ghost btn--sm fctt-delete" data-id="${e.id}">×</button>
         </div>
-      `).join('');
+      `,
+            )
+            .join('');
 
-    this.logEl.querySelectorAll('.fctt-delete').forEach(btn => {
+    this.logEl.querySelectorAll('.fctt-delete').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
+        if (!confirm('Delete this entry?')) return;
         const id = parseInt((ev.target as HTMLElement).dataset.id!);
-        this.entries = this.entries.filter(e => e.id !== id);
+        this.entries = this.entries.filter((e) => e.id !== id);
         db.deleteTimeEntry(id);
         this.renderLog();
         Toast.success('Entry deleted');
       });
     });
 
-    this.logEl.querySelectorAll('.fctt-invoice').forEach(btn => {
+    this.logEl.querySelectorAll('.fctt-invoice').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
         const id = parseInt((ev.target as HTMLElement).dataset.id!);
-        const entry = this.entries.find(e => e.id === id);
+        const entry = this.entries.find((e) => e.id === id);
         if (!entry) return;
-        const hours = Math.round(entry.duration / 3600 * 100) / 100;
-        const items = [{
-          description: entry.project || 'Time entry',
-          quantity: hours || 1,
-          rate: 0,
-          projectId: entry.projectId,
-        }];
+        const hours = Math.round((entry.duration / 3600) * 100) / 100;
+        const items = [
+          {
+            description: entry.project || 'Time entry',
+            quantity: hours || 0.01,
+            rate: 0,
+            projectId: entry.projectId,
+          },
+        ];
         db.setPreference('fc-pending-invoice-items', items);
         Toast.info('Sent to Invoice Generator');
         router.navigate('freelance-core', 'invoice-generator');

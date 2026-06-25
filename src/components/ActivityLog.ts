@@ -1,7 +1,8 @@
+import type { Activity } from '../core/db';
 import { db } from '../core/db';
 import { router } from '../core/router';
+import { escapeHtml } from '../utils/image';
 import { Toast } from './Toast';
-import type { Activity } from '../core/db';
 
 const TYPE_FILTERS = [
   { key: 'all', label: 'All' },
@@ -15,24 +16,86 @@ const TYPE_FILTERS = [
 ];
 
 const ACTIVITY_ICONS: Record<string, string> = {
-  'invoice': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-  'client-add': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
-  'client-update': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
-  'note-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-  'project-create': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
-  'project-update': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>',
-  'tool-action': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  invoice:
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  'client-add':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
+  'client-update':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>',
+  'note-create':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  'project-create':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+  'project-update':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>',
+  'tool-action':
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
 };
 
 const TOOL_MODULE_MAP: Record<string, string> = {};
-const wsTools = ['pdf-merge','pdf-split','pdf-compress','pdf-protect','pdf-sign','pdf-to-images','pdf-metadata','lorem-ipsum','char-counter','base64','url-encoder','json-formatter','hash-generator','uuid-generator','password-generator','css-unit','markdown-preview','markdown-html','scratchpad'];
-const dsTools = ['css-gradient','border-radius','typography-scale','spacing-system','image-compress','image-resize','image-convert','contrast-checker','favicon-generator','logo-builder','image-crop','image-filters','image-metadata','font-pairer','brand-kit'];
-const mlTools = ['utm-builder','social-resizer','social-counter','seo-meta','og-preview','color-palette','brand-extractor'];
-const fcTools = ['invoice-generator','time-tracker','rate-calculator','contract-templates','expense-tracker','client-manager','tax-estimator','timezone-converter'];
-wsTools.forEach(t => TOOL_MODULE_MAP[t] = 'workers-suite');
-dsTools.forEach(t => TOOL_MODULE_MAP[t] = 'design-studio');
-mlTools.forEach(t => TOOL_MODULE_MAP[t] = 'marketing-lab');
-fcTools.forEach(t => TOOL_MODULE_MAP[t] = 'freelance-core');
+const wsTools = [
+  'pdf-merge',
+  'pdf-split',
+  'pdf-compress',
+  'pdf-sign',
+  'pdf-metadata',
+  'lorem-ipsum',
+  'char-counter',
+  'base64',
+  'url-encoder',
+  'json-formatter',
+  'hash-generator',
+  'uuid-generator',
+  'password-generator',
+  'css-unit',
+  'markdown-preview',
+  'markdown-html',
+  'scratchpad',
+  'qr-generator',
+  'md-table',
+  'chart-creator',
+];
+const dsTools = [
+  'css-gradient',
+  'border-radius',
+  'typography-scale',
+  'spacing-system',
+  'image-compress',
+  'image-resize',
+  'image-convert',
+  'contrast-checker',
+  'favicon-generator',
+  'logo-builder',
+  'image-crop',
+  'image-filters',
+  'image-metadata',
+  'font-pairer',
+  'brand-guidelines',
+];
+const mlTools = [
+  'utm-builder',
+  'social-resizer',
+  'social-counter',
+  'seo-meta',
+  'og-preview',
+  'color-palette',
+  'brand-extractor',
+  'social-scheduler',
+];
+const fcTools = [
+  'invoice-generator',
+  'time-tracker',
+  'rate-calculator',
+  'contract-templates',
+  'expense-tracker',
+  'client-manager',
+  'tax-estimator',
+  'timezone-converter',
+];
+wsTools.forEach((t) => (TOOL_MODULE_MAP[t] = 'workers-suite'));
+dsTools.forEach((t) => (TOOL_MODULE_MAP[t] = 'design-studio'));
+mlTools.forEach((t) => (TOOL_MODULE_MAP[t] = 'marketing-lab'));
+fcTools.forEach((t) => (TOOL_MODULE_MAP[t] = 'freelance-core'));
 
 export class ActivityLog {
   private overlay: HTMLDivElement | null = null;
@@ -173,9 +236,11 @@ export class ActivityLog {
         <div class="al-toolbar">
           <input type="text" class="al-search" id="al-search" placeholder="Search activity...">
           <div class="al-filters" id="al-filters">
-            ${TYPE_FILTERS.map(f => `
+            ${TYPE_FILTERS.map(
+              (f) => `
               <button class="al-filter-btn ${f.key === 'all' ? 'al-filter-btn--active' : ''}" data-filter="${f.key}">${f.label}</button>
-            `).join('')}
+            `,
+            ).join('')}
           </div>
         </div>
         <div class="al-body" id="al-body"></div>
@@ -191,7 +256,9 @@ export class ActivityLog {
     this.searchInput = this.overlay.querySelector('#al-search')!;
 
     this.overlay.querySelector('#al-close')?.addEventListener('click', () => this.close());
-    this.overlay.addEventListener('click', (e) => { if (e.target === this.overlay) this.close(); });
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.close();
+    });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.overlay?.classList.contains('al-overlay--open')) this.close();
     });
@@ -201,9 +268,11 @@ export class ActivityLog {
       this.renderList();
     });
 
-    this.overlay.querySelectorAll('.al-filter-btn').forEach(btn => {
+    this.overlay.querySelectorAll('.al-filter-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        this.overlay!.querySelectorAll('.al-filter-btn').forEach(b => b.classList.remove('al-filter-btn--active'));
+        this.overlay!.querySelectorAll('.al-filter-btn').forEach((b) =>
+          b.classList.remove('al-filter-btn--active'),
+        );
         btn.classList.add('al-filter-btn--active');
         this.activeFilter = (btn as HTMLElement).dataset.filter!;
         this.renderList();
@@ -226,16 +295,18 @@ export class ActivityLog {
 
     if (this.activeFilter !== 'all') {
       if (this.activeFilter === 'client-add') {
-        filtered = filtered.filter(a => a.type === 'client-add' || a.type === 'client-update');
+        filtered = filtered.filter((a) => a.type === 'client-add' || a.type === 'client-update');
       } else if (this.activeFilter === 'project-create') {
-        filtered = filtered.filter(a => a.type === 'project-create' || a.type === 'project-update');
+        filtered = filtered.filter(
+          (a) => a.type === 'project-create' || a.type === 'project-update',
+        );
       } else {
-        filtered = filtered.filter(a => a.type === this.activeFilter);
+        filtered = filtered.filter((a) => a.type === this.activeFilter);
       }
     }
 
     if (this.searchQuery) {
-      filtered = filtered.filter(a => a.label.toLowerCase().includes(this.searchQuery));
+      filtered = filtered.filter((a) => a.label.toLowerCase().includes(this.searchQuery));
     }
 
     const countEl = this.overlay!.querySelector('#al-count')!;
@@ -253,18 +324,22 @@ export class ActivityLog {
       return;
     }
 
-    this.listEl.innerHTML = filtered.map(a => `
+    this.listEl.innerHTML = filtered
+      .map(
+        (a) => `
       <div class="al-item" data-type="${a.type}" data-meta="${a.meta || ''}">
         <span class="al-item__icon">${ACTIVITY_ICONS[a.type] || ACTIVITY_ICONS['tool-action']}</span>
         <span class="al-item__body">
-          <span class="al-item__label">${a.label}</span>
-          ${a.meta ? `<span class="al-item__meta">${a.meta}</span>` : ''}
+          <span class="al-item__label">${escapeHtml(a.label)}</span>
+          ${a.meta ? `<span class="al-item__meta">${escapeHtml(a.meta)}</span>` : ''}
         </span>
         <span class="al-item__time">${this.relativeTime(a.createdAt)}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    this.listEl.querySelectorAll('.al-item').forEach(item => {
+    this.listEl.querySelectorAll('.al-item').forEach((item) => {
       item.addEventListener('click', () => {
         const type = (item as HTMLElement).dataset.type || '';
         const meta = (item as HTMLElement).dataset.meta || '';
@@ -276,12 +351,20 @@ export class ActivityLog {
 
   private navigateToActivity(type: string, meta: string): void {
     switch (type) {
-      case 'invoice': router.navigate('freelance-core', 'invoice-generator'); break;
+      case 'invoice':
+        router.navigate('freelance-core', 'invoice-generator');
+        break;
       case 'client-add':
-      case 'client-update': router.navigate('freelance-core', 'client-manager'); break;
+      case 'client-update':
+        router.navigate('freelance-core', 'client-manager');
+        break;
       case 'project-create':
-      case 'project-update': router.navigate('freelance-core', 'client-manager'); break;
-      case 'note-create': router.navigate('workers-suite', 'scratchpad'); break;
+      case 'project-update':
+        router.navigate('freelance-core', 'client-manager');
+        break;
+      case 'note-create':
+        router.navigate('workers-suite', 'scratchpad');
+        break;
       case 'tool-action': {
         const toolId = meta;
         const mod = TOOL_MODULE_MAP[toolId];
@@ -310,7 +393,7 @@ export class ActivityLog {
     this.activeFilter = 'all';
     this.searchQuery = '';
     if (this.searchInput) this.searchInput.value = '';
-    this.overlay!.querySelectorAll('.al-filter-btn').forEach(b => {
+    this.overlay!.querySelectorAll('.al-filter-btn').forEach((b) => {
       b.classList.toggle('al-filter-btn--active', (b as HTMLElement).dataset.filter === 'all');
     });
     this.renderList();
