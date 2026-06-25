@@ -15,22 +15,52 @@
 }
 
 /* ── Grid Spans ── */
-.col-1  { grid-column: span 1; }
-.col-2  { grid-column: span 2; }
-.col-3  { grid-column: span 3; }
-.col-4  { grid-column: span 4; }
-.col-5  { grid-column: span 5; }
-.col-6  { grid-column: span 6; }
-.col-7  { grid-column: span 7; }
-.col-8  { grid-column: span 8; }
-.col-9  { grid-column: span 9; }
-.col-10 { grid-column: span 10; }
-.col-11 { grid-column: span 11; }
-.col-12 { grid-column: span 12; }
+.col-1 {
+  grid-column: span 1;
+}
+.col-2 {
+  grid-column: span 2;
+}
+.col-3 {
+  grid-column: span 3;
+}
+.col-4 {
+  grid-column: span 4;
+}
+.col-5 {
+  grid-column: span 5;
+}
+.col-6 {
+  grid-column: span 6;
+}
+.col-7 {
+  grid-column: span 7;
+}
+.col-8 {
+  grid-column: span 8;
+}
+.col-9 {
+  grid-column: span 9;
+}
+.col-10 {
+  grid-column: span 10;
+}
+.col-11 {
+  grid-column: span 11;
+}
+.col-12 {
+  grid-column: span 12;
+}
 
-.row-1 { grid-row: span 1; }
-.row-2 { grid-row: span 2; }
-.row-3 { grid-row: span 3; }
+.row-1 {
+  grid-row: span 1;
+}
+.row-2 {
+  grid-row: span 2;
+}
+.row-3 {
+  grid-row: span 3;
+}
 
 /* ── Tile Base ── */
 .tile {
@@ -41,7 +71,7 @@
   padding: var(--space-6);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  transition: 
+  transition:
     background var(--duration-normal) var(--ease-smooth),
     border-color var(--duration-normal) var(--ease-smooth),
     transform var(--duration-normal) var(--ease-out);
@@ -49,15 +79,11 @@
 }
 
 .tile::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%
-  );
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -126,11 +152,7 @@
 /* ── Tile Variants ── */
 .tile--featured {
   border-color: var(--border-accent);
-  background: linear-gradient(
-    135deg,
-    var(--accent-glow) 0%,
-    var(--bg-glass) 100%
-  );
+  background: linear-gradient(135deg, var(--accent-glow) 0%, var(--bg-glass) 100%);
 }
 
 .tile--featured:hover {
@@ -170,7 +192,9 @@
   letter-spacing: 0.08em;
   opacity: 0;
   transform: translateY(4px);
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
 }
 
 .tile--clickable:hover .tile__open-label {
@@ -185,8 +209,13 @@
     gap: var(--space-3);
     padding: var(--space-4);
   }
-  
-  .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
+
+  .col-7,
+  .col-8,
+  .col-9,
+  .col-10,
+  .col-11,
+  .col-12 {
     grid-column: span 6;
   }
 }
@@ -198,13 +227,24 @@
     padding: var(--space-3);
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
-  
-  .col-1, .col-2, .col-3, .col-4, .col-5, .col-6,
-  .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
+
+  .col-1,
+  .col-2,
+  .col-3,
+  .col-4,
+  .col-5,
+  .col-6,
+  .col-7,
+  .col-8,
+  .col-9,
+  .col-10,
+  .col-11,
+  .col-12 {
     grid-column: span 1;
   }
-  
-  .row-2, .row-3 {
+
+  .row-2,
+  .row-3 {
     grid-row: span 1;
   }
 

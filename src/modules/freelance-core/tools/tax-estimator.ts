@@ -1,8 +1,8 @@
-import { db } from '../../../core/db';
 import { getCurrencySymbol } from '../../../components/SettingsPanel';
+import { db } from '../../../core/db';
 
 const BRACKETS_2024 = [
-  { rate: 0.10, min: 0, max: 11600 },
+  { rate: 0.1, min: 0, max: 11600 },
   { rate: 0.12, min: 11600, max: 47150 },
   { rate: 0.22, min: 47150, max: 100525 },
   { rate: 0.24, min: 100525, max: 191950 },
@@ -12,7 +12,7 @@ const BRACKETS_2024 = [
 ];
 
 const BRACKETS_MARRIED = [
-  { rate: 0.10, min: 0, max: 23200 },
+  { rate: 0.1, min: 0, max: 23200 },
   { rate: 0.12, min: 23200, max: 94300 },
   { rate: 0.22, min: 94300, max: 201050 },
   { rate: 0.24, min: 201050, max: 383900 },
@@ -99,21 +99,25 @@ export class TaxEstimator {
       `;
 
       this.barEl.innerHTML = result.bracketBreakdown
-        .filter(b => b.amount > 0)
-        .map(b => {
+        .filter((b) => b.amount > 0)
+        .map((b) => {
           const pct = (b.amount / income) * 100;
           return `<div class="tax-bar__segment" style="width:${pct}%;background:${this.bracketColor(b.rate)};" title="${(b.rate * 100).toFixed(0)}%: ${s}${b.amount.toLocaleString(this.locale, { maximumFractionDigits: 0 })}"></div>`;
-        }).join('');
+        })
+        .join('');
 
       breakdownEl.innerHTML = result.bracketBreakdown
-        .filter(b => b.amount > 0)
-        .map(b => `
+        .filter((b) => b.amount > 0)
+        .map(
+          (b) => `
           <div class="tax-row">
             <span class="tax-row__rate">${(b.rate * 100).toFixed(0)}%</span>
             <span class="tax-row__range">${s}${b.min.toLocaleString()} – ${b.max === Infinity ? '∞' : s + b.max.toLocaleString()}</span>
             <span class="tax-row__amount">${s}${b.tax.toLocaleString(this.locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
           </div>
-        `).join('');
+        `,
+        )
+        .join('');
     };
 
     this.incomeInput.addEventListener('input', update);
@@ -123,7 +127,7 @@ export class TaxEstimator {
 
   private calculate(income: number, brackets: typeof BRACKETS_2024) {
     let totalTax = 0;
-    const bracketBreakdown = brackets.map(b => {
+    const bracketBreakdown = brackets.map((b) => {
       const taxable = Math.max(0, Math.min(income, b.max) - b.min);
       const tax = taxable * b.rate;
       totalTax += tax;
@@ -139,8 +143,13 @@ export class TaxEstimator {
 
   private bracketColor(rate: number): string {
     const colors: Record<number, string> = {
-      0.10: '#4ade80', 0.12: '#a3e635', 0.22: '#facc15',
-      0.24: '#fb923c', 0.32: '#f87171', 0.35: '#e879f9', 0.37: '#c084fc',
+      0.1: '#4ade80',
+      0.12: '#a3e635',
+      0.22: '#facc15',
+      0.24: '#fb923c',
+      0.32: '#f87171',
+      0.35: '#e879f9',
+      0.37: '#c084fc',
     };
     return colors[rate] || '#94a3b8';
   }

@@ -1,8 +1,20 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, downloadZip, createMultiDropZone, bindClipboardPaste, getExtFromMime, formatBytes } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  createMultiDropZone,
+  downloadBlob,
+  downloadZip,
+  formatBytes,
+  getExtFromMime,
+  loadImage,
+} from '../../../utils/image';
 
-interface ConvertedFile { name: string; blob: Blob; }
+interface ConvertedFile {
+  name: string;
+  blob: Blob;
+}
 
 const FORMATS = [
   { value: 'image/png', label: 'PNG' },
@@ -47,7 +59,7 @@ export class ImageConvert {
           <div class="form-group">
             <label class="label">Convert to</label>
             <select class="input" id="imgcv-format" style="width:auto;">
-              ${FORMATS.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
+              ${FORMATS.map((f) => `<option value="${f.value}">${f.label}</option>`).join('')}
             </select>
           </div>
           <div class="form-group" id="imgcv-quality-group">
@@ -95,7 +107,9 @@ export class ImageConvert {
     this.avifSupported = await this.detectAvif();
 
     if (!this.avifSupported) {
-      const avifOpt = this.formatSelect.querySelector('option[value="image/avif"]') as HTMLOptionElement;
+      const avifOpt = this.formatSelect.querySelector(
+        'option[value="image/avif"]',
+      ) as HTMLOptionElement;
       if (avifOpt) avifOpt.disabled = true;
     }
 
@@ -120,15 +134,21 @@ export class ImageConvert {
   private async detectAvif(): Promise<boolean> {
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = 1; canvas.height = 1;
+      canvas.width = 1;
+      canvas.height = 1;
       const blob = await canvasToBlob(canvas, 'image/avif');
       return blob.size > 0;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   private handleFiles(files: File[]): void {
-    const images = files.filter(f => f.type.startsWith('image/') || f.name.endsWith('.svg'));
-    if (!images.length) { Toast.error('No image files found'); return; }
+    const images = files.filter((f) => f.type.startsWith('image/') || f.name.endsWith('.svg'));
+    if (!images.length) {
+      Toast.error('No image files found');
+      return;
+    }
     this.files = images;
     this.showUI();
     if (images.length === 1) {
@@ -148,19 +168,24 @@ export class ImageConvert {
     this.actionsEl.style.display = '';
     const dlAll = this.actionsEl.querySelector('#imgcv-download-all') as HTMLElement;
     dlAll.style.display = this.files.length > 1 ? '' : 'none';
-    (this.actionsEl.querySelector('#imgcv-download') as HTMLElement).style.display = this.files.length === 1 ? '' : 'none';
+    (this.actionsEl.querySelector('#imgcv-download') as HTMLElement).style.display =
+      this.files.length === 1 ? '' : 'none';
   }
 
   private renderFileList(): void {
     this.fileListEl.innerHTML = `
       <div class="imgc-batch-header"><span>${this.files.length} files</span></div>
-      ${this.files.map((f, i) => `
+      ${this.files
+        .map(
+          (f, i) => `
         <div class="imgc-batch-item">
           <span class="imgc-batch-item__name">${f.name}</span>
           <span class="imgc-batch-item__size">${formatBytes(f.size)}</span>
           <span class="imgc-batch-item__status" id="imgcv-status-${i}">pending</span>
         </div>
-      `).join('')}
+      `,
+        )
+        .join('')}
     `;
   }
 
@@ -182,12 +207,20 @@ export class ImageConvert {
     this.canvas.height = Math.round(img.height * ratio);
     const ctx = this.canvas.getContext('2d')!;
 
-    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
     ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
 
-    const outFormat = format === 'image/svg+xml' || format === 'image/gif' ? 'image/png' : format === 'image/x-icon' ? 'image/png' : format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif';
+    const outFormat =
+      format === 'image/svg+xml' || format === 'image/gif'
+        ? 'image/png'
+        : format === 'image/x-icon'
+          ? 'image/png'
+          : (format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif');
     const blob = await canvasToBlob(this.canvas, outFormat, quality);
-    const label = FORMATS.find(f => f.value === format)?.label || format;
+    const label = FORMATS.find((f) => f.value === format)?.label || format;
     this.sizeEl.textContent = `${label} — ${formatBytes(blob.size)}`;
   }
 
@@ -209,12 +242,19 @@ export class ImageConvert {
     offscreen.width = img.naturalWidth;
     offscreen.height = img.naturalHeight;
     const ctx = offscreen.getContext('2d')!;
-    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, offscreen.width, offscreen.height); }
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+    }
     ctx.drawImage(img, 0, 0);
 
-    const outFormat = format === 'image/svg+xml' || format === 'image/gif' ? 'image/png' : format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif';
+    const outFormat =
+      format === 'image/svg+xml' || format === 'image/gif'
+        ? 'image/png'
+        : (format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif');
     const blob = await canvasToBlob(offscreen, outFormat, quality);
-    const ext = format === 'image/svg+xml' || format === 'image/gif' ? 'png' : getExtFromMime(format);
+    const ext =
+      format === 'image/svg+xml' || format === 'image/gif' ? 'png' : getExtFromMime(format);
     downloadBlob(blob, this.files[0].name.replace(/\.[^.]+$/, '') + `.${ext}`);
     Toast.success('Downloaded');
     logToolAction('image-convert', 'Downloaded converted image');
@@ -224,8 +264,16 @@ export class ImageConvert {
     if (this.files.length < 2) return;
     const format = this.formatSelect.value;
     const quality = parseInt(this.qualitySlider.value) / 100;
-    const outFormat = format === 'image/svg+xml' || format === 'image/gif' || format === 'image/x-icon' ? 'image/png' : format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif';
-    const ext = format === 'image/svg+xml' || format === 'image/gif' ? 'png' : format === 'image/x-icon' ? 'ico' : getExtFromMime(format);
+    const outFormat =
+      format === 'image/svg+xml' || format === 'image/gif' || format === 'image/x-icon'
+        ? 'image/png'
+        : (format as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/avif');
+    const ext =
+      format === 'image/svg+xml' || format === 'image/gif'
+        ? 'png'
+        : format === 'image/x-icon'
+          ? 'ico'
+          : getExtFromMime(format);
 
     const results: Array<{ name: string; data: Blob }> = [];
     for (let i = 0; i < this.files.length; i++) {
@@ -238,9 +286,13 @@ export class ImageConvert {
           results.push({ name: this.files[i].name.replace(/\.[^.]+$/, '.ico'), data: blob });
         } else {
           const offscreen = document.createElement('canvas');
-          offscreen.width = img.naturalWidth; offscreen.height = img.naturalHeight;
+          offscreen.width = img.naturalWidth;
+          offscreen.height = img.naturalHeight;
           const ctx = offscreen.getContext('2d')!;
-          if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, offscreen.width, offscreen.height); }
+          if (format === 'image/jpeg') {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+          }
           ctx.drawImage(img, 0, 0);
           const blob = await canvasToBlob(offscreen, outFormat, quality);
           results.push({ name: this.files[i].name.replace(/\.[^.]+$/, `.${ext}`), data: blob });
@@ -261,7 +313,8 @@ export class ImageConvert {
 
     for (const size of sizes) {
       const c = document.createElement('canvas');
-      c.width = size; c.height = size;
+      c.width = size;
+      c.height = size;
       c.getContext('2d')!.drawImage(img, 0, 0, size, size);
       const imageData = c.getContext('2d')!.getImageData(0, 0, size, size);
       // BMP BGRA bottom-up
@@ -270,20 +323,20 @@ export class ImageConvert {
         for (let x = 0; x < size; x++) {
           const srcIdx = (y * size + x) * 4;
           const dstIdx = ((size - 1 - y) * size + x) * 4;
-          bgra[dstIdx] = imageData.data[srcIdx + 2];     // B
+          bgra[dstIdx] = imageData.data[srcIdx + 2]; // B
           bgra[dstIdx + 1] = imageData.data[srcIdx + 1]; // G
-          bgra[dstIdx + 2] = imageData.data[srcIdx];     // R
+          bgra[dstIdx + 2] = imageData.data[srcIdx]; // R
           bgra[dstIdx + 3] = imageData.data[srcIdx + 3]; // A
         }
       }
       // BMP info header (40 bytes)
       const header = new ArrayBuffer(40);
       const dv = new DataView(header);
-      dv.setUint32(0, 40, true);           // header size
-      dv.setInt32(4, size, true);           // width
-      dv.setInt32(8, size * 2, true);       // height (doubled for ICO)
-      dv.setUint16(12, 1, true);            // planes
-      dv.setUint16(14, 32, true);           // bpp
+      dv.setUint32(0, 40, true); // header size
+      dv.setInt32(4, size, true); // width
+      dv.setInt32(8, size * 2, true); // height (doubled for ICO)
+      dv.setUint16(12, 1, true); // planes
+      dv.setUint16(14, 32, true); // bpp
       const combined = new Uint8Array(40 + bgra.length);
       combined.set(new Uint8Array(header), 0);
       combined.set(bgra, 40);
@@ -295,21 +348,21 @@ export class ImageConvert {
     const totalSize = dirSize + images.reduce((s, img) => s + img.length, 0);
     const ico = new Uint8Array(totalSize);
     const dv = new DataView(ico.buffer);
-    dv.setUint16(0, 0, true);              // reserved
-    dv.setUint16(2, 1, true);              // type: ICO
-    dv.setUint16(4, sizes.length, true);   // count
+    dv.setUint16(0, 0, true); // reserved
+    dv.setUint16(2, 1, true); // type: ICO
+    dv.setUint16(4, sizes.length, true); // count
 
     let offset = dirSize;
     for (let i = 0; i < sizes.length; i++) {
       const dirOffset = 6 + i * 16;
-      ico[dirOffset] = sizes[i] === 256 ? 0 : sizes[i];     // width
+      ico[dirOffset] = sizes[i] === 256 ? 0 : sizes[i]; // width
       ico[dirOffset + 1] = sizes[i] === 256 ? 0 : sizes[i]; // height
-      ico[dirOffset + 2] = 0;             // colors
-      ico[dirOffset + 3] = 0;             // reserved
+      ico[dirOffset + 2] = 0; // colors
+      ico[dirOffset + 3] = 0; // reserved
       dv.setUint16(dirOffset + 4, 1, true); // planes
-      dv.setUint16(dirOffset + 6, 32, true);// bpp
-      dv.setUint32(dirOffset + 8, images[i].length, true);  // size
-      dv.setUint32(dirOffset + 12, offset, true);            // offset
+      dv.setUint16(dirOffset + 6, 32, true); // bpp
+      dv.setUint32(dirOffset + 8, images[i].length, true); // size
+      dv.setUint32(dirOffset + 12, offset, true); // offset
       ico.set(images[i], offset);
       offset += images[i].length;
     }

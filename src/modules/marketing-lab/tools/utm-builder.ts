@@ -1,6 +1,7 @@
 import { Toast } from '../../../components/Toast';
-import { wireSharedInputs } from '../../../core/shared-inputs';
 import { logToolAction } from '../../../core/activity';
+import { wireSharedInputs } from '../../../core/shared-inputs';
+import { copyToClipboard } from '../../../utils/image';
 
 const PRESETS: Record<string, { source: string; medium: string }> = {
   'Google / CPC': { source: 'google', medium: 'cpc' },
@@ -40,7 +41,9 @@ export class UtmBuilder {
           <label class="label">Preset</label>
           <select class="input" id="mlu-preset">
             <option value="">Custom</option>
-            ${Object.keys(PRESETS).map(k => `<option value="${k}">${k}</option>`).join('')}
+            ${Object.keys(PRESETS)
+              .map((k) => `<option value="${k}">${k}</option>`)
+              .join('')}
           </select>
         </div>
         <div class="mlu-fields">
@@ -80,18 +83,25 @@ export class UtmBuilder {
     });
 
     const update = () => this.update();
-    [this.urlInput, this.sourceInput, this.mediumInput, this.campaignInput, this.termInput, this.contentInput].forEach(el => {
+    [
+      this.urlInput,
+      this.sourceInput,
+      this.mediumInput,
+      this.campaignInput,
+      this.termInput,
+      this.contentInput,
+    ].forEach((el) => {
       el.addEventListener('input', update);
     });
 
     root.querySelector('#mlu-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.previewEl.textContent || '');
+      void copyToClipboard(this.previewEl.textContent || '');
       Toast.copied('URL');
       logToolAction('utm-builder', 'Copied UTM link');
     });
 
     root.querySelector('#mlu-copy-params')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.buildParams());
+      void copyToClipboard(this.buildParams());
       Toast.copied('Params');
       logToolAction('utm-builder', 'Copied UTM params');
     });

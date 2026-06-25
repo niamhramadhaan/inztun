@@ -1,11 +1,8 @@
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Toast } from '../../../components/Toast';
-import { formatBytes, downloadBlob } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+import { logDownload } from '../../../utils/download-tracker';
+import { downloadBlob, formatBytes, stampPdfMetadata } from '../../../utils/image';
 
 export class PdfMetadata {
   id = 'pdf-metadata';
@@ -17,7 +14,6 @@ export class PdfMetadata {
   private containerEl!: HTMLDivElement;
   private fieldsEl!: HTMLDivElement;
   private infoEl!: HTMLDivElement;
-  private previewCanvas!: HTMLCanvasElement;
   private saveBtn!: HTMLButtonElement;
 
   render(): string {
@@ -34,7 +30,6 @@ export class PdfMetadata {
             <button class="btn btn--ghost btn--sm" id="pdfmd-change">Change File</button>
           </div>
           <div class="pdf-metadata-info" id="pdfmd-info"></div>
-          <canvas id="pdfmd-preview" class="pdf-preview-canvas" style="display:none;"></canvas>
           <div class="pdf-metadata-fields" id="pdfmd-fields"></div>
           <div class="pdf-actions">
             <button class="btn btn--primary" id="pdfmd-save">Save Metadata & Download</button>
@@ -50,13 +45,17 @@ export class PdfMetadata {
     this.containerEl = root.querySelector('#pdfmd-controls')!;
     this.infoEl = root.querySelector('#pdfmd-info')!;
     this.fieldsEl = root.querySelector('#pdfmd-fields')!;
-    this.previewCanvas = root.querySelector('#pdfmd-preview')!;
     this.saveBtn = root.querySelector('#pdfmd-save')!;
     const fileInput = dropZone.querySelector('input')!;
 
     dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('pdf-drop-zone--active'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('pdf-drop-zone--active'));
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('pdf-drop-zone--active');
+    });
+    dropZone.addEventListener('dragleave', () =>
+      dropZone.classList.remove('pdf-drop-zone--active'),
+    );
     dropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
       dropZone.classList.remove('pdf-drop-zone--active');
@@ -75,7 +74,6 @@ export class PdfMetadata {
     root.querySelector('#pdfmd-change')?.addEventListener('click', () => {
       this.file = null;
       this.pdfDoc = null;
-      this.previewCanvas.style.display = 'none';
       this.containerEl.style.display = 'none';
       dropZone.style.display = '';
     });
@@ -95,20 +93,6 @@ export class PdfMetadata {
 
       this.renderInfo();
       this.renderFields();
-
-      // Render first page preview
-      try {
-        const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 0.8 });
-        this.previewCanvas.width = viewport.width;
-        this.previewCanvas.height = viewport.height;
-        await page.render({ canvas: this.previewCanvas, canvasContext: this.previewCanvas.getContext('2d')!, viewport }).promise;
-        this.previewCanvas.style.display = '';
-      } catch (e) {
-        console.warn('PDF preview failed:', e);
-        this.previewCanvas.style.display = 'none';
-      }
     } catch {
       Toast.error('Failed to load PDF');
     }
@@ -155,16 +139,24 @@ export class PdfMetadata {
       { key: 'producer', label: 'Producer', value: this.pdfDoc.getProducer() || '' },
     ];
 
-    this.fieldsEl.innerHTML = fields.map(f => `
+    this.fieldsEl.innerHTML = fields
+      .map(
+        (f) => `
       <div class="form-group">
         <label class="label">${f.label}</label>
         <input type="text" class="input pdf-meta-input" data-key="${f.key}" value="${this.escapeHtml(f.value)}">
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
   }
 
   private escapeHtml(str: string): string {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   private async saveMetadata(): Promise<void> {
@@ -174,23 +166,42 @@ export class PdfMetadata {
 
     try {
       const inputs = this.fieldsEl.querySelectorAll('.pdf-meta-input');
-      inputs.forEach(input => {
+      inputs.forEach((input) => {
         const key = (input as HTMLInputElement).dataset.key!;
         const value = (input as HTMLInputElement).value;
         switch (key) {
-          case 'title': this.pdfDoc!.setTitle(value); break;
-          case 'author': this.pdfDoc!.setAuthor(value); break;
-          case 'subject': this.pdfDoc!.setSubject(value); break;
-          case 'keywords': this.pdfDoc!.setKeywords(value.split(',').map(s => s.trim()).filter(Boolean)); break;
-          case 'creator': this.pdfDoc!.setCreator(value); break;
-          case 'producer': this.pdfDoc!.setProducer(value); break;
+          case 'title':
+            this.pdfDoc!.setTitle(value);
+            break;
+          case 'author':
+            this.pdfDoc!.setAuthor(value);
+            break;
+          case 'subject':
+            this.pdfDoc!.setSubject(value);
+            break;
+          case 'keywords':
+            this.pdfDoc!.setKeywords(
+              value
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            );
+            break;
+          case 'creator':
+            this.pdfDoc!.setCreator(value);
+            break;
+          case 'producer':
+            this.pdfDoc!.setProducer(value);
+            break;
         }
       });
+      stampPdfMetadata(this.pdfDoc);
 
       const pdfBytes = await this.pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const name = this.file.name.replace(/\.pdf$/i, '-updated.pdf');
       downloadBlob(blob, name);
+      logDownload('pdf-metadata', 'PDF Metadata Editor', blob, name);
       Toast.success('Metadata saved');
       logToolAction('pdf-metadata', 'Updated PDF metadata');
     } catch {
@@ -211,15 +222,16 @@ export class PdfMetadata {
       this.pdfDoc.setKeywords([]);
       this.pdfDoc.setCreator('');
       this.pdfDoc.setProducer('');
+      stampPdfMetadata(this.pdfDoc);
 
       const pdfBytes = await this.pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const name = this.file.name.replace(/\.pdf$/i, '-stripped.pdf');
       downloadBlob(blob, name);
+      logDownload('pdf-metadata', 'PDF Metadata Editor', blob, name);
       Toast.success('Metadata stripped');
       logToolAction('pdf-metadata', 'Stripped PDF metadata');
 
-      // Refresh fields
       this.renderFields();
     } catch {
       Toast.error('Failed to strip metadata');

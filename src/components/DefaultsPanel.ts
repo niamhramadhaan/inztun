@@ -1,6 +1,6 @@
 import { db } from '../core/db';
-import { Toast } from './Toast';
 import { CURRENCIES } from './SettingsPanel';
+import { Toast } from './Toast';
 
 const DPI_OPTIONS = [
   { label: '72 DPI (Screen)', value: 72 },
@@ -123,7 +123,7 @@ export class DefaultsPanel {
             <div class="defaults-label">Business</div>
             <div class="form-group"><label class="label">Currency</label>
               <select class="input" id="defaults-currency">
-                ${CURRENCIES.map(c => `<option value="${c.code}">${c.symbol} ${c.code} — ${c.name}</option>`).join('')}
+                ${CURRENCIES.map((c) => `<option value="${c.code}">${c.symbol} ${c.code} — ${c.name}</option>`).join('')}
               </select>
             </div>
             <div class="form-group"><label class="label">Locale</label><input type="text" class="input" id="defaults-locale" placeholder="en-US"></div>
@@ -161,12 +161,12 @@ export class DefaultsPanel {
             <div class="defaults-row-2col">
               <div class="form-group"><label class="label">PDF to Images DPI</label>
                 <select class="input" id="defaults-dpi">
-                  ${DPI_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                  ${DPI_OPTIONS.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group"><label class="label">Logo Export Size</label>
                 <select class="input" id="defaults-export-size">
-                  ${EXPORT_SIZES.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}
+                  ${EXPORT_SIZES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('')}
                 </select>
               </div>
             </div>
@@ -182,7 +182,9 @@ export class DefaultsPanel {
 
     // Close
     this.overlay.querySelector('#defaults-close')?.addEventListener('click', () => this.close());
-    this.overlay.addEventListener('click', (e) => { if (e.target === this.overlay) this.close(); });
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) this.close();
+    });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.overlay?.classList.contains('defaults-overlay--open')) {
         e.preventDefault();
@@ -203,7 +205,7 @@ export class DefaultsPanel {
     defaultsMap.forEach(([key, selector, prop]) => {
       const el = this.overlay!.querySelector(selector) as HTMLInputElement;
       if (!el) return;
-      db.getPreference(key, '').then(val => {
+      db.getPreference(key, '').then((val) => {
         if (val !== '' && val !== null && val !== undefined) (el as any)[prop] = val;
       });
       const save = () => {
@@ -222,11 +224,19 @@ export class DefaultsPanel {
     const dpiSelect = this.overlay.querySelector('#defaults-dpi') as HTMLSelectElement;
     const exportSelect = this.overlay.querySelector('#defaults-export-size') as HTMLSelectElement;
 
-    db.getPreference('defaultDpi', 150).then(val => { dpiSelect.value = String(val); });
-    db.getPreference('defaultExportSize', 256).then(val => { exportSelect.value = String(val); });
+    db.getPreference('defaultDpi', 150).then((val) => {
+      dpiSelect.value = String(val);
+    });
+    db.getPreference('defaultExportSize', 256).then((val) => {
+      exportSelect.value = String(val);
+    });
 
-    dpiSelect.addEventListener('change', () => db.setPreference('defaultDpi', parseInt(dpiSelect.value)));
-    exportSelect.addEventListener('change', () => db.setPreference('defaultExportSize', parseInt(exportSelect.value)));
+    dpiSelect.addEventListener('change', () =>
+      db.setPreference('defaultDpi', parseInt(dpiSelect.value)),
+    );
+    exportSelect.addEventListener('change', () =>
+      db.setPreference('defaultExportSize', parseInt(exportSelect.value)),
+    );
 
     // Signature
     this.sigPreview = this.overlay.querySelector('#defaults-sig-preview') as HTMLImageElement;
@@ -237,7 +247,7 @@ export class DefaultsPanel {
     this.drawCtx.lineCap = 'round';
 
     // Load saved signature
-    db.getPreference('defaultSignature', null).then(sig => {
+    db.getPreference('defaultSignature', null).then((sig) => {
       if (sig) {
         this.signatureDataUrl = sig as string;
         this.showSigPreview(sig as string);
@@ -260,7 +270,9 @@ export class DefaultsPanel {
       this.signatureDataUrl = this.drawCanvas!.toDataURL('image/png');
       this.showSigPreview(this.signatureDataUrl);
     });
-    this.drawCanvas.addEventListener('pointerleave', () => { this.isDrawing = false; });
+    this.drawCanvas.addEventListener('pointerleave', () => {
+      this.isDrawing = false;
+    });
 
     // Upload signature
     const uploadInput = this.overlay.querySelector('#defaults-upload-input') as HTMLInputElement;
@@ -276,13 +288,17 @@ export class DefaultsPanel {
     });
 
     // Tab switching
-    this.overlay.querySelectorAll('.defaults-sig-tab').forEach(tab => {
+    this.overlay.querySelectorAll('.defaults-sig-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
-        this.overlay!.querySelectorAll('.defaults-sig-tab').forEach(t => t.classList.remove('active'));
+        this.overlay!.querySelectorAll('.defaults-sig-tab').forEach((t) =>
+          t.classList.remove('active'),
+        );
         tab.classList.add('active');
         const mode = (tab as HTMLElement).dataset.mode;
-        (this.overlay!.querySelector('#defaults-draw-panel') as HTMLElement).style.display = mode === 'draw' ? '' : 'none';
-        (this.overlay!.querySelector('#defaults-upload-panel') as HTMLElement).style.display = mode === 'upload' ? '' : 'none';
+        (this.overlay!.querySelector('#defaults-draw-panel') as HTMLElement).style.display =
+          mode === 'draw' ? '' : 'none';
+        (this.overlay!.querySelector('#defaults-upload-panel') as HTMLElement).style.display =
+          mode === 'upload' ? '' : 'none';
       });
     });
 
@@ -300,7 +316,8 @@ export class DefaultsPanel {
     this.overlay.querySelector('#defaults-sig-clear')?.addEventListener('click', async () => {
       this.signatureDataUrl = null;
       this.drawCtx!.clearRect(0, 0, this.drawCanvas!.width, this.drawCanvas!.height);
-      this.sigPreview!.innerHTML = '<span class="defaults-sig-placeholder">No signature saved</span>';
+      this.sigPreview!.innerHTML =
+        '<span class="defaults-sig-placeholder">No signature saved</span>';
       this.sigPreview!.querySelector('img')?.remove();
       await db.setPreference('defaultSignature', null);
       Toast.info('Signature cleared');

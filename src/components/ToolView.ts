@@ -130,7 +130,7 @@ export class ToolView {
   focusFirstInput(): void {
     if (!this.contentEl) return;
     const el = this.contentEl.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-      'input:not([type="hidden"]):not([disabled]), textarea:not([disabled])'
+      'input:not([type="hidden"]):not([disabled]), textarea:not([disabled])',
     );
     if (el) {
       requestAnimationFrame(() => el.focus());

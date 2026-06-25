@@ -1,7 +1,7 @@
-import type { CommandPalette } from './CommandPalette';
-import { router } from '../core/router';
 import { events } from '../core/events';
 import { ICONS } from '../core/icons';
+import { router } from '../core/router';
+import type { CommandPalette } from './CommandPalette';
 
 const MODULES = [
   { id: 'home', name: 'Home', icon: ICONS.home },
@@ -68,12 +68,14 @@ export class BottomNav {
       <div class="bottom-nav__sheet-handle"></div>
       <div class="bottom-nav__sheet-title">Modules</div>
       <div class="bottom-nav__sheet-list">
-        ${MODULES.map(m => `
+        ${MODULES.map(
+          (m) => `
           <button class="bottom-nav__sheet-item" data-module="${m.id}">
             ${m.icon}
             <span>${m.name}</span>
           </button>
-        `).join('')}
+        `,
+        ).join('')}
       </div>
     `;
 
@@ -103,7 +105,7 @@ export class BottomNav {
       this.closeSheet();
     });
 
-    this.sheetEl?.querySelectorAll('.bottom-nav__sheet-item').forEach(btn => {
+    this.sheetEl?.querySelectorAll('.bottom-nav__sheet-item').forEach((btn) => {
       btn.addEventListener('click', () => {
         const moduleId = (btn as HTMLElement).dataset.module!;
         this.closeSheet();
@@ -122,7 +124,7 @@ export class BottomNav {
   private highlightActiveModule(): void {
     if (!this.sheetEl) return;
     const route = router.getRoute();
-    this.sheetEl.querySelectorAll('.bottom-nav__sheet-item').forEach(btn => {
+    this.sheetEl.querySelectorAll('.bottom-nav__sheet-item').forEach((btn) => {
       const isActive = (btn as HTMLElement).dataset.module === route.module;
       btn.classList.toggle('bottom-nav__sheet-item--active', isActive);
     });

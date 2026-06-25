@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard } from '../../../utils/image';
 
 export class BorderRadius {
   id = 'border-radius';
@@ -13,7 +14,12 @@ export class BorderRadius {
   badge = '';
   private previewEl!: HTMLDivElement;
   private outputEl!: HTMLPreElement;
-  private inputs!: { tl: HTMLInputElement; tr: HTMLInputElement; br: HTMLInputElement; bl: HTMLInputElement };
+  private inputs!: {
+    tl: HTMLInputElement;
+    tr: HTMLInputElement;
+    br: HTMLInputElement;
+    bl: HTMLInputElement;
+  };
   private linked = true;
   private linkedBtn!: HTMLButtonElement;
 
@@ -60,14 +66,16 @@ export class BorderRadius {
     Object.entries(this.inputs).forEach(([key, input]) => {
       input.addEventListener('input', () => {
         if (this.linked) {
-          Object.values(this.inputs).forEach(i => { i.value = input.value; });
+          Object.values(this.inputs).forEach((i) => {
+            i.value = input.value;
+          });
         }
         this.update();
       });
     });
 
     root.querySelector('#dsr-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('CSS');
       logToolAction('border-radius', 'Copied border radius CSS');
     });
@@ -76,7 +84,9 @@ export class BorderRadius {
   }
 
   private buildRadius(): string {
-    const v = [this.inputs.tl, this.inputs.tr, this.inputs.br, this.inputs.bl].map(i => i.value + 'px');
+    const v = [this.inputs.tl, this.inputs.tr, this.inputs.br, this.inputs.bl].map(
+      (i) => i.value + 'px',
+    );
     return v.join(' ');
   }
 

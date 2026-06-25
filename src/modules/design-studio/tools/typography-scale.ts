@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard } from '../../../utils/image';
 
 interface ScaleStep {
   name: string;
@@ -61,7 +62,7 @@ export class TypographyScale {
     this.scaleSelect.addEventListener('change', () => this.update());
 
     root.querySelector('#dst-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('CSS');
       logToolAction('typography-scale', 'Copied typography scale CSS');
     });
@@ -79,7 +80,7 @@ export class TypographyScale {
     let cssVars = ':root {\n';
 
     steps.forEach((name, i) => {
-      const size = Math.round(base * Math.pow(scale, ratios[i]) * 100) / 100;
+      const size = Math.round(base * scale ** ratios[i] * 100) / 100;
       const rem = (size / 16).toFixed(3);
       previewHtml += `<div class="dst-step"><span class="dst-step__label">${name}</span><span class="dst-step__size" style="font-size:${rem}rem">Aa</span><span class="dst-step__value">${size}px / ${rem}rem</span></div>`;
       cssVars += `  --text-${name}: ${rem}rem;\n`;

@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class Base64Tool {
   id = 'base64';
@@ -44,7 +45,8 @@ export class Base64Tool {
     this.outputEl = root.querySelector('#b64-output') as HTMLPreElement;
     this.countEl = root.querySelector('#b64-input-count') as HTMLSpanElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('b64-encode', () => this.encode());
     bind('b64-decode', () => this.decode());
@@ -92,7 +94,7 @@ export class Base64Tool {
   async copy(): Promise<void> {
     const text = this.outputEl.textContent;
     if (text && !text.startsWith('Error')) {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       Toast.copied();
     }
   }

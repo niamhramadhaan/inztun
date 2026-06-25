@@ -1,9 +1,10 @@
-import { Toast } from '../../../components/Toast';
-import { db, type Client, type Project } from '../../../core/db';
-import { router } from '../../../core/router';
-import { logToolAction } from '../../../core/activity';
 import { getCurrencySymbol } from '../../../components/SettingsPanel';
+import { Toast } from '../../../components/Toast';
+import { logToolAction } from '../../../core/activity';
+import { type Client, db, type Project } from '../../../core/db';
+import { router } from '../../../core/router';
 import type { Tool } from '../../../types';
+import { escapeHtml } from '../../../utils/image';
 
 type FilterStatus = 'all' | 'active' | 'completed' | 'archived';
 
@@ -54,12 +55,14 @@ export class ProjectManager implements Tool {
     this.clients = clients;
     this.currencySymbol = getCurrencySymbol(defaultCurrency || 'USD');
     this.locale = defaultLocale || 'en-US';
-    this.clients.forEach(c => this.clientMap.set(c.id, c.name));
+    this.clients.forEach((c) => this.clientMap.set(c.id, c.name));
 
     // Filter buttons
-    root.querySelectorAll('.fcpm-filter-btn').forEach(btn => {
+    root.querySelectorAll('.fcpm-filter-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        root.querySelectorAll('.fcpm-filter-btn').forEach(b => b.classList.remove('fcpm-filter-btn--active'));
+        root
+          .querySelectorAll('.fcpm-filter-btn')
+          .forEach((b) => b.classList.remove('fcpm-filter-btn--active'));
         btn.classList.add('fcpm-filter-btn--active');
         this.filter = (btn as HTMLElement).dataset.filter as FilterStatus;
         this.renderList();
@@ -77,9 +80,8 @@ export class ProjectManager implements Tool {
   }
 
   private renderList(): void {
-    const filtered = this.filter === 'all'
-      ? this.projects
-      : this.projects.filter(p => p.status === this.filter);
+    const filtered =
+      this.filter === 'all' ? this.projects : this.projects.filter((p) => p.status === this.filter);
 
     if (filtered.length === 0) {
       this.listEl.innerHTML = `
@@ -96,24 +98,32 @@ export class ProjectManager implements Tool {
       return;
     }
 
-    this.listEl.innerHTML = filtered.map(p => {
-      const clientName = this.clientMap.get(p.clientId) || 'Unknown Client';
-      const statusColors: Record<string, string> = { active: 'var(--color-success)', completed: 'var(--text-muted)', archived: 'var(--text-ghost)' };
-      const deadline = p.deadline ? this.formatDeadline(p.deadline) : '';
-      const isUrgent = p.deadline && this.getDeadlineDays(p.deadline) <= 7 && this.getDeadlineDays(p.deadline) >= 0;
+    this.listEl.innerHTML = filtered
+      .map((p) => {
+        const clientName = this.clientMap.get(p.clientId) || 'Unknown Client';
+        const statusColors: Record<string, string> = {
+          active: 'var(--color-success)',
+          completed: 'var(--text-muted)',
+          archived: 'var(--text-ghost)',
+        };
+        const deadline = p.deadline ? this.formatDeadline(p.deadline) : '';
+        const isUrgent =
+          p.deadline &&
+          this.getDeadlineDays(p.deadline) <= 7 &&
+          this.getDeadlineDays(p.deadline) >= 0;
 
-      return `
+        return `
         <div class="fcpm-card" data-project-id="${p.id}">
           <div class="fcpm-card__header">
-            <span class="fcpm-card__name">${p.name}</span>
+            <span class="fcpm-card__name">${escapeHtml(p.name)}</span>
             <span class="fcpm-card__status" style="color:${statusColors[p.status]}">${p.status}</span>
           </div>
           <div class="fcpm-card__meta">
-            <span class="fcpm-card__client">${clientName}</span>
+            <span class="fcpm-card__client">${escapeHtml(clientName)}</span>
             ${p.budget ? `<span class="fcpm-card__budget">${p.currency || this.currencySymbol}${p.budget.toLocaleString(this.locale)}</span>` : ''}
             ${deadline ? `<span class="fcpm-card__deadline ${isUrgent ? 'fcpm-card__deadline--urgent' : ''}">${deadline}</span>` : ''}
           </div>
-          ${p.description ? `<p class="fcpm-card__desc">${p.description}</p>` : ''}
+          ${p.description ? `<p class="fcpm-card__desc">${escapeHtml(p.description)}</p>` : ''}
           <div class="fcpm-card__actions">
             <button class="btn btn--ghost btn--sm fcpm-edit" data-id="${p.id}">Edit</button>
             <button class="btn btn--ghost btn--sm fcpm-delete" data-id="${p.id}">Delete</button>
@@ -121,10 +131,11 @@ export class ProjectManager implements Tool {
           </div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Edit buttons
-    this.listEl.querySelectorAll('.fcpm-edit').forEach(btn => {
+    this.listEl.querySelectorAll('.fcpm-edit').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = parseInt((btn as HTMLElement).dataset.id!);
@@ -133,7 +144,7 @@ export class ProjectManager implements Tool {
     });
 
     // Delete buttons
-    this.listEl.querySelectorAll('.fcpm-delete').forEach(btn => {
+    this.listEl.querySelectorAll('.fcpm-delete').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = parseInt((btn as HTMLElement).dataset.id!);
@@ -142,7 +153,7 @@ export class ProjectManager implements Tool {
     });
 
     // Track time buttons
-    this.listEl.querySelectorAll('.fcpm-track').forEach(btn => {
+    this.listEl.querySelectorAll('.fcpm-track').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = parseInt((btn as HTMLElement).dataset.id!);
@@ -154,7 +165,7 @@ export class ProjectManager implements Tool {
   }
 
   private editProject(id: number): void {
-    const project = this.projects.find(p => p.id === id);
+    const project = this.projects.find((p) => p.id === id);
     if (!project) return;
     this.editingId = id;
     this.showForm = true;
@@ -163,7 +174,7 @@ export class ProjectManager implements Tool {
 
   private async deleteProject(id: number): Promise<void> {
     if (!confirm('Delete this project?')) return;
-    this.projects = this.projects.filter(p => p.id !== id);
+    this.projects = this.projects.filter((p) => p.id !== id);
     await db.deleteProject(id);
     this.renderList();
     Toast.success('Project deleted');
@@ -176,16 +187,16 @@ export class ProjectManager implements Tool {
       <div class="fcpm-form">
         <div class="fcpm-form__row">
           <div class="form-group"><label class="label">Project Name</label>
-            <input type="text" class="input" id="fcpm-name" value="${project?.name || ''}" placeholder="Project name">
+            <input type="text" class="input" id="fcpm-name" value="${escapeHtml(project?.name || '')}" placeholder="Project name">
           </div>
           <div class="form-group"><label class="label">Client</label>
             <select class="input" id="fcpm-client">
-              ${this.clients.map(c => `<option value="${c.id}" ${project?.clientId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+              ${this.clients.map((c) => `<option value="${c.id}" ${project?.clientId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
             </select>
           </div>
         </div>
         <div class="form-group"><label class="label">Description</label>
-          <textarea class="input input--textarea" id="fcpm-desc" rows="2" placeholder="Brief description">${project?.description || ''}</textarea>
+          <textarea class="input input--textarea" id="fcpm-desc" rows="2" placeholder="Brief description">${escapeHtml(project?.description || '')}</textarea>
         </div>
         <div class="fcpm-form__row">
           <div class="form-group"><label class="label">Status</label>
@@ -220,17 +231,27 @@ export class ProjectManager implements Tool {
 
   private async saveProject(): Promise<void> {
     const name = (document.getElementById('fcpm-name') as HTMLInputElement)?.value.trim();
-    if (!name) { Toast.error('Project name is required'); return; }
+    if (!name) {
+      Toast.error('Project name is required');
+      return;
+    }
 
     const clientId = parseInt((document.getElementById('fcpm-client') as HTMLSelectElement)?.value);
+    if (!clientId || isNaN(clientId)) {
+      Toast.error('Create a client first before adding projects');
+      return;
+    }
     const description = (document.getElementById('fcpm-desc') as HTMLTextAreaElement)?.value || '';
-    const status = (document.getElementById('fcpm-status') as HTMLSelectElement)?.value as Project['status'] || 'active';
+    const status =
+      ((document.getElementById('fcpm-status') as HTMLSelectElement)?.value as Project['status']) ||
+      'active';
     const budgetStr = (document.getElementById('fcpm-budget') as HTMLInputElement)?.value;
     const budget = budgetStr ? parseFloat(budgetStr) : undefined;
-    const deadline = (document.getElementById('fcpm-deadline') as HTMLInputElement)?.value || undefined;
+    const deadline =
+      (document.getElementById('fcpm-deadline') as HTMLInputElement)?.value || undefined;
 
     if (this.editingId) {
-      const existing = this.projects.find(p => p.id === this.editingId);
+      const existing = this.projects.find((p) => p.id === this.editingId);
       if (existing) {
         existing.name = name;
         existing.clientId = clientId;
@@ -243,7 +264,14 @@ export class ProjectManager implements Tool {
         Toast.success('Project updated');
       }
     } else {
-      const project = await db.createProject({ clientId, name, description, status, budget, deadline });
+      const project = await db.createProject({
+        clientId,
+        name,
+        description,
+        status,
+        budget,
+        deadline,
+      });
       this.projects.unshift(project);
       logToolAction('project-manager', `Created project: ${name}`);
       Toast.success('Project created');

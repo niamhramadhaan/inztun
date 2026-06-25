@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class JsonFormatter {
   id = 'json-formatter';
@@ -45,7 +46,8 @@ export class JsonFormatter {
     this.outputEl = root.querySelector('#jf-output') as HTMLPreElement;
     this.countEl = root.querySelector('#jf-input-count') as HTMLSpanElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('jf-format', () => this.format());
     bind('jf-minify', () => this.minify());
@@ -110,7 +112,7 @@ export class JsonFormatter {
   async copy(): Promise<void> {
     const text = this.outputEl.textContent;
     if (text && !text.startsWith('Error')) {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       Toast.copied();
     }
   }

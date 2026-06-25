@@ -1,6 +1,13 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, createDropZone, bindClipboardPaste, getExtFromMime } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  createDropZone,
+  downloadBlob,
+  getExtFromMime,
+  loadImage,
+} from '../../../utils/image';
 
 type FilterName = 'grayscale' | 'sepia' | 'invert';
 
@@ -9,8 +16,8 @@ interface FilterState {
   sepia: boolean;
   invert: boolean;
   brightness: number; // -100..100
-  contrast: number;   // -100..100
-  blur: number;       // 0..5
+  contrast: number; // -100..100
+  blur: number; // 0..5
   sharpen: boolean;
 }
 
@@ -35,8 +42,13 @@ export class ImageFilters {
   private image: HTMLImageElement | null = null;
   private originalData: ImageData | null = null;
   private state: FilterState = {
-    grayscale: false, sepia: false, invert: false,
-    brightness: 0, contrast: 0, blur: 0, sharpen: false,
+    grayscale: false,
+    sepia: false,
+    invert: false,
+    brightness: 0,
+    contrast: 0,
+    blur: 0,
+    sharpen: false,
   };
   private cleanupPaste!: () => void;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -118,7 +130,7 @@ export class ImageFilters {
     this.qualityVal = root.querySelector('#imgf-quality-val')!;
 
     // Toggle buttons
-    root.querySelectorAll('.imgf-toggle').forEach(btn => {
+    root.querySelectorAll('.imgf-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {
         const filter = (btn as HTMLElement).dataset.filter as FilterName | 'sharpen';
         if (filter === 'sharpen') {
@@ -170,7 +182,10 @@ export class ImageFilters {
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image file'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image file');
+      return;
+    }
     this.image = await loadImage(file);
 
     const max = 400;
@@ -178,8 +193,10 @@ export class ImageFilters {
     const w = Math.round(this.image.naturalWidth * ratio);
     const h = Math.round(this.image.naturalHeight * ratio);
 
-    this.originalCanvas.width = w; this.originalCanvas.height = h;
-    this.filteredCanvas.width = w; this.filteredCanvas.height = h;
+    this.originalCanvas.width = w;
+    this.originalCanvas.height = h;
+    this.filteredCanvas.width = w;
+    this.filteredCanvas.height = h;
 
     const ctx = this.originalCanvas.getContext('2d')!;
     ctx.drawImage(this.image, 0, 0, w, h);
@@ -207,13 +224,15 @@ export class ImageFilters {
     const imageData = new ImageData(
       new Uint8ClampedArray(this.originalData.data),
       this.originalData.width,
-      this.originalData.height
+      this.originalData.height,
     );
     const d = imageData.data;
 
     // Apply per-pixel filters
     for (let i = 0; i < d.length; i += 4) {
-      let r = d[i], g = d[i + 1], b = d[i + 2];
+      let r = d[i],
+        g = d[i + 1],
+        b = d[i + 2];
 
       // Grayscale
       if (this.state.grayscale) {
@@ -226,12 +245,16 @@ export class ImageFilters {
         const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
         const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
         const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
-        r = sr; g = sg; b = sb;
+        r = sr;
+        g = sg;
+        b = sb;
       }
 
       // Invert
       if (this.state.invert) {
-        r = 255 - r; g = 255 - g; b = 255 - b;
+        r = 255 - r;
+        g = 255 - g;
+        b = 255 - b;
       }
 
       // Brightness
@@ -249,14 +272,21 @@ export class ImageFilters {
         b = Math.max(0, Math.min(255, factor * (b - 128) + 128));
       }
 
-      d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      d[i] = r;
+      d[i + 1] = g;
+      d[i + 2] = b;
     }
 
     ctx.putImageData(imageData, 0, 0);
 
     // Blur (box blur via pixel iteration)
     if (this.state.blur > 0) {
-      this.applyBoxBlur(ctx, this.filteredCanvas.width, this.filteredCanvas.height, Math.round(this.state.blur));
+      this.applyBoxBlur(
+        ctx,
+        this.filteredCanvas.width,
+        this.filteredCanvas.height,
+        Math.round(this.state.blur),
+      );
     }
 
     // Sharpen (unsharp mask)
@@ -274,18 +304,25 @@ export class ImageFilters {
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        let r = 0, g = 0, b = 0, count = 0;
+        let r = 0,
+          g = 0,
+          b = 0,
+          count = 0;
         for (let dy = -radius; dy <= radius; dy++) {
           for (let dx = -radius; dx <= radius; dx++) {
             const nx = Math.max(0, Math.min(w - 1, x + dx));
             const ny = Math.max(0, Math.min(h - 1, y + dy));
             const idx = (ny * w + nx) * 4;
-            r += copy[idx]; g += copy[idx + 1]; b += copy[idx + 2];
+            r += copy[idx];
+            g += copy[idx + 1];
+            b += copy[idx + 2];
             count++;
           }
         }
         const idx = (y * w + x) * 4;
-        d[idx] = r / count; d[idx + 1] = g / count; d[idx + 2] = b / count;
+        d[idx] = r / count;
+        d[idx + 1] = g / count;
+        d[idx + 2] = b / count;
       }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -300,7 +337,9 @@ export class ImageFilters {
 
     for (let y = 1; y < h - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
-        let r = 0, g = 0, b = 0;
+        let r = 0,
+          g = 0,
+          b = 0;
         let ki = 0;
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
@@ -321,8 +360,18 @@ export class ImageFilters {
   }
 
   private resetFilters(): void {
-    this.state = { grayscale: false, sepia: false, invert: false, brightness: 0, contrast: 0, blur: 0, sharpen: false };
-    document.querySelectorAll('.imgf-toggle').forEach(b => b.classList.remove('imgf-toggle--active'));
+    this.state = {
+      grayscale: false,
+      sepia: false,
+      invert: false,
+      brightness: 0,
+      contrast: 0,
+      blur: 0,
+      sharpen: false,
+    };
+    document
+      .querySelectorAll('.imgf-toggle')
+      .forEach((b) => b.classList.remove('imgf-toggle--active'));
     (document.getElementById('imgf-brightness') as HTMLInputElement).value = '0';
     (document.getElementById('imgf-contrast') as HTMLInputElement).value = '0';
     (document.getElementById('imgf-blur') as HTMLInputElement).value = '0';
@@ -348,14 +397,26 @@ export class ImageFilters {
     const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
     const d = imageData.data;
     for (let i = 0; i < d.length; i += 4) {
-      let r = d[i], g = d[i + 1], b = d[i + 2];
-      if (this.state.grayscale) { const avg = (r + g + b) / 3; r = g = b = avg; }
-      if (this.state.sepia) {
-        r = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-        g = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-        b = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+      let r = d[i],
+        g = d[i + 1],
+        b = d[i + 2];
+      if (this.state.grayscale) {
+        const avg = (r + g + b) / 3;
+        r = g = b = avg;
       }
-      if (this.state.invert) { r = 255 - r; g = 255 - g; b = 255 - b; }
+      if (this.state.sepia) {
+        const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+        const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+        const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+        r = sr;
+        g = sg;
+        b = sb;
+      }
+      if (this.state.invert) {
+        r = 255 - r;
+        g = 255 - g;
+        b = 255 - b;
+      }
       if (this.state.brightness !== 0) {
         r = Math.max(0, Math.min(255, r + this.state.brightness));
         g = Math.max(0, Math.min(255, g + this.state.brightness));
@@ -367,11 +428,14 @@ export class ImageFilters {
         g = Math.max(0, Math.min(255, factor * (g - 128) + 128));
         b = Math.max(0, Math.min(255, factor * (b - 128) + 128));
       }
-      d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      d[i] = r;
+      d[i + 1] = g;
+      d[i + 2] = b;
     }
     ctx.putImageData(imageData, 0, 0);
 
-    if (this.state.blur > 0) this.applyBoxBlur(ctx, offscreen.width, offscreen.height, Math.round(this.state.blur));
+    if (this.state.blur > 0)
+      this.applyBoxBlur(ctx, offscreen.width, offscreen.height, Math.round(this.state.blur));
     if (this.state.sharpen) this.applySharpen(ctx, offscreen.width, offscreen.height);
 
     const blob = await canvasToBlob(offscreen, format, quality);

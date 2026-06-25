@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard } from '../../../utils/image';
 
 export class SpacingSystem {
   id = 'spacing-system';
@@ -49,7 +50,7 @@ export class SpacingSystem {
     this.stepsInput.addEventListener('input', () => this.update());
 
     root.querySelector('#dss-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('CSS');
       logToolAction('spacing-system', 'Copied spacing system CSS');
     });

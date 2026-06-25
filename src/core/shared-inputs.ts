@@ -15,11 +15,7 @@ class SharedInputs {
   }
 
   normalizeLabel(label: string): string {
-    return label
-      .toLowerCase()
-      .replace(/[*:]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return label.toLowerCase().replace(/[*:]/g, '').replace(/\s+/g, ' ').trim();
   }
 
   async get(label: string): Promise<string> {
@@ -52,7 +48,7 @@ export const sharedInputs = new SharedInputs();
 
 export function wireSharedInputs(root: HTMLElement): void {
   const labels = root.querySelectorAll('label.label[data-shared]');
-  labels.forEach(labelEl => {
+  labels.forEach((labelEl) => {
     const labelText = labelEl.textContent?.trim() || '';
     if (!labelText) return;
 

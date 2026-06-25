@@ -1,30 +1,39 @@
-import { ToolView } from '../../components/ToolView';
-import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
 import type { Category } from '../../components/ModuleHelpers';
-import { router } from '../../core/router';
-import { events } from '../../core/events';
-import { db } from '../../core/db';
+import {
+  createCategorySection,
+  createTipsPanel,
+  createToolCard,
+} from '../../components/ModuleHelpers';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
 import { Toast } from '../../components/Toast';
+import { ToolView } from '../../components/ToolView';
+import { db } from '../../core/db';
+import { events } from '../../core/events';
+import { router } from '../../core/router';
+import type {
+  SortMode,
+  Tool,
+  ToolClass,
+  ToolInfo,
+  ToolRegistryEntry,
+  ToolViewOptions,
+} from '../../types/index';
 import { getMarketingLabToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
-
-import { UtmBuilder } from './tools/utm-builder';
-import { SeoMeta } from './tools/seo-meta';
-import { SocialCounter } from './tools/social-counter';
+import { BrandExtractor } from './tools/brand-extractor';
 import { ColorPalette } from './tools/color-palette';
 import { OgPreview } from './tools/og-preview';
+import { SeoMeta } from './tools/seo-meta';
+import { SocialCounter } from './tools/social-counter';
 import { SocialResizer } from './tools/social-resizer';
-import { BrandExtractor } from './tools/brand-extractor';
+import { SocialScheduler } from './tools/social-scheduler';
+import { UtmBuilder } from './tools/utm-builder';
 
 const CATEGORIES: Category[] = [
   {
     id: 'campaigns',
     name: 'Campaign Tracking',
     tooltip: 'Build and analyze marketing campaign URLs',
-    tools: [
-      { id: 'utm-builder', Tool: UtmBuilder, span: { col: 6, row: 1 }, featured: true },
-    ],
+    tools: [{ id: 'utm-builder', Tool: UtmBuilder, span: { col: 6, row: 1 }, featured: true }],
   },
   {
     id: 'seo-social',
@@ -42,14 +51,20 @@ const CATEGORIES: Category[] = [
     id: 'color',
     name: 'Color',
     tooltip: 'Color palette generation and extraction',
+    tools: [{ id: 'color-palette', Tool: ColorPalette, span: { col: 4, row: 1 } }],
+  },
+  {
+    id: 'scheduling',
+    name: 'Scheduling',
+    tooltip: 'Social media scheduling and content planning',
     tools: [
-      { id: 'color-palette', Tool: ColorPalette, span: { col: 4, row: 1 } },
+      { id: 'social-scheduler', Tool: SocialScheduler, span: { col: 6, row: 1 }, featured: true },
     ],
   },
 ];
 
-const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
-  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap((cat) =>
+  cat.tools.map((t) => ({ ...t, category: cat.id, categoryName: cat.name })),
 );
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -60,6 +75,7 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'og-preview': 'Preview how your page looks on Twitter, Facebook, and LinkedIn.',
   'social-resizer': 'Crop and resize images to exact social media platform dimensions.',
   'brand-extractor': 'Extract brand colors, fonts, logo, and meta from any website URL.',
+  'social-scheduler': 'Generate optimized social media schedules with calendar view.',
 };
 
 interface ToolInstance {
@@ -96,7 +112,7 @@ export class MarketingLab {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('ml-favorites', []) as string[];
+    const saved = (await db.getPreference('ml-favorites', [])) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -158,7 +174,7 @@ export class MarketingLab {
     const isSearching = this.searchQuery.length > 0;
 
     if (this.sortMode === 'favorites' && !isSearching) {
-      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      const favTools = ALL_TOOLS.filter((t) => this.favorites.has(t.id));
       if (favTools.length === 0) {
         this.categoriesContainer!.innerHTML = `
           <div class="empty-state">
@@ -172,7 +188,12 @@ export class MarketingLab {
       }
 
       const section = createCategorySection({
-        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        category: {
+          id: 'favorites',
+          name: '★ Favorites',
+          tooltip: 'Your pinned tools',
+          tools: favTools,
+        },
         collapsed: false,
         onToggleCollapse: () => {},
         createCard: (entry, index) => this.makeToolCard(entry, index),
@@ -181,14 +202,18 @@ export class MarketingLab {
       return;
     }
 
-    CATEGORIES.forEach(cat => {
+    CATEGORIES.forEach((cat) => {
       let tools = [...cat.tools];
 
       if (isSearching) {
-        tools = tools.filter(t => {
+        tools = tools.filter((t) => {
           const name = new t.Tool().name.toLowerCase();
           const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+          return (
+            name.includes(this.searchQuery) ||
+            desc.includes(this.searchQuery) ||
+            t.id.includes(this.searchQuery)
+          );
         });
         if (tools.length === 0) return;
       }
@@ -235,7 +260,7 @@ export class MarketingLab {
   }
 
   private showTool(toolId: string): void {
-    const registry = ALL_TOOLS.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find((t) => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -262,8 +287,8 @@ export class MarketingLab {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
-    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex((t) => t.id === toolId);
+    const toolsList = ALL_TOOLS.map((t) => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -285,20 +310,22 @@ export class MarketingLab {
 
     const tipsData = getMarketingLabToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      contentEl.appendChild(createTipsPanel({
-        toolId,
-        data: tipsData,
-        moduleId: this.moduleId,
-        allTools: ALL_TOOLS,
-        onNavigate: (modId, tId) => router.navigate(modId, tId),
-      }));
+      contentEl.appendChild(
+        createTipsPanel({
+          toolId,
+          data: tipsData,
+          moduleId: this.moduleId,
+          allTools: ALL_TOOLS,
+          onNavigate: (modId, tId) => router.navigate(modId, tId),
+        }),
+      );
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -577,6 +604,49 @@ export class MarketingLab {
           align-items: stretch;
         }
       }
+
+      /* ── Social Scheduler ── */
+      .ss-controls { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4); }
+      .ss-platforms { margin-bottom: var(--space-2); }
+      .ss-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+      .ss-chip { display: flex; align-items: center; gap: var(--space-1); }
+      .ss-chip--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .ss-chip-icon { font-weight: 700; font-size: var(--text-xs); }
+      .ss-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+      .ss-freq-toggle { display: flex; gap: var(--space-1); }
+      .ss-freq--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .ss-type-chip { }
+      .ss-type--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .ss-calendar-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+      .ss-month-label { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); min-width: 200px; text-align: center; }
+      .ss-view-toggle { display: flex; gap: var(--space-1); margin-left: auto; }
+      .ss-view--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .ss-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-hairline); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); overflow: hidden; }
+      .ss-day-header { padding: var(--space-2); text-align: center; font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); background: var(--bg-deep); text-transform: uppercase; }
+      .ss-day-cell { min-height: 90px; padding: var(--space-1) var(--space-2); background: var(--bg-card, #141414); }
+      .ss-day-empty { background: var(--bg-deep); opacity: 0.5; }
+      .ss-day-today { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .ss-day-num { font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; }
+      .ss-day-posts { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+      .ss-post-chip { font-size: 10px; padding: 2px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+      .ss-day-more { font-size: 10px; color: var(--text-muted); }
+      .ss-week-grid { display: grid; grid-template-columns: 60px repeat(7, 1fr); gap: 1px; background: var(--border-hairline); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); overflow: hidden; }
+      .ss-week-corner { height: 32px; background: var(--bg-deep); }
+      .ss-week-time { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); background: var(--bg-deep); }
+      .ss-week-col { background: var(--bg-card, #141414); }
+      .ss-week-today { outline: 2px solid var(--accent); outline-offset: -2px; }
+      .ss-week-day-header { height: 32px; display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); background: var(--bg-deep); }
+      .ss-week-slot { height: 40px; padding: 2px; display: flex; flex-direction: column; gap: 1px; border-top: 1px solid var(--border-hairline); }
+      .ss-week-post { font-size: 10px; padding: 1px 3px; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .ss-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-3); background: var(--bg-deep); border-radius: var(--radius-md); margin-top: var(--space-3); }
+      .ss-stat-row { display: flex; align-items: center; gap: var(--space-2); }
+      .ss-stat-label { font-size: var(--text-xs); color: var(--text-muted); }
+      .ss-stat-value { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-primary); font-weight: 600; }
+      @media (max-width: 768px) {
+        .ss-options { grid-template-columns: 1fr; }
+        .ss-month-grid { font-size: var(--text-xs); }
+        .ss-day-cell { min-height: 60px; }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -586,7 +656,10 @@ export class MarketingLab {
       events.off('route:change', this._routeHandler);
     }
     this.toolbar?.destroy();
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';
   }

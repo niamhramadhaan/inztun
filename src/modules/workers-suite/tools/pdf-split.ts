@@ -1,12 +1,15 @@
 import { PDFDocument } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import * as pdfjsLib from 'pdfjs-dist';
 import { Toast } from '../../../components/Toast';
-import { formatBytes, downloadBlob, downloadZip } from '../../../utils/image';
 import { logToolAction } from '../../../core/activity';
+import { logDownload } from '../../../utils/download-tracker';
+import { downloadBlob, formatBytes, stampPdfMetadata } from '../../../utils/image';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(
+  new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url),
+  { type: 'module' },
+);
 
 interface SplitState {
   file: File | null;
@@ -15,7 +18,6 @@ interface SplitState {
   pdfDocProxy: PDFDocumentProxy | null;
   pageCount: number;
   selectedPages: Set<number>;
-  previewPage: number | null;
   loading: boolean;
 }
 
@@ -31,19 +33,12 @@ export class PdfSplit {
     pdfDocProxy: null,
     pageCount: 0,
     selectedPages: new Set(),
-    previewPage: null,
     loading: false,
   };
 
   private containerEl!: HTMLDivElement;
-  private thumbsEl!: HTMLDivElement;
-  private previewEl!: HTMLDivElement;
-  private previewCanvas!: HTMLCanvasElement;
-  private previewLabel!: HTMLSpanElement;
+  private gridEl!: HTMLDivElement;
   private extractBtn!: HTMLButtonElement;
-  private splitAllBtn!: HTMLButtonElement;
-  private selectAllBtn!: HTMLButtonElement;
-  private clearBtn!: HTMLButtonElement;
 
   render(): string {
     return `
@@ -58,18 +53,10 @@ export class PdfSplit {
             <span id="pdfs-info"></span>
             <button class="btn btn--ghost btn--sm" id="pdfs-change">Change File</button>
           </div>
-          <div class="pdf-select-actions" id="pdfs-select-actions">
-            <button class="btn btn--ghost btn--sm" id="pdfs-select-all">Select All</button>
-            <button class="btn btn--ghost btn--sm" id="pdfs-clear">Clear</button>
-          </div>
-          <div class="pdf-split-thumbs" id="pdfs-thumbs"></div>
-          <div class="pdf-split-preview" id="pdfs-preview" style="display:none;">
-            <label class="label" id="pdfs-preview-label">Page 1</label>
-            <canvas id="pdfs-preview-canvas"></canvas>
-          </div>
+          <div class="pdf-split-hint" id="pdfs-hint">Click pages to select which ones to keep</div>
+          <div class="pdf-split-grid" id="pdfs-grid"></div>
           <div class="pdf-actions">
-            <button class="btn btn--primary" id="pdfs-extract" disabled>Extract Selected Pages</button>
-            <button class="btn btn--ghost" id="pdfs-split-all">Split All Pages (ZIP)</button>
+            <button class="btn btn--primary" id="pdfs-extract" disabled>Download Selected Pages</button>
           </div>
         </div>
       </div>
@@ -79,19 +66,18 @@ export class PdfSplit {
   init(root: HTMLElement): void {
     const dropZone = root.querySelector('#pdfs-dropzone') as HTMLDivElement;
     this.containerEl = root.querySelector('#pdfs-controls')!;
-    this.thumbsEl = root.querySelector('#pdfs-thumbs')!;
-    this.previewEl = root.querySelector('#pdfs-preview')!;
-    this.previewCanvas = root.querySelector('#pdfs-preview-canvas')!;
-    this.previewLabel = root.querySelector('#pdfs-preview-label')!;
+    this.gridEl = root.querySelector('#pdfs-grid')!;
     this.extractBtn = root.querySelector('#pdfs-extract')!;
-    this.splitAllBtn = root.querySelector('#pdfs-split-all')!;
-    this.selectAllBtn = root.querySelector('#pdfs-select-all')!;
-    this.clearBtn = root.querySelector('#pdfs-clear')!;
     const fileInput = dropZone.querySelector('input')!;
 
     dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('pdf-drop-zone--active'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('pdf-drop-zone--active'));
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('pdf-drop-zone--active');
+    });
+    dropZone.addEventListener('dragleave', () =>
+      dropZone.classList.remove('pdf-drop-zone--active'),
+    );
     dropZone.addEventListener('drop', async (e) => {
       e.preventDefault();
       dropZone.classList.remove('pdf-drop-zone--active');
@@ -106,20 +92,14 @@ export class PdfSplit {
     });
 
     this.extractBtn.addEventListener('click', () => this.extractSelected());
-    this.splitAllBtn.addEventListener('click', () => this.splitAll());
-    this.selectAllBtn.addEventListener('click', () => this.selectAll());
-    this.clearBtn.addEventListener('click', () => this.clearSelection());
 
-    // Change File
     root.querySelector('#pdfs-change')?.addEventListener('click', () => {
       this.cleanupProxy();
       this.state.file = null;
       this.state.pdfBytes = null;
       this.state.pdfDoc = null;
       this.state.selectedPages.clear();
-      this.state.previewPage = null;
-      this.thumbsEl.innerHTML = '';
-      this.previewEl.style.display = 'none';
+      this.gridEl.innerHTML = '';
       this.containerEl.style.display = 'none';
       dropZone.style.display = '';
     });
@@ -131,7 +111,6 @@ export class PdfSplit {
     this.state.file = file;
     this.state.loading = true;
     this.state.selectedPages.clear();
-    this.state.previewPage = null;
 
     try {
       this.state.pdfBytes = await file.arrayBuffer();
@@ -149,183 +128,110 @@ export class PdfSplit {
     const infoEl = this.containerEl.querySelector('#pdfs-info')!;
     infoEl.textContent = `${file.name} · ${this.state.pageCount} pages · ${formatBytes(file.size)}`;
 
-    this.previewEl.style.display = 'none';
     this.syncButtons();
 
     try {
-      this.state.pdfDocProxy = await pdfjsLib.getDocument({ data: this.state.pdfBytes.slice(0) }).promise;
-      await this.renderThumbs();
-    } catch {
-      Toast.error('Failed to render page previews');
+      this.state.pdfDocProxy = await pdfjsLib.getDocument({ data: this.state.pdfBytes.slice(0) })
+        .promise;
+      await this.renderPages();
+    } catch (e) {
+      console.error('PDF rendering failed:', e);
+      this.gridEl.innerHTML =
+        '<p class="pdf-note">Failed to load PDF renderer. Page previews unavailable.</p>';
     }
 
     this.state.loading = false;
   }
 
-  private async renderThumbs(): Promise<void> {
-    this.thumbsEl.innerHTML = '';
+  private async renderPages(): Promise<void> {
+    this.gridEl.innerHTML = '';
     const pdf = this.state.pdfDocProxy;
     if (!pdf) return;
 
+    let rendered = 0;
     for (let i = 1; i <= this.state.pageCount; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 0.3 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.className = 'pdf-thumb-canvas';
-      const ctx = canvas.getContext('2d')!;
-      await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+      try {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 0.5 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
 
-      const wrapper = document.createElement('div');
-      wrapper.className = 'pdf-thumb';
-      wrapper.dataset.page = String(i);
+        const card = document.createElement('div');
+        card.className = 'pdf-split-card';
+        card.dataset.page = String(i);
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'pdf-thumb-check';
-      checkbox.checked = false;
+        const check = document.createElement('div');
+        check.className = 'pdf-split-card-check';
+        check.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-      const label = document.createElement('span');
-      label.className = 'pdf-thumb-label';
-      label.textContent = String(i);
+        const label = document.createElement('span');
+        label.className = 'pdf-split-card-label';
+        label.textContent = String(i);
 
-      wrapper.appendChild(checkbox);
-      wrapper.appendChild(canvas);
-      wrapper.appendChild(label);
+        card.appendChild(canvas);
+        card.appendChild(check);
+        card.appendChild(label);
 
-      wrapper.addEventListener('click', () => this.togglePage(i, wrapper, checkbox));
-      checkbox.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.togglePage(i, wrapper, checkbox);
-      });
+        card.addEventListener('click', () => this.togglePage(i, card));
+        this.gridEl.appendChild(card);
+        rendered++;
+      } catch (e) {
+        console.warn(`Failed to render page ${i}:`, e);
+      }
+    }
 
-      this.thumbsEl.appendChild(wrapper);
+    if (rendered === 0) {
+      this.gridEl.innerHTML =
+        '<p class="pdf-note">Failed to render page previews. You can still extract pages using pdf-lib.</p>';
     }
   }
 
-  private togglePage(pageNum: number, wrapper: HTMLDivElement, checkbox: HTMLInputElement): void {
+  private togglePage(pageNum: number, card: HTMLDivElement): void {
     if (this.state.selectedPages.has(pageNum)) {
       this.state.selectedPages.delete(pageNum);
-      wrapper.classList.remove('pdf-thumb--selected');
-      checkbox.checked = false;
+      card.classList.remove('pdf-split-card--selected');
     } else {
       this.state.selectedPages.add(pageNum);
-      wrapper.classList.add('pdf-thumb--selected');
-      checkbox.checked = true;
+      card.classList.add('pdf-split-card--selected');
     }
     this.syncButtons();
-    this.showPreview(pageNum);
-  }
-
-  private showPreview(pageNum: number): void {
-    if (this.state.previewPage === pageNum) {
-      this.state.previewPage = null;
-      this.previewEl.style.display = 'none';
-      return;
-    }
-
-    this.state.previewPage = pageNum;
-    this.renderPagePreview(pageNum);
-  }
-
-  private async renderPagePreview(pageNum: number): Promise<void> {
-    const pdf = this.state.pdfDocProxy;
-    if (!pdf) return;
-
-    try {
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1.2 });
-      const ctx = this.previewCanvas.getContext('2d')!;
-      this.previewCanvas.width = viewport.width;
-      this.previewCanvas.height = viewport.height;
-      ctx.clearRect(0, 0, viewport.width, viewport.height);
-      await page.render({ canvas: this.previewCanvas, canvasContext: ctx, viewport }).promise;
-      this.previewLabel.textContent = `Page ${pageNum}`;
-      this.previewEl.style.display = '';
-    } catch {
-      this.previewEl.style.display = 'none';
-    }
-  }
-
-  private selectAll(): void {
-    for (let i = 1; i <= this.state.pageCount; i++) {
-      this.state.selectedPages.add(i);
-    }
-    this.syncThumbUI();
-    this.syncButtons();
-  }
-
-  private clearSelection(): void {
-    this.state.selectedPages.clear();
-    this.state.previewPage = null;
-    this.previewEl.style.display = 'none';
-    this.syncThumbUI();
-    this.syncButtons();
-  }
-
-  private syncThumbUI(): void {
-    this.thumbsEl.querySelectorAll('.pdf-thumb').forEach(el => {
-      const page = parseInt(el.getAttribute('data-page')!);
-      const selected = this.state.selectedPages.has(page);
-      el.classList.toggle('pdf-thumb--selected', selected);
-      const cb = el.querySelector('.pdf-thumb-check') as HTMLInputElement;
-      if (cb) cb.checked = selected;
-    });
   }
 
   private syncButtons(): void {
-    this.extractBtn.disabled = this.state.selectedPages.size === 0;
+    const count = this.state.selectedPages.size;
+    this.extractBtn.disabled = count === 0;
+    this.extractBtn.textContent =
+      count === 0 ? 'Download Selected Pages' : `Download ${count} Page${count > 1 ? 's' : ''}`;
   }
 
   private async extractSelected(): Promise<void> {
     if (!this.state.pdfDoc || this.state.selectedPages.size === 0) return;
     this.extractBtn.disabled = true;
-    this.extractBtn.textContent = 'Extracting...';
+    this.extractBtn.textContent = 'Preparing download...';
 
     try {
       const newPdf = await PDFDocument.create();
-      const indices = Array.from(this.state.selectedPages).sort((a, b) => a - b).map(p => p - 1);
+      const indices = Array.from(this.state.selectedPages)
+        .sort((a, b) => a - b)
+        .map((p) => p - 1);
       const pages = await newPdf.copyPages(this.state.pdfDoc, indices);
-      pages.forEach(p => newPdf.addPage(p));
+      pages.forEach((p) => newPdf.addPage(p));
+      stampPdfMetadata(newPdf);
 
       const pdfBytes = await newPdf.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       downloadBlob(blob, 'extracted-pages.pdf');
-      Toast.success(`Extracted ${this.state.selectedPages.size} pages`);
+      logDownload('pdf-split', 'PDF Splitter', blob, 'extracted-pages.pdf');
+      Toast.success(`Downloaded ${this.state.selectedPages.size} pages`);
       logToolAction('pdf-split', 'Extracted PDF pages');
     } catch {
       Toast.error('Failed to extract pages');
     }
 
-    this.extractBtn.textContent = 'Extract Selected Pages';
-    this.extractBtn.disabled = false;
-  }
-
-  private async splitAll(): Promise<void> {
-    if (!this.state.pdfDoc) return;
-    this.splitAllBtn.disabled = true;
-    this.splitAllBtn.textContent = 'Splitting...';
-
-    try {
-      const files: Array<{ name: string; data: Blob }> = [];
-      for (let i = 0; i < this.state.pageCount; i++) {
-        const newPdf = await PDFDocument.create();
-        const [page] = await newPdf.copyPages(this.state.pdfDoc, [i]);
-        newPdf.addPage(page);
-        const pdfBytes = await newPdf.save();
-        files.push({ name: `page-${i + 1}.pdf`, data: new Blob([pdfBytes], { type: 'application/pdf' }) });
-      }
-
-      await downloadZip(files, 'split-pages.zip');
-      Toast.success(`Split into ${this.state.pageCount} pages`);
-      logToolAction('pdf-split', 'Split PDF into pages');
-    } catch {
-      Toast.error('Failed to split PDF');
-    }
-
-    this.splitAllBtn.textContent = 'Split All Pages (ZIP)';
-    this.splitAllBtn.disabled = false;
+    this.syncButtons();
   }
 
   private cleanupProxy(): void {
@@ -337,7 +243,6 @@ export class PdfSplit {
     this.state.pdfDoc = null;
     this.state.pdfBytes = null;
     this.state.file = null;
-    this.thumbsEl.innerHTML = '';
-    this.previewEl.style.display = 'none';
+    this.gridEl.innerHTML = '';
   }
 }

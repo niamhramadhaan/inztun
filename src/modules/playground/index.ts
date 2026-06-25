@@ -1,26 +1,34 @@
-import { ToolView } from '../../components/ToolView';
-import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
 import type { Category } from '../../components/ModuleHelpers';
-import { router } from '../../core/router';
-import { events } from '../../core/events';
-import { db } from '../../core/db';
+import {
+  createCategorySection,
+  createTipsPanel,
+  createToolCard,
+} from '../../components/ModuleHelpers';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
 import { Toast } from '../../components/Toast';
+import { ToolView } from '../../components/ToolView';
+import { db } from '../../core/db';
+import { events } from '../../core/events';
+import { router } from '../../core/router';
+import type {
+  SortMode,
+  Tool,
+  ToolClass,
+  ToolInfo,
+  ToolRegistryEntry,
+  ToolViewOptions,
+} from '../../types/index';
 import { getPlaygroundToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions, ToolInfo } from '../../types/index';
-
-import { TypingTest } from './tools/typing-test';
 import { BannerGenerator } from './tools/ascii-art';
 import { PixelArt } from './tools/pixel-art';
+import { TypingTest } from './tools/typing-test';
 
 const CATEGORIES: Category[] = [
   {
     id: 'testing',
     name: 'Testing & Games',
     tooltip: 'Test your skills and reflexes',
-    tools: [
-      { id: 'typing-test', Tool: TypingTest, span: { col: 6, row: 1 }, featured: true },
-    ],
+    tools: [{ id: 'typing-test', Tool: TypingTest, span: { col: 6, row: 1 }, featured: true }],
   },
   {
     id: 'creative',
@@ -33,8 +41,8 @@ const CATEGORIES: Category[] = [
   },
 ];
 
-const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
-  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap((cat) =>
+  cat.tools.map((t) => ({ ...t, category: cat.id, categoryName: cat.name })),
 );
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
@@ -77,7 +85,7 @@ export class Playground {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('pg-favorites', []) as string[];
+    const saved = (await db.getPreference('pg-favorites', [])) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -139,7 +147,7 @@ export class Playground {
     const isSearching = this.searchQuery.length > 0;
 
     if (this.sortMode === 'favorites' && !isSearching) {
-      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      const favTools = ALL_TOOLS.filter((t) => this.favorites.has(t.id));
       if (favTools.length === 0) {
         this.categoriesContainer!.innerHTML = `
           <div class="empty-state">
@@ -153,7 +161,12 @@ export class Playground {
       }
 
       const section = createCategorySection({
-        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        category: {
+          id: 'favorites',
+          name: '★ Favorites',
+          tooltip: 'Your pinned tools',
+          tools: favTools,
+        },
         collapsed: false,
         onToggleCollapse: () => {},
         createCard: (entry, index) => this.makeToolCard(entry, index),
@@ -162,14 +175,18 @@ export class Playground {
       return;
     }
 
-    CATEGORIES.forEach(cat => {
+    CATEGORIES.forEach((cat) => {
       let tools = [...cat.tools];
 
       if (isSearching) {
-        tools = tools.filter(t => {
+        tools = tools.filter((t) => {
           const name = new t.Tool().name.toLowerCase();
           const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+          return (
+            name.includes(this.searchQuery) ||
+            desc.includes(this.searchQuery) ||
+            t.id.includes(this.searchQuery)
+          );
         });
         if (tools.length === 0) return;
       }
@@ -216,7 +233,7 @@ export class Playground {
   }
 
   private showTool(toolId: string): void {
-    const registry = ALL_TOOLS.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find((t) => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -243,8 +260,8 @@ export class Playground {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
-    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex((t) => t.id === toolId);
+    const toolsList = ALL_TOOLS.map((t) => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -266,20 +283,22 @@ export class Playground {
 
     const tipsData = getPlaygroundToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      contentEl.appendChild(createTipsPanel({
-        toolId,
-        data: tipsData,
-        moduleId: this.moduleId,
-        allTools: ALL_TOOLS,
-        onNavigate: (modId, tId) => router.navigate(modId, tId),
-      }));
+      contentEl.appendChild(
+        createTipsPanel({
+          toolId,
+          data: tipsData,
+          moduleId: this.moduleId,
+          allTools: ALL_TOOLS,
+          onNavigate: (modId, tId) => router.navigate(modId, tId),
+        }),
+      );
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -570,7 +589,10 @@ export class Playground {
       events.off('route:change', this._routeHandler);
     }
     this.toolbar?.destroy();
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';
   }

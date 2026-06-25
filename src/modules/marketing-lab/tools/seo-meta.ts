@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard } from '../../../utils/image';
 
 export class SeoMeta {
   id = 'seo-meta';
@@ -57,12 +58,12 @@ export class SeoMeta {
     this.outputEl = root.querySelector('#mlo-output')!;
 
     const update = () => this.update();
-    [this.titleInput, this.descInput, this.urlInput, this.imageInput].forEach(el => {
+    [this.titleInput, this.descInput, this.urlInput, this.imageInput].forEach((el) => {
       el.addEventListener('input', update);
     });
 
     root.querySelector('#mlo-copy-tags')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('Meta Tags');
       logToolAction('seo-meta', 'Generated SEO meta');
     });
@@ -86,7 +87,8 @@ export class SeoMeta {
     const googleDesc = this.previewEl.querySelector('.mlo-google-desc')!;
     googleTitle.textContent = title || 'Page Title — Brand Name';
     googleUrl.textContent = url || 'https://example.com';
-    googleDesc.textContent = desc || 'A compelling description that encourages clicks from search results...';
+    googleDesc.textContent =
+      desc || 'A compelling description that encourages clicks from search results...';
 
     let tags = '';
     if (title) tags += `<title>${title}</title>\n`;

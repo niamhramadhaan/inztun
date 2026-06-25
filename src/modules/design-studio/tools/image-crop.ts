@@ -1,6 +1,13 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, createDropZone, bindClipboardPaste, getExtFromMime } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  createDropZone,
+  downloadBlob,
+  getExtFromMime,
+  loadImage,
+} from '../../../utils/image';
 
 type Handle = null | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w' | 'move';
 
@@ -34,10 +41,17 @@ export class ImageCrop {
   private image: HTMLImageElement | null = null;
   private displayScale = 1;
   // Crop in image-space coordinates
-  private cx = 0; private cy = 0; private cw = 0; private ch = 0;
+  private cx = 0;
+  private cy = 0;
+  private cw = 0;
+  private ch = 0;
   private activeHandle: Handle = null;
-  private startX = 0; private startY = 0;
-  private startCx = 0; private startCy = 0; private startCw = 0; private startCh = 0;
+  private startX = 0;
+  private startY = 0;
+  private startCx = 0;
+  private startCy = 0;
+  private startCw = 0;
+  private startCh = 0;
   private lockedRatio: number | null = null;
   private cleanupPaste!: () => void;
 
@@ -103,12 +117,14 @@ export class ImageCrop {
       qualityGroup.style.display = this.formatSelect.value === 'image/png' ? 'none' : '';
     });
 
-    this.ratioButtons.querySelectorAll('.imcr-ratio-btn').forEach(btn => {
+    this.ratioButtons.querySelectorAll('.imcr-ratio-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        this.ratioButtons.querySelectorAll('.imcr-ratio-btn').forEach(b => b.classList.remove('imcr-ratio-btn--active'));
+        this.ratioButtons
+          .querySelectorAll('.imcr-ratio-btn')
+          .forEach((b) => b.classList.remove('imcr-ratio-btn--active'));
         btn.classList.add('imcr-ratio-btn--active');
         const val = (btn as HTMLElement).dataset.ratio;
-        this.lockedRatio = val === '' ? null : parseFloat(val);
+        this.lockedRatio = val === '' ? null : parseFloat(val!);
         if (this.lockedRatio && this.image) {
           this.enforceRatio();
           this.draw();
@@ -129,9 +145,13 @@ export class ImageCrop {
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image file'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image file');
+      return;
+    }
     this.image = await loadImage(file);
-    this.cx = 0; this.cy = 0;
+    this.cx = 0;
+    this.cy = 0;
     this.cw = this.image.naturalWidth;
     this.ch = this.image.naturalHeight;
 
@@ -208,8 +228,14 @@ export class ImageCrop {
     for (let i = 1; i <= 2; i++) {
       const lx = this.cx + (this.cw * i) / 3;
       const ly = this.cy + (this.ch * i) / 3;
-      ctx.beginPath(); ctx.moveTo(lx * s, this.cy * s); ctx.lineTo(lx * s, (this.cy + this.ch) * s); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(this.cx * s, ly * s); ctx.lineTo((this.cx + this.cw) * s, ly * s); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(lx * s, this.cy * s);
+      ctx.lineTo(lx * s, (this.cy + this.ch) * s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(this.cx * s, ly * s);
+      ctx.lineTo((this.cx + this.cw) * s, ly * s);
+      ctx.stroke();
     }
 
     this.dimEl.textContent = `${this.cw} × ${this.ch} px`;
@@ -220,10 +246,14 @@ export class ImageCrop {
     const mx = cx + cw / 2;
     const my = cy + ch / 2;
     return [
-      ['nw', cx, cy], ['ne', cx + cw, cy],
-      ['sw', cx, cy + ch], ['se', cx + cw, cy + ch],
-      ['n', mx, cy], ['s', mx, cy + ch],
-      ['w', cx, my], ['e', cx + cw, my],
+      ['nw', cx, cy],
+      ['ne', cx + cw, cy],
+      ['sw', cx, cy + ch],
+      ['se', cx + cw, cy + ch],
+      ['n', mx, cy],
+      ['s', mx, cy + ch],
+      ['w', cx, my],
+      ['e', cx + cw, my],
     ];
   }
 
@@ -238,7 +268,8 @@ export class ImageCrop {
     // Check if inside crop area for move
     const x = ex / s;
     const y = ey / s;
-    if (x >= this.cx && x <= this.cx + this.cw && y >= this.cy && y <= this.cy + this.ch) return 'move';
+    if (x >= this.cx && x <= this.cx + this.cw && y >= this.cy && y <= this.cy + this.ch)
+      return 'move';
     return null;
   }
 
@@ -249,9 +280,12 @@ export class ImageCrop {
     this.activeHandle = this.hitTest(ex, ey);
     if (!this.activeHandle) return;
     this.canvasEl.setPointerCapture(e.pointerId);
-    this.startX = ex; this.startY = ey;
-    this.startCx = this.cx; this.startCy = this.cy;
-    this.startCw = this.cw; this.startCh = this.ch;
+    this.startX = ex;
+    this.startY = ey;
+    this.startCx = this.cx;
+    this.startCy = this.cy;
+    this.startCw = this.cw;
+    this.startCh = this.ch;
   }
 
   private onPointerMove(e: PointerEvent): void {
@@ -270,12 +304,25 @@ export class ImageCrop {
       this.cx = Math.max(0, Math.min(this.startCx + dx, iw - this.startCw));
       this.cy = Math.max(0, Math.min(this.startCy + dy, ih - this.startCh));
     } else {
-      let ncx = this.startCx, ncy = this.startCy, ncw = this.startCw, nch = this.startCh;
+      let ncx = this.startCx,
+        ncy = this.startCy,
+        ncw = this.startCw,
+        nch = this.startCh;
 
-      if (this.activeHandle.includes('w')) { ncx = this.startCx + dx; ncw = this.startCw - dx; }
-      if (this.activeHandle.includes('e')) { ncw = this.startCw + dx; }
-      if (this.activeHandle.includes('n')) { ncy = this.startCy + dy; nch = this.startCh - dy; }
-      if (this.activeHandle.includes('s')) { nch = this.startCh + dy; }
+      if (this.activeHandle.includes('w')) {
+        ncx = this.startCx + dx;
+        ncw = this.startCw - dx;
+      }
+      if (this.activeHandle.includes('e')) {
+        ncw = this.startCw + dx;
+      }
+      if (this.activeHandle.includes('n')) {
+        ncy = this.startCy + dy;
+        nch = this.startCh - dy;
+      }
+      if (this.activeHandle.includes('s')) {
+        nch = this.startCh + dy;
+      }
 
       // Enforce minimum
       ncw = Math.max(10, ncw);
@@ -303,7 +350,10 @@ export class ImageCrop {
       if (ncx + ncw > iw) ncw = iw - ncx;
       if (ncy + nch > ih) nch = ih - ncy;
 
-      this.cx = ncx; this.cy = ncy; this.cw = ncw; this.ch = nch;
+      this.cx = ncx;
+      this.cy = ncy;
+      this.cw = ncw;
+      this.ch = nch;
     }
 
     this.draw();
@@ -322,7 +372,10 @@ export class ImageCrop {
     offscreen.width = this.cw;
     offscreen.height = this.ch;
     const ctx = offscreen.getContext('2d')!;
-    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, this.cw, this.ch); }
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, this.cw, this.ch);
+    }
     ctx.drawImage(this.image, this.cx, this.cy, this.cw, this.ch, 0, 0, this.cw, this.ch);
 
     const blob = await canvasToBlob(offscreen, format, quality);

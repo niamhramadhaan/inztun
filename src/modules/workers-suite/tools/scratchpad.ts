@@ -1,5 +1,5 @@
 import { Toast } from '../../../components/Toast';
-import { db, type Note, type Client, type Project } from '../../../core/db';
+import { type Client, db, type Note, type Project } from '../../../core/db';
 import type { Tool } from '../../../types';
 
 export class Scratchpad implements Tool {
@@ -103,7 +103,7 @@ export class Scratchpad implements Tool {
       db.getAllProjects(),
     ]);
 
-    const defaultLocale = await db.getPreference('defaultLocale', 'en-US') as string;
+    const defaultLocale = (await db.getPreference('defaultLocale', 'en-US')) as string;
     this.locale = defaultLocale || 'en-US';
 
     this.populateLinkDropdowns();
@@ -131,7 +131,7 @@ export class Scratchpad implements Tool {
 
     this.modeBtn.addEventListener('click', () => this.toggleMode());
 
-    root.querySelectorAll('.sp-insert').forEach(btn => {
+    root.querySelectorAll('.sp-insert').forEach((btn) => {
       btn.addEventListener('click', () => {
         const type = (btn as HTMLElement).dataset.insert!;
         this.insertMarkdown(type);
@@ -142,45 +142,60 @@ export class Scratchpad implements Tool {
 
     this.linkClientEl.addEventListener('change', () => {
       if (this.activeNote) {
-        this.activeNote.clientId = this.linkClientEl.value ? parseInt(this.linkClientEl.value) : undefined;
+        this.activeNote.clientId = this.linkClientEl.value
+          ? parseInt(this.linkClientEl.value)
+          : undefined;
         this.scheduleSave();
       }
     });
 
     this.linkProjectEl.addEventListener('change', () => {
       if (this.activeNote) {
-        this.activeNote.projectId = this.linkProjectEl.value ? parseInt(this.linkProjectEl.value) : undefined;
+        this.activeNote.projectId = this.linkProjectEl.value
+          ? parseInt(this.linkProjectEl.value)
+          : undefined;
         this.scheduleSave();
       }
     });
   }
 
   private populateLinkDropdowns(): void {
-    this.linkClientEl.innerHTML = '<option value="">— Client —</option>' +
-      this.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    const activeProjects = this.projects.filter(p => p.status === 'active');
-    this.linkProjectEl.innerHTML = '<option value="">— Project —</option>' +
-      activeProjects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    this.linkClientEl.innerHTML =
+      '<option value="">— Client —</option>' +
+      this.clients.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+    const activeProjects = this.projects.filter((p) => p.status === 'active');
+    this.linkProjectEl.innerHTML =
+      '<option value="">— Project —</option>' +
+      activeProjects.map((p) => `<option value="${p.id}">${p.name}</option>`).join('');
   }
 
   private renderList(): void {
     let filtered = this.notes;
     if (this.searchQuery) {
-      filtered = this.notes.filter(n =>
-        n.title.toLowerCase().includes(this.searchQuery) ||
-        n.content.toLowerCase().includes(this.searchQuery)
+      filtered = this.notes.filter(
+        (n) =>
+          n.title.toLowerCase().includes(this.searchQuery) ||
+          n.content.toLowerCase().includes(this.searchQuery),
       );
     }
 
-    this.listEl.innerHTML = filtered.length === 0
-      ? '<p style="color:var(--text-muted);font-size:var(--text-xs);padding:var(--space-2);">No notes yet.</p>'
-      : filtered.map(n => {
-        const isActive = this.activeNote?.id === n.id;
-        const date = new Date(n.updatedAt).toLocaleDateString(this.locale, { month: 'short', day: 'numeric' });
-        const preview = n.content.replace(/[#*`\[\]>_~-]/g, '').trim().slice(0, 60);
-        return `
+    this.listEl.innerHTML =
+      filtered.length === 0
+        ? '<p style="color:var(--text-muted);font-size:var(--text-xs);padding:var(--space-2);">No notes yet.</p>'
+        : filtered
+            .map((n) => {
+              const isActive = this.activeNote?.id === n.id;
+              const date = new Date(n.updatedAt).toLocaleDateString(this.locale, {
+                month: 'short',
+                day: 'numeric',
+              });
+              const preview = n.content
+                .replace(/[#*`[\]>_~-]/g, '')
+                .trim()
+                .slice(0, 60);
+              return `
           <div class="sp-note-item ${isActive ? 'sp-note-item--active' : ''}" data-id="${n.id}">
-            <div class="sp-note-item__title" data-id="${n.id}">${n.title || 'Untitled'}</div>
+            <div class="sp-note-item__title" data-id="${n.id}">${this.escapeHtml(n.title || 'Untitled')}</div>
             <div class="sp-note-item__meta">
               <span>${date}</span>
               ${n.clientId ? '<span class="sp-note-item__tag">◆</span>' : ''}
@@ -188,16 +203,17 @@ export class Scratchpad implements Tool {
             <div class="sp-note-item__preview">${preview || 'Empty note'}</div>
           </div>
         `;
-      }).join('');
+            })
+            .join('');
 
-    this.listEl.querySelectorAll('.sp-note-item').forEach(el => {
+    this.listEl.querySelectorAll('.sp-note-item').forEach((el) => {
       el.addEventListener('click', () => {
         const id = parseInt((el as HTMLElement).dataset.id!);
         this.selectNote(id);
       });
     });
 
-    this.listEl.querySelectorAll('.sp-note-item__title').forEach(el => {
+    this.listEl.querySelectorAll('.sp-note-item__title').forEach((el) => {
       el.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         const id = parseInt((el as HTMLElement).dataset.id!);
@@ -216,7 +232,7 @@ export class Scratchpad implements Tool {
   }
 
   private selectNote(id: number): void {
-    const note = this.notes.find(n => n.id === id);
+    const note = this.notes.find((n) => n.id === id);
     if (!note) return;
 
     this.activeNote = note;
@@ -238,7 +254,7 @@ export class Scratchpad implements Tool {
   }
 
   private startInlineRename(id: number, el: HTMLElement): void {
-    const note = this.notes.find(n => n.id === id);
+    const note = this.notes.find((n) => n.id === id);
     if (!note) return;
 
     const input = document.createElement('input');
@@ -261,8 +277,14 @@ export class Scratchpad implements Tool {
 
     input.addEventListener('blur', finish);
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { input.value = note.title || 'Untitled'; input.blur(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      }
+      if (e.key === 'Escape') {
+        input.value = note.title || 'Untitled';
+        input.blur();
+      }
     });
   }
 
@@ -343,9 +365,10 @@ export class Scratchpad implements Tool {
 
   private deleteActive(): void {
     if (!this.activeNote) return;
+    if (!confirm('Delete this note?')) return;
 
     const id = this.activeNote.id;
-    this.notes = this.notes.filter(n => n.id !== id);
+    this.notes = this.notes.filter((n) => n.id !== id);
     db.deleteNote(id);
 
     this.activeNote = null;
@@ -359,26 +382,60 @@ export class Scratchpad implements Tool {
   private parseMarkdown(md: string): string {
     let html = md;
 
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) =>
-      '<pre class="md-code-block"><code class="language-' + lang + '">' + this.escapeHtml(code.trim()) + '</code></pre>'
+    html = html.replace(
+      /```(\w*)\n([\s\S]*?)```/g,
+      (_m, lang, code) =>
+        '<pre class="md-code-block"><code class="language-' +
+        lang +
+        '">' +
+        this.escapeHtml(code.trim()) +
+        '</code></pre>',
     );
-    html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="md-img">');
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(
+      /`([^`]+)`/g,
+      (_m, code) => '<code class="md-inline-code">' + this.escapeHtml(code) + '</code>',
+    );
+    html = html.replace(/^### (.+)$/gm, (_m, t) => '<h3>' + this.escapeHtml(t) + '</h3>');
+    html = html.replace(/^## (.+)$/gm, (_m, t) => '<h2>' + this.escapeHtml(t) + '</h2>');
+    html = html.replace(/^# (.+)$/gm, (_m, t) => '<h1>' + this.escapeHtml(t) + '</h1>');
+    html = html.replace(/\*\*(.+?)\*\*/g, (_m, t) => '<strong>' + this.escapeHtml(t) + '</strong>');
+    html = html.replace(/\*(.+?)\*/g, (_m, t) => '<em>' + this.escapeHtml(t) + '</em>');
+    html = html.replace(/~~(.+?)~~/g, (_m, t) => '<del>' + this.escapeHtml(t) + '</del>');
+    html = html.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      (_m, alt, src) =>
+        '<img src="' +
+        this.escapeAttr(src) +
+        '" alt="' +
+        this.escapeAttr(alt) +
+        '" class="md-img">',
+    );
+    html = html.replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      (_m, text, href) =>
+        '<a href="' +
+        this.escapeAttr(href) +
+        '" target="_blank" rel="noopener">' +
+        this.escapeHtml(text) +
+        '</a>',
+    );
+    html = html.replace(
+      /^> (.+)$/gm,
+      (_m, t) => '<blockquote>' + this.escapeHtml(t) + '</blockquote>',
+    );
     html = html.replace(/^---$/gm, '<hr>');
-    html = html.replace(/^- \[x\] (.+)$/gm, '<div class="sp-check sp-check--done">☑ $1</div>');
-    html = html.replace(/^- \[ \] (.+)$/gm, '<div class="sp-check">☐ $1</div>');
-    html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(
+      /^- \[x\] (.+)$/gm,
+      (_m, t) => '<div class="sp-check sp-check--done">☑ ' + this.escapeHtml(t) + '</div>',
+    );
+    html = html.replace(
+      /^- \[ \] (.+)$/gm,
+      (_m, t) => '<div class="sp-check">☐ ' + this.escapeHtml(t) + '</div>',
+    );
+    html = html.replace(/^[-*] (.+)$/gm, (_m, t) => '<li>' + this.escapeHtml(t) + '</li>');
     html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, '<p>$1</p>');
+    html = html.replace(/^\d+\. (.+)$/gm, (_m, t) => '<li>' + this.escapeHtml(t) + '</li>');
+    html = html.replace(/^(?!<[a-z]|$)(.+)$/gm, (_m, t) => '<p>' + this.escapeHtml(t) + '</p>');
     html = html.replace(/\n{2,}/g, '\n');
 
     return html;
@@ -386,6 +443,14 @@ export class Scratchpad implements Tool {
 
   private escapeHtml(str: string): string {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  private escapeAttr(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   destroy(): void {

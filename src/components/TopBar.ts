@@ -1,7 +1,8 @@
-import { router } from '../core/router';
-import { events } from '../core/events';
 import { db } from '../core/db';
+import { events } from '../core/events';
 import { ICONS } from '../core/icons';
+import { router } from '../core/router';
+import { escapeHtml } from '../utils/image';
 
 interface Command {
   id: string;
@@ -13,51 +14,367 @@ interface Command {
 }
 
 const COMMANDS: Command[] = [
-  { id: 'nav:home', label: 'Home', category: 'Modules', icon: ICONS.home, action: () => router.navigate('home') },
-  { id: 'nav:workers-suite', label: "Worker's Suite", category: 'Modules', icon: ICONS.workers, action: () => router.navigate('workers-suite') },
-  { id: 'nav:playground', label: "Playground", category: 'Modules', icon: ICONS.play, action: () => router.navigate('playground') },
-  { id: 'nav:freelance-core', label: 'Freelance Core', category: 'Modules', icon: ICONS.freelance, action: () => router.navigate('freelance-core') },
-  { id: 'nav:marketing-lab', label: 'Marketing Lab', category: 'Modules', icon: ICONS.marketing, action: () => router.navigate('marketing-lab') },
-  { id: 'nav:design-studio', label: 'Design Studio', category: 'Modules', icon: ICONS.design, action: () => router.navigate('design-studio') },
+  {
+    id: 'nav:home',
+    label: 'Home',
+    category: 'Modules',
+    icon: ICONS.home,
+    action: () => router.navigate('home'),
+  },
+  {
+    id: 'nav:workers-suite',
+    label: "Worker's Suite",
+    category: 'Modules',
+    icon: ICONS.workers,
+    action: () => router.navigate('workers-suite'),
+  },
+  {
+    id: 'nav:playground',
+    label: 'Playground',
+    category: 'Modules',
+    icon: ICONS.play,
+    action: () => router.navigate('playground'),
+  },
+  {
+    id: 'nav:freelance-core',
+    label: 'Freelance Core',
+    category: 'Modules',
+    icon: ICONS.freelance,
+    action: () => router.navigate('freelance-core'),
+  },
+  {
+    id: 'nav:marketing-lab',
+    label: 'Marketing Lab',
+    category: 'Modules',
+    icon: ICONS.marketing,
+    action: () => router.navigate('marketing-lab'),
+  },
+  {
+    id: 'nav:design-studio',
+    label: 'Design Studio',
+    category: 'Modules',
+    icon: ICONS.design,
+    action: () => router.navigate('design-studio'),
+  },
 
-  { id: 'tool:json-formatter', label: 'JSON Formatter', category: "Worker's Suite", icon: ICONS.json, action: () => router.navigate('workers-suite', 'json-formatter'), isTool: true },
-  { id: 'tool:base64', label: 'Base64 Encoder/Decoder', category: "Worker's Suite", icon: ICONS.base64, action: () => router.navigate('workers-suite', 'base64'), isTool: true },
-  { id: 'tool:hash-generator', label: 'Hash Generator', category: "Worker's Suite", icon: ICONS.hash, action: () => router.navigate('workers-suite', 'hash-generator'), isTool: true },
-  { id: 'tool:uuid-generator', label: 'UUID Generator', category: "Worker's Suite", icon: ICONS.uuid, action: () => router.navigate('workers-suite', 'uuid-generator'), isTool: true },
-  { id: 'tool:lorem-ipsum', label: 'Lorem Ipsum Generator', category: "Worker's Suite", icon: ICONS.lorem, action: () => router.navigate('workers-suite', 'lorem-ipsum'), isTool: true },
-  { id: 'tool:scratchpad', label: 'Scratchpad', category: "Worker's Suite", icon: ICONS.scratchpad, action: () => router.navigate('workers-suite', 'scratchpad'), isTool: true },
-  { id: 'tool:pdf-merge', label: 'PDF Merger', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-merge'), isTool: true },
-  { id: 'tool:pdf-split', label: 'PDF Splitter', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-split'), isTool: true },
-  { id: 'tool:pdf-compress', label: 'PDF Compressor', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-compress'), isTool: true },
-  { id: 'tool:pdf-protect', label: 'PDF Password Protection', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-protect'), isTool: true },
-  { id: 'tool:pdf-sign', label: 'PDF Signature', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-sign'), isTool: true },
-  { id: 'tool:pdf-to-images', label: 'PDF to Images', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-to-images'), isTool: true },
-  { id: 'tool:pdf-metadata', label: 'PDF Metadata Editor', category: "Worker's Suite", icon: ICONS.pdf, action: () => router.navigate('workers-suite', 'pdf-metadata'), isTool: true },
-  { id: 'tool:typing-test', label: 'Typing Test', category: 'Playground', icon: ICONS.keyboard, action: () => router.navigate('playground', 'typing-test'), isTool: true },
-  { id: 'tool:banner-generator', label: 'Banner Generator', category: 'Playground', icon: ICONS.asciiArt, action: () => router.navigate('playground', 'banner-generator'), isTool: true },
-  { id: 'tool:css-gradient', label: 'CSS Gradient Builder', category: 'Design Studio', icon: ICONS.gradient, action: () => router.navigate('design-studio', 'css-gradient'), isTool: true },
-  { id: 'tool:border-radius', label: 'Border Radius Previewer', category: 'Design Studio', icon: ICONS.borderRadius, action: () => router.navigate('design-studio', 'border-radius'), isTool: true },
-  { id: 'tool:typography-scale', label: 'Typography Scale', category: 'Design Studio', icon: ICONS.typeScale, action: () => router.navigate('design-studio', 'typography-scale'), isTool: true },
-  { id: 'tool:spacing-system', label: 'Spacing System', category: 'Design Studio', icon: ICONS.spacing, action: () => router.navigate('design-studio', 'spacing-system'), isTool: true },
-  { id: 'tool:logo-builder', label: 'Logo Builder', category: 'Design Studio', icon: ICONS.logoBuilder, action: () => router.navigate('design-studio', 'logo-builder'), isTool: true },
-  { id: 'tool:image-crop', label: 'Image Cropper', category: 'Design Studio', icon: ICONS.imageCrop, action: () => router.navigate('design-studio', 'image-crop'), isTool: true },
-  { id: 'tool:image-filters', label: 'Image Filters', category: 'Design Studio', icon: ICONS.imageFilters, action: () => router.navigate('design-studio', 'image-filters'), isTool: true },
-  { id: 'tool:image-metadata', label: 'Image Metadata', category: 'Design Studio', icon: ICONS.imageMetadata, action: () => router.navigate('design-studio', 'image-metadata'), isTool: true },
-  { id: 'tool:font-pairer', label: 'Font Pairer', category: 'Design Studio', icon: ICONS.fontPairer, action: () => router.navigate('design-studio', 'font-pairer'), isTool: true },
-  { id: 'tool:brand-kit', label: 'Brand Kit', category: 'Design Studio', icon: ICONS.brandKit, action: () => router.navigate('design-studio', 'brand-kit'), isTool: true },
-  { id: 'tool:utm-builder', label: 'UTM Builder', category: 'Marketing Lab', icon: ICONS.utm, action: () => router.navigate('marketing-lab', 'utm-builder'), isTool: true },
-  { id: 'tool:seo-meta', label: 'SEO Meta Generator', category: 'Marketing Lab', icon: ICONS.seo, action: () => router.navigate('marketing-lab', 'seo-meta'), isTool: true },
-  { id: 'tool:social-counter', label: 'Social Media Counter', category: 'Marketing Lab', icon: ICONS.social, action: () => router.navigate('marketing-lab', 'social-counter'), isTool: true },
-  { id: 'tool:color-palette', label: 'Color Palette Extractor', category: 'Marketing Lab', icon: ICONS.palette, action: () => router.navigate('marketing-lab', 'color-palette'), isTool: true },
-  { id: 'tool:invoice-generator', label: 'Invoice Generator', category: 'Freelance Core', icon: ICONS.invoice, action: () => router.navigate('freelance-core', 'invoice-generator'), isTool: true },
-  { id: 'tool:rate-calculator', label: 'Rate Calculator', category: 'Freelance Core', icon: ICONS.rate, action: () => router.navigate('freelance-core', 'rate-calculator'), isTool: true },
-  { id: 'tool:time-tracker', label: 'Time Tracker', category: 'Freelance Core', icon: ICONS.timeTracker, action: () => router.navigate('freelance-core', 'time-tracker'), isTool: true },
-  { id: 'tool:expense-tracker', label: 'Expense Tracker', category: 'Freelance Core', icon: ICONS.expense, action: () => router.navigate('freelance-core', 'expense-tracker'), isTool: true },
-  { id: 'tool:contract-templates', label: 'Contract Templates', category: 'Freelance Core', icon: ICONS.contract, action: () => router.navigate('freelance-core', 'contract-templates'), isTool: true },
-  { id: 'tool:client-manager', label: 'Client Manager', category: 'Freelance Core', icon: ICONS.clients, action: () => router.navigate('freelance-core', 'client-manager'), isTool: true },
-  { id: 'tool:project-manager', label: 'Projects', category: 'Freelance Core', icon: ICONS.projects, action: () => router.navigate('freelance-core', 'project-manager'), isTool: true },
-  { id: 'settings:accent', label: 'Settings', category: 'Settings', icon: ICONS.settings, action: () => events.emit('palette:open-settings') },
-  { id: 'settings:defaults', label: 'Defaults', category: 'Settings', icon: ICONS.defaults, action: () => events.emit('palette:open-defaults') },
+  {
+    id: 'tool:json-formatter',
+    label: 'JSON Formatter',
+    category: "Worker's Suite",
+    icon: ICONS.json,
+    action: () => router.navigate('workers-suite', 'json-formatter'),
+    isTool: true,
+  },
+  {
+    id: 'tool:base64',
+    label: 'Base64 Encoder/Decoder',
+    category: "Worker's Suite",
+    icon: ICONS.base64,
+    action: () => router.navigate('workers-suite', 'base64'),
+    isTool: true,
+  },
+  {
+    id: 'tool:hash-generator',
+    label: 'Hash Generator',
+    category: "Worker's Suite",
+    icon: ICONS.hash,
+    action: () => router.navigate('workers-suite', 'hash-generator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:uuid-generator',
+    label: 'UUID Generator',
+    category: "Worker's Suite",
+    icon: ICONS.uuid,
+    action: () => router.navigate('workers-suite', 'uuid-generator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:lorem-ipsum',
+    label: 'Lorem Ipsum Generator',
+    category: "Worker's Suite",
+    icon: ICONS.lorem,
+    action: () => router.navigate('workers-suite', 'lorem-ipsum'),
+    isTool: true,
+  },
+  {
+    id: 'tool:scratchpad',
+    label: 'Scratchpad',
+    category: "Worker's Suite",
+    icon: ICONS.scratchpad,
+    action: () => router.navigate('workers-suite', 'scratchpad'),
+    isTool: true,
+  },
+  {
+    id: 'tool:pdf-merge',
+    label: 'PDF Merger',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-merge'),
+    isTool: true,
+  },
+  {
+    id: 'tool:pdf-split',
+    label: 'PDF Splitter',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-split'),
+    isTool: true,
+  },
+  {
+    id: 'tool:pdf-compress',
+    label: 'PDF Compressor',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-compress'),
+    isTool: true,
+  },
+  {
+    id: 'tool:pdf-sign',
+    label: 'PDF Signature',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-sign'),
+    isTool: true,
+  },
+  {
+    id: 'tool:pdf-metadata',
+    label: 'PDF Metadata Editor',
+    category: "Worker's Suite",
+    icon: ICONS.pdf,
+    action: () => router.navigate('workers-suite', 'pdf-metadata'),
+    isTool: true,
+  },
+  {
+    id: 'tool:qr-generator',
+    label: 'QR Code Generator',
+    category: "Worker's Suite",
+    icon: ICONS.qrCode,
+    action: () => router.navigate('workers-suite', 'qr-generator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:md-table',
+    label: 'Markdown Table Converter',
+    category: "Worker's Suite",
+    icon: ICONS.chart,
+    action: () => router.navigate('workers-suite', 'md-table'),
+    isTool: true,
+  },
+  {
+    id: 'tool:chart-creator',
+    label: 'Chart Creator',
+    category: "Worker's Suite",
+    icon: ICONS.chart,
+    action: () => router.navigate('workers-suite', 'chart-creator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:typing-test',
+    label: 'Typing Test',
+    category: 'Playground',
+    icon: ICONS.keyboard,
+    action: () => router.navigate('playground', 'typing-test'),
+    isTool: true,
+  },
+  {
+    id: 'tool:banner-generator',
+    label: 'Banner Generator',
+    category: 'Playground',
+    icon: ICONS.asciiArt,
+    action: () => router.navigate('playground', 'banner-generator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:css-gradient',
+    label: 'CSS Gradient Builder',
+    category: 'Design Studio',
+    icon: ICONS.gradient,
+    action: () => router.navigate('design-studio', 'css-gradient'),
+    isTool: true,
+  },
+  {
+    id: 'tool:border-radius',
+    label: 'Border Radius Previewer',
+    category: 'Design Studio',
+    icon: ICONS.borderRadius,
+    action: () => router.navigate('design-studio', 'border-radius'),
+    isTool: true,
+  },
+  {
+    id: 'tool:typography-scale',
+    label: 'Typography Scale',
+    category: 'Design Studio',
+    icon: ICONS.typeScale,
+    action: () => router.navigate('design-studio', 'typography-scale'),
+    isTool: true,
+  },
+  {
+    id: 'tool:spacing-system',
+    label: 'Spacing System',
+    category: 'Design Studio',
+    icon: ICONS.spacing,
+    action: () => router.navigate('design-studio', 'spacing-system'),
+    isTool: true,
+  },
+  {
+    id: 'tool:logo-builder',
+    label: 'Logo Builder',
+    category: 'Design Studio',
+    icon: ICONS.logoBuilder,
+    action: () => router.navigate('design-studio', 'logo-builder'),
+    isTool: true,
+  },
+  {
+    id: 'tool:image-crop',
+    label: 'Image Cropper',
+    category: 'Design Studio',
+    icon: ICONS.imageCrop,
+    action: () => router.navigate('design-studio', 'image-crop'),
+    isTool: true,
+  },
+  {
+    id: 'tool:image-filters',
+    label: 'Image Filters',
+    category: 'Design Studio',
+    icon: ICONS.imageFilters,
+    action: () => router.navigate('design-studio', 'image-filters'),
+    isTool: true,
+  },
+  {
+    id: 'tool:image-metadata',
+    label: 'Image Metadata',
+    category: 'Design Studio',
+    icon: ICONS.imageMetadata,
+    action: () => router.navigate('design-studio', 'image-metadata'),
+    isTool: true,
+  },
+  {
+    id: 'tool:font-pairer',
+    label: 'Font Pairer',
+    category: 'Design Studio',
+    icon: ICONS.fontPairer,
+    action: () => router.navigate('design-studio', 'font-pairer'),
+    isTool: true,
+  },
+  {
+    id: 'tool:brand-guidelines',
+    label: 'Brand Guidelines',
+    category: 'Design Studio',
+    icon: ICONS.brandGuidelines,
+    action: () => router.navigate('design-studio', 'brand-guidelines'),
+    isTool: true,
+  },
+  {
+    id: 'tool:utm-builder',
+    label: 'UTM Builder',
+    category: 'Marketing Lab',
+    icon: ICONS.utm,
+    action: () => router.navigate('marketing-lab', 'utm-builder'),
+    isTool: true,
+  },
+  {
+    id: 'tool:seo-meta',
+    label: 'SEO Meta Generator',
+    category: 'Marketing Lab',
+    icon: ICONS.seo,
+    action: () => router.navigate('marketing-lab', 'seo-meta'),
+    isTool: true,
+  },
+  {
+    id: 'tool:social-counter',
+    label: 'Social Media Counter',
+    category: 'Marketing Lab',
+    icon: ICONS.social,
+    action: () => router.navigate('marketing-lab', 'social-counter'),
+    isTool: true,
+  },
+  {
+    id: 'tool:color-palette',
+    label: 'Color Palette Extractor',
+    category: 'Marketing Lab',
+    icon: ICONS.palette,
+    action: () => router.navigate('marketing-lab', 'color-palette'),
+    isTool: true,
+  },
+  {
+    id: 'tool:social-scheduler',
+    label: 'Social Media Scheduler',
+    category: 'Marketing Lab',
+    icon: ICONS.scheduler,
+    action: () => router.navigate('marketing-lab', 'social-scheduler'),
+    isTool: true,
+  },
+  {
+    id: 'tool:invoice-generator',
+    label: 'Invoice Generator',
+    category: 'Freelance Core',
+    icon: ICONS.invoice,
+    action: () => router.navigate('freelance-core', 'invoice-generator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:rate-calculator',
+    label: 'Rate Calculator',
+    category: 'Freelance Core',
+    icon: ICONS.rate,
+    action: () => router.navigate('freelance-core', 'rate-calculator'),
+    isTool: true,
+  },
+  {
+    id: 'tool:time-tracker',
+    label: 'Time Tracker',
+    category: 'Freelance Core',
+    icon: ICONS.timeTracker,
+    action: () => router.navigate('freelance-core', 'time-tracker'),
+    isTool: true,
+  },
+  {
+    id: 'tool:expense-tracker',
+    label: 'Expense Tracker',
+    category: 'Freelance Core',
+    icon: ICONS.expense,
+    action: () => router.navigate('freelance-core', 'expense-tracker'),
+    isTool: true,
+  },
+  {
+    id: 'tool:contract-templates',
+    label: 'Contract Templates',
+    category: 'Freelance Core',
+    icon: ICONS.contract,
+    action: () => router.navigate('freelance-core', 'contract-templates'),
+    isTool: true,
+  },
+  {
+    id: 'tool:client-manager',
+    label: 'Client Manager',
+    category: 'Freelance Core',
+    icon: ICONS.clients,
+    action: () => router.navigate('freelance-core', 'client-manager'),
+    isTool: true,
+  },
+  {
+    id: 'tool:project-manager',
+    label: 'Projects',
+    category: 'Freelance Core',
+    icon: ICONS.projects,
+    action: () => router.navigate('freelance-core', 'project-manager'),
+    isTool: true,
+  },
+  {
+    id: 'settings:accent',
+    label: 'Settings',
+    category: 'Settings',
+    icon: ICONS.settings,
+    action: () => events.emit('palette:open-settings'),
+  },
+  {
+    id: 'settings:defaults',
+    label: 'Defaults',
+    category: 'Settings',
+    icon: ICONS.defaults,
+    action: () => events.emit('palette:open-defaults'),
+  },
 ];
 
 export class TopBar {
@@ -161,11 +478,15 @@ export class TopBar {
     const query = (this.input?.value || '').toLowerCase().trim();
 
     if (!query) {
-      const tools = COMMANDS.filter(c => c.isTool);
-      tools.sort((a, b) => (this.usageCache[b.id.replace('tool:', '')] || 0) - (this.usageCache[a.id.replace('tool:', '')] || 0));
+      const tools = COMMANDS.filter((c) => c.isTool);
+      tools.sort(
+        (a, b) =>
+          (this.usageCache[b.id.replace('tool:', '')] || 0) -
+          (this.usageCache[a.id.replace('tool:', '')] || 0),
+      );
       this.filteredCommands = tools.slice(0, 10);
     } else {
-      this.filteredCommands = COMMANDS.filter(cmd => {
+      this.filteredCommands = COMMANDS.filter((cmd) => {
         const searchText = `${cmd.label} ${cmd.category}`.toLowerCase();
         return this.fuzzyMatch(query, searchText);
       });
@@ -202,13 +523,13 @@ export class TopBar {
     if (!this.resultsEl) return;
 
     if (this.filteredCommands.length === 0) {
-      this.resultsEl.innerHTML = `<div class="tbdd-empty">No results for "${query}"</div>`;
+      this.resultsEl.innerHTML = `<div class="tbdd-empty">No results for "${escapeHtml(query)}"</div>`;
       return;
     }
 
     const grouped: Record<string, Command[]> = {};
     for (const cmd of this.filteredCommands) {
-      const cat = query ? cmd.category : (cmd.isTool ? 'Frequently Used' : cmd.category);
+      const cat = query ? cmd.category : cmd.isTool ? 'Frequently Used' : cmd.category;
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(cmd);
     }
@@ -222,7 +543,7 @@ export class TopBar {
         const isSelected = globalIndex === this.selectedIndex;
         const toolId = cmd.id.replace('tool:', '');
         const count = this.usageCache[toolId];
-        const meta = (!query && count) ? `<span class="tbdd-item__count">${count}×</span>` : '';
+        const meta = !query && count ? `<span class="tbdd-item__count">${count}×</span>` : '';
         html += `
           <div class="tbdd-item ${isSelected ? 'tbdd-item--selected' : ''}"
                data-index="${globalIndex}" data-id="${cmd.id}">
@@ -237,10 +558,10 @@ export class TopBar {
 
     this.resultsEl.innerHTML = html;
 
-    this.resultsEl.querySelectorAll('.tbdd-item').forEach(item => {
+    this.resultsEl.querySelectorAll('.tbdd-item').forEach((item) => {
       item.addEventListener('click', () => {
         const cmdId = (item as HTMLElement).dataset.id;
-        const cmd = this.filteredCommands.find(c => c.id === cmdId);
+        const cmd = this.filteredCommands.find((c) => c.id === cmdId);
         if (cmd?.action) {
           this.close();
           cmd.action();
@@ -266,7 +587,7 @@ export class TopBar {
   }
 
   private updateSelection(): void {
-    this.resultsEl?.querySelectorAll('.tbdd-item').forEach(item => {
+    this.resultsEl?.querySelectorAll('.tbdd-item').forEach((item) => {
       const index = parseInt((item as HTMLElement).dataset.index!);
       item.classList.toggle('tbdd-item--selected', index === this.selectedIndex);
     });

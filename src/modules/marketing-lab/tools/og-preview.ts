@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard } from '../../../utils/image';
 
 export class OgPreview {
   id = 'og-preview';
@@ -74,10 +75,12 @@ export class OgPreview {
     this.outputEl = root.querySelector('#og-output')!;
 
     const update = () => this.update(root);
-    [this.titleInput, this.descInput, this.urlInput, this.imageInput].forEach(el => el.addEventListener('input', update));
+    [this.titleInput, this.descInput, this.urlInput, this.imageInput].forEach((el) =>
+      el.addEventListener('input', update),
+    );
 
     root.querySelector('#og-copy')!.addEventListener('click', () => {
-      navigator.clipboard.writeText(this.outputEl.textContent || '');
+      void copyToClipboard(this.outputEl.textContent || '');
       Toast.copied('Meta Tags');
       logToolAction('og-preview', 'Copied OG meta tags');
     });
@@ -118,20 +121,30 @@ export class OgPreview {
     liImg.style.backgroundImage = image ? `url(${image})` : '';
 
     let tags = '';
-    if (this.titleInput.value) tags += `<meta property="og:title" content="${this.titleInput.value}">\n`;
-    if (this.descInput.value) tags += `<meta property="og:description" content="${this.descInput.value}">\n`;
+    if (this.titleInput.value)
+      tags += `<meta property="og:title" content="${this.titleInput.value}">\n`;
+    if (this.descInput.value)
+      tags += `<meta property="og:description" content="${this.descInput.value}">\n`;
     if (this.urlInput.value) tags += `<meta property="og:url" content="${this.urlInput.value}">\n`;
-    if (this.imageInput.value) tags += `<meta property="og:image" content="${this.imageInput.value}">\n`;
+    if (this.imageInput.value)
+      tags += `<meta property="og:image" content="${this.imageInput.value}">\n`;
     tags += `<meta property="og:type" content="website">\n`;
-    if (this.titleInput.value) tags += `<meta name="twitter:title" content="${this.titleInput.value}">\n`;
-    if (this.descInput.value) tags += `<meta name="twitter:description" content="${this.descInput.value}">\n`;
-    if (this.imageInput.value) tags += `<meta name="twitter:image" content="${this.imageInput.value}">\n`;
+    if (this.titleInput.value)
+      tags += `<meta name="twitter:title" content="${this.titleInput.value}">\n`;
+    if (this.descInput.value)
+      tags += `<meta name="twitter:description" content="${this.descInput.value}">\n`;
+    if (this.imageInput.value)
+      tags += `<meta name="twitter:image" content="${this.imageInput.value}">\n`;
     tags += `<meta name="twitter:card" content="summary_large_image">`;
     this.outputEl.textContent = tags || '<!-- Fill in fields to generate tags -->';
   }
 
   private extractDomain(url: string): string {
-    try { return new URL(url).hostname; } catch { return 'example.com'; }
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'example.com';
+    }
   }
 
   destroy(): void {}

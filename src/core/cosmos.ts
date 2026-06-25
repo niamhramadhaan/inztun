@@ -22,13 +22,15 @@ export class Cosmos {
   private animationId: number | null = null;
   private width: number = 0;
   private height: number = 0;
+  private boundResize: () => void;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
+    this.boundResize = () => this.resize();
     this.resize();
     this.init();
-    window.addEventListener('resize', () => this.resize());
+    window.addEventListener('resize', this.boundResize);
   }
 
   resize(): void {
@@ -65,8 +67,12 @@ export class Cosmos {
 
     for (const nebula of this.nebulae) {
       const gradient = ctx.createRadialGradient(
-        nebula.x, nebula.y, 0,
-        nebula.x, nebula.y, nebula.radius
+        nebula.x,
+        nebula.y,
+        0,
+        nebula.x,
+        nebula.y,
+        nebula.radius,
       );
       gradient.addColorStop(0, `rgba(${nebula.color}, 0.03)`);
       gradient.addColorStop(0.5, `rgba(${nebula.color}, 0.01)`);
@@ -113,6 +119,6 @@ export class Cosmos {
 
   destroy(): void {
     this.stop();
-    window.removeEventListener('resize', () => this.resize());
+    window.removeEventListener('resize', this.boundResize);
   }
 }

@@ -48,7 +48,7 @@ export class SocialCounter {
     const countEl = document.getElementById('mls-count');
     if (countEl) countEl.textContent = `${len} chars`;
 
-    this.barsEl.innerHTML = PLATFORMS.map(p => {
+    this.barsEl.innerHTML = PLATFORMS.map((p) => {
       const remaining = p.limit - len;
       const pct = Math.min((len / p.limit) * 100, 100);
       const isOver = remaining < 0;

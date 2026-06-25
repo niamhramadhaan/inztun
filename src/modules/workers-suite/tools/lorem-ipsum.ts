@@ -1,4 +1,5 @@
 import { Toast } from '../../../components/Toast';
+import { copyToClipboard } from '../../../utils/image';
 
 export class LoremIpsum {
   id = 'lorem-ipsum';
@@ -7,7 +8,10 @@ export class LoremIpsum {
       <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
     </svg>`;
   badge = '';
-  private words = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum'.split(' ');
+  private words =
+    'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum'.split(
+      ' ',
+    );
   private typeEl!: HTMLSelectElement;
   private countEl!: HTMLInputElement;
   private outputEl!: HTMLDivElement;
@@ -52,7 +56,8 @@ export class LoremIpsum {
     this.outputEl = root.querySelector('#li-output') as HTMLDivElement;
     this.countDisplayEl = root.querySelector('#li-output-count') as HTMLSpanElement;
 
-    const bind = (id: string, fn: () => void): void => root.querySelector(`#${id}`)?.addEventListener('click', fn);
+    const bind = (id: string, fn: () => void): void =>
+      root.querySelector(`#${id}`)?.addEventListener('click', fn);
 
     bind('li-generate', () => this.generate());
     bind('li-copy', () => this.copy());
@@ -65,9 +70,15 @@ export class LoremIpsum {
     const count = parseInt(this.countEl.value) || 3;
     let output = '';
     switch (type) {
-      case 'paragraphs': output = Array.from({ length: count }, () => this.paragraph()).join('\n\n'); break;
-      case 'sentences': output = Array.from({ length: count }, () => this.sentence()).join(' '); break;
-      case 'words': output = Array.from({ length: count }, () => this.word()).join(' '); break;
+      case 'paragraphs':
+        output = Array.from({ length: count }, () => this.paragraph()).join('\n\n');
+        break;
+      case 'sentences':
+        output = Array.from({ length: count }, () => this.sentence()).join(' ');
+        break;
+      case 'words':
+        output = Array.from({ length: count }, () => this.word()).join(' ');
+        break;
     }
     this.outputEl.textContent = output;
     if (this.countDisplayEl) {
@@ -75,16 +86,22 @@ export class LoremIpsum {
     }
   }
 
-  paragraph(): string { return Array.from({ length: Math.floor(Math.random() * 4) + 3 }, () => this.sentence()).join(' '); }
+  paragraph(): string {
+    return Array.from({ length: Math.floor(Math.random() * 4) + 3 }, () => this.sentence()).join(
+      ' ',
+    );
+  }
   sentence(): string {
     const words = Array.from({ length: Math.floor(Math.random() * 8) + 5 }, () => this.word());
     words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
     return words.join(' ') + '.';
   }
-  word(): string { return this.words[Math.floor(Math.random() * this.words.length)]; }
+  word(): string {
+    return this.words[Math.floor(Math.random() * this.words.length)];
+  }
 
   async copy(): Promise<void> {
-    await navigator.clipboard.writeText(this.outputEl.textContent || '');
+    await copyToClipboard(this.outputEl.textContent || '');
     Toast.copied('Text');
   }
 
@@ -93,7 +110,7 @@ export class LoremIpsum {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'lorem-ipsum.txt';
+    a.download = `[Inztun] lorem-ipsum-${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     Toast.success('Downloaded');

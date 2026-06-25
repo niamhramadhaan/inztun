@@ -1,6 +1,6 @@
+import type { TileSpan, Tool, ToolInfo, ToolRegistryEntry } from '../types/index';
 import { Tile } from './Tile';
 import { Toast } from './Toast';
-import type { Tool, ToolRegistryEntry, ToolInfo, TileSpan } from '../types/index';
 
 export interface Category {
   id: string;
@@ -23,7 +23,17 @@ export interface CreateToolCardParams {
 }
 
 export function createToolCard(params: CreateToolCardParams): HTMLElement {
-  const { toolId, tool, span, featured, index, isFavorite, description, onToggleFavorite, onNavigate } = params;
+  const {
+    toolId,
+    tool,
+    span,
+    featured,
+    index,
+    isFavorite,
+    description,
+    onToggleFavorite,
+    onNavigate,
+  } = params;
 
   const card = new Tile({
     title: tool.name,
@@ -58,7 +68,11 @@ export function createToolCard(params: CreateToolCardParams): HTMLElement {
     onToggleFavorite(toolId);
     favBtn.classList.toggle('tile__fav-btn--active');
     favBtn.textContent = favBtn.classList.contains('tile__fav-btn--active') ? '★' : '☆';
-    Toast.info(favBtn.classList.contains('tile__fav-btn--active') ? 'Added to favorites' : 'Removed from favorites');
+    Toast.info(
+      favBtn.classList.contains('tile__fav-btn--active')
+        ? 'Added to favorites'
+        : 'Removed from favorites',
+    );
   });
 
   return element;
@@ -79,8 +93,8 @@ export function createTipsPanel(params: CreateTipsPanelParams): HTMLElement {
   panel.className = 'tips-panel';
 
   const relatedTools = allTools
-    .filter(t => data.related.includes(t.id))
-    .map(t => `<a class="tips-related__link" data-tool="${t.id}">${new t.Tool().name}</a>`)
+    .filter((t) => data.related.includes(t.id))
+    .map((t) => `<a class="tips-related__link" data-tool="${t.id}">${new t.Tool().name}</a>`)
     .join('');
 
   panel.innerHTML = `
@@ -95,8 +109,8 @@ export function createTipsPanel(params: CreateTipsPanelParams): HTMLElement {
       </svg>
     </button>
     <div class="tips-content" style="display:block;">
-      ${data.useCases.length ? `<div class="tips-section"><h4 class="tips-section__title">Use Cases</h4><ul class="tips-list">${data.useCases.map(uc => `<li>${uc}</li>`).join('')}</ul></div>` : ''}
-      ${data.tips.length ? `<div class="tips-section"><h4 class="tips-section__title">Pro Tips</h4><ul class="tips-list">${data.tips.map(tip => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
+      ${data.useCases.length ? `<div class="tips-section"><h4 class="tips-section__title">Use Cases</h4><ul class="tips-list">${data.useCases.map((uc) => `<li>${uc}</li>`).join('')}</ul></div>` : ''}
+      ${data.tips.length ? `<div class="tips-section"><h4 class="tips-section__title">Pro Tips</h4><ul class="tips-list">${data.tips.map((tip) => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
       ${relatedTools ? `<div class="tips-section tips-related"><h4 class="tips-section__title">Related Tools</h4><div class="tips-related__links">${relatedTools}</div></div>` : ''}
     </div>
   `;
@@ -112,7 +126,7 @@ export function createTipsPanel(params: CreateTipsPanelParams): HTMLElement {
     panel.classList.toggle('tips-panel--expanded', !expanded);
   });
 
-  panel.querySelectorAll('.tips-related__link').forEach(link => {
+  panel.querySelectorAll('.tips-related__link').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       onNavigate(moduleId, (link as HTMLElement).dataset.tool!);

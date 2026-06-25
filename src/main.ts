@@ -3,25 +3,26 @@ import './styles/base.css';
 import './styles/grid.css';
 import './styles/components.css';
 
-import { Cosmos } from './core/cosmos';
-import { events, EVENTS } from './core/events';
-import { router, ROUTES } from './core/router';
-import { db } from './core/db';
+import { BottomNav } from './components/BottomNav';
 import { CommandPalette } from './components/CommandPalette';
+import { DefaultsPanel } from './components/DefaultsPanel';
 import { FloatingOrb } from './components/FloatingOrb';
 import { SettingsPanel } from './components/SettingsPanel';
-import { DefaultsPanel } from './components/DefaultsPanel';
 import { ShortcutGuide } from './components/ShortcutGuide';
+import { Toast } from './components/Toast';
 import { TopBar } from './components/TopBar';
-import { BottomNav } from './components/BottomNav';
-import { LockScreen } from './components/LockScreen';
-import { Home } from './modules/home/index';
-import { WorkerSuite } from './modules/workers-suite/index';
-import { Playground } from './modules/playground/index';
+import { Cosmos } from './core/cosmos';
+import { db } from './core/db';
+import { EVENTS, events } from './core/events';
+import { ROUTES, router } from './core/router';
 import { DesignStudio } from './modules/design-studio/index';
-import { MarketingLab } from './modules/marketing-lab/index';
 import { FreelanceCore } from './modules/freelance-core/index';
+import { Home } from './modules/home/index';
+import { MarketingLab } from './modules/marketing-lab/index';
+import { Playground } from './modules/playground/index';
+import { WorkerSuite } from './modules/workers-suite/index';
 import type { Accent } from './types/index';
+import { copyToClipboard } from './utils/image';
 
 class Inztun {
   private cosmos: Cosmos | null = null;
@@ -32,8 +33,23 @@ class Inztun {
   private shortcutGuide: ShortcutGuide | null = null;
   private topBar: TopBar | null = null;
   private bottomNav: BottomNav | null = null;
-  private activeModule: Home | WorkerSuite | Playground | DesignStudio | MarketingLab | FreelanceCore | null = null;
-  private modules = new Map<string, typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore>();
+  private activeModule:
+    | Home
+    | WorkerSuite
+    | Playground
+    | DesignStudio
+    | MarketingLab
+    | FreelanceCore
+    | null = null;
+  private modules = new Map<
+    string,
+    | typeof Home
+    | typeof WorkerSuite
+    | typeof Playground
+    | typeof DesignStudio
+    | typeof MarketingLab
+    | typeof FreelanceCore
+  >();
   private workspace: HTMLElement;
 
   constructor() {
@@ -47,10 +63,6 @@ class Inztun {
     this.cosmos.start();
 
     await this.loadAccent();
-
-    // Lock screen gate
-    const lockScreen = new LockScreen();
-    await lockScreen.show();
 
     this.commandPalette = new CommandPalette();
     this.floatingOrb = new FloatingOrb(this.commandPalette);
@@ -75,16 +87,15 @@ class Inztun {
     if (route.module) {
       this.loadModule(route.module);
     } else {
-      const lastModule = await db.getPreference('activeModule', 'home') as string;
+      const lastModule = (await db.getPreference('activeModule', 'home')) as string;
       router.navigate(lastModule);
     }
 
     document.body.classList.add('loaded');
-    console.log('%c✦ inztun initialized', 'color: #c9a96e; font-weight: bold;');
   }
 
   private async loadAccent(): Promise<void> {
-    const accent = await db.getPreference('accent', null) as Accent | null;
+    const accent = (await db.getPreference('accent', null)) as Accent | null;
     if (accent && accent.hex && accent.rgb) {
       const root = document.documentElement;
       root.style.setProperty('--accent', accent.hex);
@@ -94,19 +105,41 @@ class Inztun {
     }
   }
 
-  private registerModule(id: string, ModuleClass: typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore): void {
+  private registerModule(
+    id: string,
+    ModuleClass:
+      | typeof Home
+      | typeof WorkerSuite
+      | typeof Playground
+      | typeof DesignStudio
+      | typeof MarketingLab
+      | typeof FreelanceCore,
+  ): void {
     this.modules.set(id, ModuleClass);
   }
 
   private bindEvents(): void {
-    events.on(ROUTES.CHANGE, ({ current, prev }: { current: { module: string | null; tool: string | null }; prev: { module: string | null } }) => {
-      if (current.module !== prev.module && current.module) this.loadModule(current.module);
-      if (current.tool) db.trackToolUse(current.tool);
-    });
+    events.on(
+      ROUTES.CHANGE,
+      ({
+        current,
+        prev,
+      }: {
+        current: { module: string | null; tool: string | null };
+        prev: { module: string | null };
+      }) => {
+        if (current.module !== prev.module && current.module) this.loadModule(current.module);
+        if (current.tool) db.trackToolUse(current.tool);
+      },
+    );
 
     events.on(EVENTS.MODULE_CHANGE, (moduleId) => router.navigate(moduleId as string));
-    events.on(EVENTS.TOOL_SELECT, ({ moduleId, toolId }: { moduleId: string; toolId: string }) => router.navigate(moduleId, toolId));
-    events.on(EVENTS.NOTIFICATION, ({ message, type }: { message: string; type?: string }) => this.showNotification(message, type));
+    events.on(EVENTS.TOOL_SELECT, ({ moduleId, toolId }: { moduleId: string; toolId: string }) =>
+      router.navigate(moduleId, toolId),
+    );
+    events.on(EVENTS.NOTIFICATION, ({ message, type }: { message: string; type?: string }) =>
+      this.showNotification(message, type),
+    );
 
     events.on('palette:open-settings', () => this.settingsPanel?.open());
     events.on('palette:open-defaults', () => this.defaultsPanel?.open());
@@ -115,38 +148,55 @@ class Inztun {
     document.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        const primary = document.querySelector('.tool-view:not([style*="display: none"]) .btn--primary') as HTMLButtonElement;
+        const primary = document.querySelector(
+          '.tool-view:not([style*="display: none"]) .btn--primary',
+        ) as HTMLButtonElement;
         primary?.click();
       }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'C') {
         e.preventDefault();
-        const output = document.querySelector('.tool-view:not([style*="display: none"]) .input--textarea, .tool-view:not([style*="display: none"]) [id$="-output"]') as HTMLElement;
+        const output = document.querySelector(
+          '.tool-view:not([style*="display: none"]) .input--textarea, .tool-view:not([style*="display: none"]) [id$="-output"]',
+        ) as HTMLElement;
         if (output) {
-          navigator.clipboard.writeText(output.textContent || '');
+          void copyToClipboard(output.textContent || '');
           Toast.copied();
         }
       }
-      if (e.key === '?' && !e.defaultPrevented && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'SELECT') {
+      if (
+        e.key === '?' &&
+        !e.defaultPrevented &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA' &&
+        document.activeElement?.tagName !== 'SELECT'
+      ) {
         e.preventDefault();
         this.shortcutGuide?.open();
       }
     });
   }
 
-  private loadModule(moduleId: string): void {
+  private async loadModule(moduleId: string): Promise<void> {
     const ModuleClass = this.modules.get(moduleId);
     if (!ModuleClass) return;
 
     if (this.activeModule) this.activeModule.destroy?.();
     this.workspace.innerHTML = '';
 
-    this.activeModule = new (ModuleClass as typeof Home | typeof WorkerSuite | typeof Playground | typeof DesignStudio | typeof MarketingLab | typeof FreelanceCore)(this.workspace);
+    this.activeModule = new (
+      ModuleClass as
+        | typeof Home
+        | typeof WorkerSuite
+        | typeof Playground
+        | typeof DesignStudio
+        | typeof MarketingLab
+        | typeof FreelanceCore
+    )(this.workspace);
     if ('render' in this.activeModule) {
-      (this.activeModule as WorkerSuite).render();
+      await (this.activeModule as WorkerSuite).render();
     }
 
     db.setPreference('activeModule', moduleId);
-    console.log(`%c→ ${moduleId}`, 'color: #8a8a9a;');
   }
 
   private showNotification(message: string, type = 'info'): void {

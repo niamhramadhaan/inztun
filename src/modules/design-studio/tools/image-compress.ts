@@ -1,6 +1,14 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, createDropZone, bindClipboardPaste, formatBytes, getExtFromMime } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  createDropZone,
+  downloadBlob,
+  formatBytes,
+  getExtFromMime,
+  loadImage,
+} from '../../../utils/image';
 
 export class ImageCompress {
   id = 'image-compress';
@@ -128,7 +136,10 @@ export class ImageCompress {
   }
 
   private async handleFile(file: File): Promise<void> {
-    if (!file.type.startsWith('image/')) { Toast.error('Not an image file'); return; }
+    if (!file.type.startsWith('image/')) {
+      Toast.error('Not an image file');
+      return;
+    }
     this.originalFile = file;
     this.originalImage = await loadImage(file);
     this.showUI();
@@ -150,7 +161,9 @@ export class ImageCompress {
     const ratio = Math.min(max / this.originalImage.width, max / this.originalImage.height, 1);
     this.originalCanvas.width = Math.round(this.originalImage.width * ratio);
     this.originalCanvas.height = Math.round(this.originalImage.height * ratio);
-    this.originalCanvas.getContext('2d')!.drawImage(this.originalImage, 0, 0, this.originalCanvas.width, this.originalCanvas.height);
+    this.originalCanvas
+      .getContext('2d')!
+      .drawImage(this.originalImage, 0, 0, this.originalCanvas.width, this.originalCanvas.height);
     this.originalSizeEl.textContent = formatBytes(this.originalFile!.size);
   }
 
@@ -166,13 +179,16 @@ export class ImageCompress {
     this.compressedCanvas.width = w;
     this.compressedCanvas.height = h;
     const ctx = this.compressedCanvas.getContext('2d')!;
-    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+    }
     ctx.drawImage(this.originalImage, 0, 0, w, h);
 
     const blob = await canvasToBlob(this.compressedCanvas, format, quality);
     this.compressedSizeEl.textContent = formatBytes(blob.size);
     const original = this.originalFile!.size;
-    const savings = ((1 - blob.size / original) * 100);
+    const savings = (1 - blob.size / original) * 100;
 
     const barWrap = document.getElementById('imgc-bar-wrap')!;
     barWrap.style.display = '';
@@ -180,28 +196,40 @@ export class ImageCompress {
     this.sizeBarEl.style.width = `${pct}%`;
     this.sizeBarEl.style.background = savings > 0 ? 'var(--color-success)' : 'var(--color-error)';
 
-    this.savingsEl.textContent = savings > 0
-      ? `${savings.toFixed(1)}% smaller`
-      : savings < 0
-        ? `${Math.abs(savings).toFixed(1)}% larger (try lower quality)`
-        : 'Same size';
-    this.savingsEl.className = 'imgc-savings ' + (savings > 0 ? 'imgc-savings--positive' : savings < 0 ? 'imgc-savings--negative' : '');
+    this.savingsEl.textContent =
+      savings > 0
+        ? `${savings.toFixed(1)}% smaller`
+        : savings < 0
+          ? `${Math.abs(savings).toFixed(1)}% larger (try lower quality)`
+          : 'Same size';
+    this.savingsEl.className =
+      'imgc-savings ' +
+      (savings > 0 ? 'imgc-savings--positive' : savings < 0 ? 'imgc-savings--negative' : '');
   }
 
   private async autoCompress(): Promise<void> {
     const targetKB = parseInt(this.targetInput.value);
-    if (!targetKB || targetKB <= 0) { Toast.error('Enter a target size in KB'); return; }
+    if (!targetKB || targetKB <= 0) {
+      Toast.error('Enter a target size in KB');
+      return;
+    }
     if (!this.originalImage) return;
 
     const targetBytes = targetKB * 1024;
     const format = this.formatSelect.value as string;
 
-    let low = 1, high = 100, best = 1;
+    let low = 1,
+      high = 100,
+      best = 1;
     for (let i = 0; i < 10; i++) {
       const mid = Math.round((low + high) / 2);
       const blob = await canvasToBlob(this.compressedCanvas, format, mid / 100);
-      if (blob.size <= targetBytes) { best = mid; low = mid + 1; }
-      else { high = mid - 1; }
+      if (blob.size <= targetBytes) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
     }
 
     this.qualitySlider.value = String(best);
@@ -219,7 +247,10 @@ export class ImageCompress {
     offscreen.width = this.originalImage.naturalWidth;
     offscreen.height = this.originalImage.naturalHeight;
     const ctx = offscreen.getContext('2d')!;
-    if (format === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, offscreen.width, offscreen.height); }
+    if (format === 'image/jpeg') {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+    }
     ctx.drawImage(this.originalImage, 0, 0);
 
     const blob = await canvasToBlob(offscreen, format, quality);

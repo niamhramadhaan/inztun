@@ -1,8 +1,9 @@
+import { getCurrencySymbol } from '../../../components/SettingsPanel';
 import { Toast } from '../../../components/Toast';
-import { db, type Client, type Project, type Note } from '../../../core/db';
+import { type Client, db, type Note, type Project } from '../../../core/db';
 import { router } from '../../../core/router';
 import { wireSharedInputs } from '../../../core/shared-inputs';
-import { getCurrencySymbol } from '../../../components/SettingsPanel';
+import { escapeHtml } from '../../../utils/image';
 
 export class ClientManager {
   id = 'client-manager';
@@ -95,26 +96,30 @@ export class ClientManager {
       company: (document.getElementById('fccl-company') as HTMLInputElement).value,
       email: (document.getElementById('fccl-email') as HTMLInputElement).value,
       phone: (document.getElementById('fccl-phone') as HTMLInputElement).value,
-      status: (document.getElementById('fccl-status') as HTMLSelectElement).value as Client['status'],
+      status: (document.getElementById('fccl-status') as HTMLSelectElement)
+        .value as Client['status'],
       notes: (document.getElementById('fccl-notes') as HTMLTextAreaElement).value,
     };
 
     if (this.editingId) {
-      const i = this.clients.findIndex(c => c.id === this.editingId);
+      const i = this.clients.findIndex((c) => c.id === this.editingId);
       if (i >= 0) this.clients[i] = client;
     } else {
       this.clients.unshift(client);
     }
 
     db.putClient(client);
-    db.logActivity(this.editingId ? 'client-update' : 'client-add', `${this.editingId ? 'Updated' : 'Added'} client: ${client.name}`);
+    db.logActivity(
+      this.editingId ? 'client-update' : 'client-add',
+      `${this.editingId ? 'Updated' : 'Added'} client: ${client.name}`,
+    );
     this.renderList();
     this.clearForm();
     Toast.success(this.editingId ? 'Client updated' : 'Client added');
   }
 
   private editClient(id: number): void {
-    const client = this.clients.find(c => c.id === id);
+    const client = this.clients.find((c) => c.id === id);
     if (!client) return;
 
     this.editingId = id;
@@ -127,7 +132,8 @@ export class ClientManager {
   }
 
   private deleteClient(id: number): void {
-    this.clients = this.clients.filter(c => c.id !== id);
+    if (!confirm('Delete this client?')) return;
+    this.clients = this.clients.filter((c) => c.id !== id);
     db.deleteClient(id);
     this.renderList();
     Toast.success('Client deleted');
@@ -135,7 +141,7 @@ export class ClientManager {
 
   private clearForm(): void {
     this.editingId = null;
-    ['fccl-name', 'fccl-company', 'fccl-email', 'fccl-phone', 'fccl-notes'].forEach(id => {
+    ['fccl-name', 'fccl-company', 'fccl-email', 'fccl-phone', 'fccl-notes'].forEach((id) => {
       const el = document.getElementById(id) as HTMLInputElement;
       if (el) el.value = '';
     });
@@ -168,18 +174,28 @@ export class ClientManager {
   }
 
   private async saveProject(clientId: number): Promise<void> {
-    const name = (document.getElementById(`fcpj-name-${clientId}`) as HTMLInputElement)?.value.trim();
+    const name = (
+      document.getElementById(`fcpj-name-${clientId}`) as HTMLInputElement
+    )?.value.trim();
     if (!name) return;
 
-    const description = (document.getElementById(`fcpj-desc-${clientId}`) as HTMLTextAreaElement)?.value || '';
-    const status = (document.getElementById(`fcpj-status-${clientId}`) as HTMLSelectElement)?.value as Project['status'] || 'active';
-    const budgetStr = (document.getElementById(`fcpj-budget-${clientId}`) as HTMLInputElement)?.value;
+    const description =
+      (document.getElementById(`fcpj-desc-${clientId}`) as HTMLTextAreaElement)?.value || '';
+    const status =
+      ((document.getElementById(`fcpj-status-${clientId}`) as HTMLSelectElement)
+        ?.value as Project['status']) || 'active';
+    const budgetStr = (document.getElementById(`fcpj-budget-${clientId}`) as HTMLInputElement)
+      ?.value;
     const budget = budgetStr ? parseFloat(budgetStr) : undefined;
-    const currency = (document.getElementById(`fcpj-currency-${clientId}`) as HTMLInputElement)?.value || undefined;
-    const deadline = (document.getElementById(`fcpj-deadline-${clientId}`) as HTMLInputElement)?.value || undefined;
+    const currency =
+      (document.getElementById(`fcpj-currency-${clientId}`) as HTMLInputElement)?.value ||
+      undefined;
+    const deadline =
+      (document.getElementById(`fcpj-deadline-${clientId}`) as HTMLInputElement)?.value ||
+      undefined;
 
     if (this.editingProjectId) {
-      const existing = this.projects.find(p => p.id === this.editingProjectId);
+      const existing = this.projects.find((p) => p.id === this.editingProjectId);
       if (existing) {
         existing.name = name;
         existing.description = description;
@@ -192,7 +208,15 @@ export class ClientManager {
         Toast.success('Project updated');
       }
     } else {
-      const project = await db.createProject({ clientId, name, description, status, budget, currency, deadline });
+      const project = await db.createProject({
+        clientId,
+        name,
+        description,
+        status,
+        budget,
+        currency,
+        deadline,
+      });
       this.projects.unshift(project);
       db.logActivity('project-create', `Created project: ${name}`);
       Toast.success('Project created');
@@ -204,14 +228,15 @@ export class ClientManager {
   }
 
   private async deleteProject(projectId: number): Promise<void> {
-    this.projects = this.projects.filter(p => p.id !== projectId);
+    if (!confirm('Delete this project?')) return;
+    this.projects = this.projects.filter((p) => p.id !== projectId);
     await db.deleteProject(projectId);
     this.renderList();
     Toast.success('Project deleted');
   }
 
   private getClientProjects(clientId: number): Project[] {
-    return this.projects.filter(p => p.clientId === clientId);
+    return this.projects.filter((p) => p.clientId === clientId);
   }
 
   private renderList(): void {
@@ -227,59 +252,69 @@ export class ClientManager {
       archived: 'var(--text-muted)',
     };
 
-    this.listEl.innerHTML = this.clients.length === 0
-      ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No clients yet.</p>'
-      : this.clients.map(c => {
-        const isExpanded = this.expandedClientId === c.id;
-        const clientProjects = this.getClientProjects(c.id);
-        const activeCount = clientProjects.filter(p => p.status === 'active').length;
+    this.listEl.innerHTML =
+      this.clients.length === 0
+        ? '<p style="color:var(--text-muted);font-size:var(--text-sm);">No clients yet.</p>'
+        : this.clients
+            .map((c) => {
+              const isExpanded = this.expandedClientId === c.id;
+              const clientProjects = this.getClientProjects(c.id);
+              const activeCount = clientProjects.filter((p) => p.status === 'active').length;
 
-        let projectsHtml = '';
-        if (isExpanded) {
-          const showProjectForm = this.projectFormClientId === c.id;
-          const editingProject = this.editingProjectId ? this.projects.find(p => p.id === this.editingProjectId) : null;
+              let projectsHtml = '';
+              if (isExpanded) {
+                const showProjectForm = this.projectFormClientId === c.id;
+                const editingProject = this.editingProjectId
+                  ? this.projects.find((p) => p.id === this.editingProjectId)
+                  : null;
 
-          projectsHtml = `
+                projectsHtml = `
             <div class="fccl-projects">
               <div class="fccl-projects__header">
                 <span class="fccl-projects__count">${clientProjects.length} project${clientProjects.length !== 1 ? 's' : ''}</span>
                 <button class="btn btn--ghost btn--sm fccl-new-project" data-client-id="${c.id}">+ New Project</button>
               </div>
-              ${showProjectForm ? this.renderProjectForm(c.id, editingProject) : ''}
-              ${clientProjects.length === 0 && !showProjectForm
-                ? '<p style="color:var(--text-ghost);font-size:var(--text-xs);padding:var(--space-2) 0;">No projects yet.</p>'
-                : clientProjects.map(p => `
+              ${showProjectForm ? this.renderProjectForm(c.id, editingProject ?? null) : ''}
+              ${
+                clientProjects.length === 0 && !showProjectForm
+                  ? '<p style="color:var(--text-ghost);font-size:var(--text-xs);padding:var(--space-2) 0;">No projects yet.</p>'
+                  : clientProjects
+                      .map(
+                        (p) => `
                   <div class="fccl-project-card">
                     <div class="fccl-project-card__header">
-                      <span class="fccl-project-card__name">${p.name}</span>
+                      <span class="fccl-project-card__name">${escapeHtml(p.name)}</span>
                       <span class="fccl-project-card__status" style="color:${projectStatusColors[p.status]}">${p.status}</span>
                     </div>
                     <div class="fccl-project-card__meta">
                       ${p.deadline ? `<span class="fccl-project-card__deadline">${this.formatDeadline(p.deadline)}</span>` : ''}
                       ${p.budget ? `<span class="fccl-project-card__budget">${p.currency || this.currencySymbol}${p.budget.toLocaleString()}</span>` : ''}
                     </div>
-                    ${p.description ? `<p class="fccl-project-card__desc">${p.description}</p>` : ''}
+                    ${p.description ? `<p class="fccl-project-card__desc">${escapeHtml(p.description)}</p>` : ''}
                     <div class="fccl-project-card__actions">
                       <button class="btn btn--ghost btn--sm fccl-edit-project" data-project-id="${p.id}">Edit</button>
                       <button class="btn btn--ghost btn--sm fccl-delete-project" data-project-id="${p.id}">×</button>
                     </div>
                   </div>
-                `).join('')}
+                `,
+                      )
+                      .join('')
+              }
             </div>
             ${this.renderClientNotes(c.id)}
           `;
-        }
+              }
 
-        return `
+              return `
           <div class="fccl-client ${isExpanded ? 'fccl-client--expanded' : ''}">
             <div class="fccl-client__header fccl-client__header--clickable" data-client-id="${c.id}">
-              <span class="fccl-client__name">${c.name}</span>
+              <span class="fccl-client__name">${escapeHtml(c.name)}</span>
               <span class="fccl-client__badges">
                 ${activeCount > 0 ? `<span class="fccl-client__project-count">${activeCount} active</span>` : ''}
                 <span class="fccl-client__status" style="color:${statusColors[c.status]}">${c.status}</span>
               </span>
             </div>
-            ${c.company ? `<span class="fccl-client__company">${c.company}</span>` : ''}
+            ${c.company ? `<span class="fccl-client__company">${escapeHtml(c.company)}</span>` : ''}
             <div class="fccl-client__actions">
               <button class="btn btn--ghost btn--sm fccl-edit" data-id="${c.id}">Edit</button>
               <button class="btn btn--ghost btn--sm fccl-delete" data-id="${c.id}">×</button>
@@ -287,7 +322,8 @@ export class ClientManager {
             ${projectsHtml}
           </div>
         `;
-      }).join('');
+            })
+            .join('');
 
     this.bindListEvents();
   }
@@ -297,10 +333,10 @@ export class ClientManager {
       <div class="fccl-project-form">
         <div class="fccl-project-form__fields">
           <div class="form-group"><label class="label">Project Name</label>
-            <input type="text" class="input" id="fcpj-name-${clientId}" placeholder="Website Redesign" value="${existing?.name || ''}">
+            <input type="text" class="input" id="fcpj-name-${clientId}" placeholder="Website Redesign" value="${escapeHtml(existing?.name || '')}">
           </div>
           <div class="form-group"><label class="label">Description</label>
-            <textarea class="input input--textarea" id="fcpj-desc-${clientId}" rows="2" placeholder="Project details...">${existing?.description || ''}</textarea>
+            <textarea class="input input--textarea" id="fcpj-desc-${clientId}" rows="2" placeholder="Project details...">${escapeHtml(existing?.description || '')}</textarea>
           </div>
           <div class="fccl-project-form__row">
             <div class="form-group"><label class="label">Status</label>
@@ -341,16 +377,25 @@ export class ClientManager {
           <span class="fccl-notes-section__count">${notes.length} note${notes.length !== 1 ? 's' : ''}</span>
           <button class="btn btn--ghost btn--sm fccl-open-scratchpad" data-client-id="${clientId}">Open in Scratchpad</button>
         </div>
-        ${notes.slice(0, 3).map(n => {
-          const date = new Date(n.updatedAt).toLocaleDateString(this.locale, { month: 'short', day: 'numeric' });
-          const preview = n.content.replace(/[#*`\[\]>_~-]/g, '').trim().slice(0, 50);
-          return `
+        ${notes
+          .slice(0, 3)
+          .map((n) => {
+            const date = new Date(n.updatedAt).toLocaleDateString(this.locale, {
+              month: 'short',
+              day: 'numeric',
+            });
+            const preview = n.content
+              .replace(/[#*`[\]>_~-]/g, '')
+              .trim()
+              .slice(0, 50);
+            return `
             <div class="fccl-note-item" data-note-id="${n.id}">
-              <span class="fccl-note-item__title">${n.title || 'Untitled'}</span>
+              <span class="fccl-note-item__title">${escapeHtml(n.title || 'Untitled')}</span>
               <span class="fccl-note-item__date">${date}</span>
             </div>
           `;
-        }).join('')}
+          })
+          .join('')}
         ${notes.length > 3 ? `<span class="fccl-notes-section__more">+${notes.length - 3} more</span>` : ''}
       </div>
     `;
@@ -370,50 +415,50 @@ export class ClientManager {
   }
 
   private bindListEvents(): void {
-    this.listEl.querySelectorAll('.fccl-client__header--clickable').forEach(el => {
+    this.listEl.querySelectorAll('.fccl-client__header--clickable').forEach((el) => {
       el.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-        if (target.closest('.fccl-client__badges') || target.closest('.fccl-client__name')) {
-          this.toggleExpandClient(parseInt(target.closest('[data-client-id]')!.getAttribute('data-client-id')!));
+        if (
+          target.closest('.fccl-client__badges') ||
+          target.closest('.fccl-client__name') ||
+          target.closest('.fccl-client__header--clickable')
+        ) {
+          this.toggleExpandClient(
+            parseInt(target.closest('[data-client-id]')!.getAttribute('data-client-id')!),
+          );
         }
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-client__header--clickable').forEach(el => {
-      el.addEventListener('click', () => {
-        this.toggleExpandClient(parseInt(el.getAttribute('data-client-id')!));
-      });
-    });
-
-    this.listEl.querySelectorAll('.fccl-edit').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-edit').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.editClient(parseInt((e.target as HTMLElement).dataset.id!));
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-delete').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-delete').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.deleteClient(parseInt((e.target as HTMLElement).dataset.id!));
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-new-project').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-new-project').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.toggleProjectForm(parseInt((e.target as HTMLElement).dataset.clientId!));
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-save-project').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-save-project').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.saveProject(parseInt((e.target as HTMLElement).dataset.clientId!));
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-cancel-project').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-cancel-project').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.projectFormClientId = null;
@@ -422,30 +467,30 @@ export class ClientManager {
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-edit-project').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-edit-project').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const projectId = parseInt((e.target as HTMLElement).dataset.projectId!);
-        const project = this.projects.find(p => p.id === projectId);
+        const project = this.projects.find((p) => p.id === projectId);
         if (project) this.editProject(project);
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-delete-project').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-delete-project').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.deleteProject(parseInt((e.target as HTMLElement).dataset.projectId!));
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-open-scratchpad').forEach(btn => {
+    this.listEl.querySelectorAll('.fccl-open-scratchpad').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         router.navigate('workers-suite', 'scratchpad');
       });
     });
 
-    this.listEl.querySelectorAll('.fccl-note-item').forEach(el => {
+    this.listEl.querySelectorAll('.fccl-note-item').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         router.navigate('workers-suite', 'scratchpad');

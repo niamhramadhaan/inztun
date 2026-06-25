@@ -1,33 +1,43 @@
-import { ToolView } from '../../components/ToolView';
-import { ModuleToolbar } from '../../components/ModuleToolbar';
-import { createToolCard, createTipsPanel, createCategorySection } from '../../components/ModuleHelpers';
 import type { Category } from '../../components/ModuleHelpers';
-import { router } from '../../core/router';
-import { events } from '../../core/events';
-import { db } from '../../core/db';
+import {
+  createCategorySection,
+  createTipsPanel,
+  createToolCard,
+} from '../../components/ModuleHelpers';
+import { ModuleToolbar } from '../../components/ModuleToolbar';
 import { Toast } from '../../components/Toast';
+import { ToolView } from '../../components/ToolView';
+import { db } from '../../core/db';
+import { events } from '../../core/events';
+import { router } from '../../core/router';
+import type {
+  SortMode,
+  Tool,
+  ToolClass,
+  ToolRegistryEntry,
+  ToolViewOptions,
+} from '../../types/index';
 import { getToolInfo } from './tool-data';
-import type { Tool, ToolClass, ToolRegistryEntry, SortMode, ToolViewOptions } from '../../types/index';
-
-import { JsonFormatter } from './tools/json-formatter';
 import { Base64Tool } from './tools/base64';
-import { HashGenerator } from './tools/hash-generator';
-import { UuidGenerator } from './tools/uuid-generator';
-import { LoremIpsum } from './tools/lorem-ipsum';
 import { CharacterCounter } from './tools/char-counter';
-import { UrlEncoder } from './tools/url-encoder';
-import { MarkdownPreview } from './tools/markdown-preview';
-import { MarkdownToHtml } from './tools/markdown-html';
-import { PasswordGenerator } from './tools/password-gen';
+import { ChartCreator } from './tools/chart-creator';
 import { CssUnitConverter } from './tools/css-unit';
-import { Scratchpad } from './tools/scratchpad';
-import { PdfMerge } from './tools/pdf-merge';
-import { PdfSplit } from './tools/pdf-split';
+import { HashGenerator } from './tools/hash-generator';
+import { JsonFormatter } from './tools/json-formatter';
+import { LoremIpsum } from './tools/lorem-ipsum';
+import { MarkdownToHtml } from './tools/markdown-html';
+import { MarkdownPreview } from './tools/markdown-preview';
+import { MdTable } from './tools/md-table';
+import { PasswordGenerator } from './tools/password-gen';
 import { PdfCompress } from './tools/pdf-compress';
-import { PdfProtect } from './tools/pdf-protect';
-import { PdfSign } from './tools/pdf-sign';
-import { PdfToImages } from './tools/pdf-to-images';
+import { PdfMerge } from './tools/pdf-merge';
 import { PdfMetadata } from './tools/pdf-metadata';
+import { PdfSign } from './tools/pdf-sign';
+import { PdfSplit } from './tools/pdf-split';
+import { QrGenerator } from './tools/qr-generator';
+import { Scratchpad } from './tools/scratchpad';
+import { UrlEncoder } from './tools/url-encoder';
+import { UuidGenerator } from './tools/uuid-generator';
 
 const CATEGORIES: Category[] = [
   {
@@ -54,6 +64,7 @@ const CATEGORIES: Category[] = [
     tooltip: 'Format, validate, and transform structured data',
     tools: [
       { id: 'json-formatter', Tool: JsonFormatter, span: { col: 6, row: 1 }, featured: true },
+      { id: 'chart-creator', Tool: ChartCreator, span: { col: 6, row: 1 }, featured: true },
     ],
   },
   {
@@ -63,6 +74,7 @@ const CATEGORIES: Category[] = [
     tools: [
       { id: 'markdown-preview', Tool: MarkdownPreview, span: { col: 8, row: 2 } },
       { id: 'markdown-html', Tool: MarkdownToHtml, span: { col: 4, row: 1 } },
+      { id: 'md-table', Tool: MdTable, span: { col: 6, row: 1 } },
     ],
   },
   {
@@ -73,6 +85,7 @@ const CATEGORIES: Category[] = [
       { id: 'uuid-generator', Tool: UuidGenerator, span: { col: 4, row: 1 } },
       { id: 'hash-generator', Tool: HashGenerator, span: { col: 4, row: 1 } },
       { id: 'password-gen', Tool: PasswordGenerator, span: { col: 4, row: 1 } },
+      { id: 'qr-generator', Tool: QrGenerator, span: { col: 4, row: 1 }, featured: true },
     ],
   },
   {
@@ -92,21 +105,19 @@ const CATEGORIES: Category[] = [
       { id: 'pdf-merge', Tool: PdfMerge, span: { col: 6, row: 1 }, featured: true },
       { id: 'pdf-split', Tool: PdfSplit, span: { col: 6, row: 1 } },
       { id: 'pdf-compress', Tool: PdfCompress, span: { col: 4, row: 1 } },
-      { id: 'pdf-protect', Tool: PdfProtect, span: { col: 4, row: 1 } },
       { id: 'pdf-sign', Tool: PdfSign, span: { col: 4, row: 1 } },
-      { id: 'pdf-to-images', Tool: PdfToImages, span: { col: 6, row: 1 } },
       { id: 'pdf-metadata', Tool: PdfMetadata, span: { col: 6, row: 1 } },
     ],
   },
 ];
 
-const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap(cat =>
-  cat.tools.map(t => ({ ...t, category: cat.id, categoryName: cat.name }))
+const ALL_TOOLS: ToolRegistryEntry[] = CATEGORIES.flatMap((cat) =>
+  cat.tools.map((t) => ({ ...t, category: cat.id, categoryName: cat.name })),
 );
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   'json-formatter': 'Pretty-print, minify, and validate JSON data.',
-  'base64': 'Encode and decode Base64 strings.',
+  base64: 'Encode and decode Base64 strings.',
   'hash-generator': 'Generate SHA-256, SHA-1, and MD5 hashes.',
   'uuid-generator': 'Generate v4 UUIDs in bulk.',
   'lorem-ipsum': 'Generate placeholder text for designs.',
@@ -116,14 +127,15 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   'markdown-html': 'Convert markdown to clean HTML.',
   'password-gen': 'Generate secure passwords with customizable options.',
   'css-unit': 'Convert between px, rem, em, vw, vh, and more.',
-  'scratchpad': 'Markdown notes with auto-save, search, and client/project linking.',
+  scratchpad: 'Markdown notes with auto-save, search, and client/project linking.',
   'pdf-merge': 'Combine multiple PDF files into one with drag-to-reorder.',
   'pdf-split': 'Extract specific pages or split every page into individual PDFs.',
   'pdf-compress': 'Reduce PDF file size by stripping unused objects and metadata.',
-  'pdf-protect': 'Add or remove password protection from PDF files.',
   'pdf-sign': 'Place a visual signature on PDF — draw, type, or upload.',
-  'pdf-to-images': 'Convert PDF pages to PNG images at configurable DPI.',
   'pdf-metadata': 'View and edit PDF metadata — title, author, keywords, and more.',
+  'qr-generator': 'Generate scannable QR codes from text or URLs. Export PNG/SVG.',
+  'md-table': 'Convert between markdown tables and CSV/JSON. Bidirectional.',
+  'chart-creator': 'Create bar, line, pie, and doughnut charts from table data.',
 };
 
 interface ToolInstance {
@@ -160,7 +172,7 @@ export class WorkerSuite {
     this.container.style.gridColumn = '1 / -1';
     this.workspace.appendChild(this.container);
 
-    const saved = await db.getPreference('ws-favorites', []) as string[];
+    const saved = (await db.getPreference('ws-favorites', [])) as string[];
     this.favorites = new Set(saved);
 
     this.renderGrid();
@@ -222,7 +234,7 @@ export class WorkerSuite {
     const isSearching = this.searchQuery.length > 0;
 
     if (this.sortMode === 'favorites' && !isSearching) {
-      const favTools = ALL_TOOLS.filter(t => this.favorites.has(t.id));
+      const favTools = ALL_TOOLS.filter((t) => this.favorites.has(t.id));
       if (favTools.length === 0) {
         this.categoriesContainer!.innerHTML = `
           <div class="empty-state">
@@ -236,7 +248,12 @@ export class WorkerSuite {
       }
 
       const section = createCategorySection({
-        category: { id: 'favorites', name: '★ Favorites', tooltip: 'Your pinned tools', tools: favTools },
+        category: {
+          id: 'favorites',
+          name: '★ Favorites',
+          tooltip: 'Your pinned tools',
+          tools: favTools,
+        },
         collapsed: false,
         onToggleCollapse: () => {},
         createCard: (entry, index) => this.makeToolCard(entry, index),
@@ -245,14 +262,18 @@ export class WorkerSuite {
       return;
     }
 
-    CATEGORIES.forEach(cat => {
+    CATEGORIES.forEach((cat) => {
       let tools = [...cat.tools];
 
       if (isSearching) {
-        tools = tools.filter(t => {
+        tools = tools.filter((t) => {
           const name = new t.Tool().name.toLowerCase();
           const desc = (TOOL_DESCRIPTIONS[t.id] || '').toLowerCase();
-          return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || t.id.includes(this.searchQuery);
+          return (
+            name.includes(this.searchQuery) ||
+            desc.includes(this.searchQuery) ||
+            t.id.includes(this.searchQuery)
+          );
         });
         if (tools.length === 0) return;
       }
@@ -299,7 +320,7 @@ export class WorkerSuite {
   }
 
   private showTool(toolId: string): void {
-    const registry = ALL_TOOLS.find(t => t.id === toolId);
+    const registry = ALL_TOOLS.find((t) => t.id === toolId);
     if (!registry) return;
 
     if (this.gridView) this.gridView.style.display = 'none';
@@ -321,8 +342,8 @@ export class WorkerSuite {
 
   private createToolInstance(toolId: string, registry: ToolRegistryEntry): void {
     const tool = new registry.Tool();
-    const currentIndex = ALL_TOOLS.findIndex(t => t.id === toolId);
-    const toolsList = ALL_TOOLS.map(t => ({ id: t.id, name: new t.Tool().name }));
+    const currentIndex = ALL_TOOLS.findIndex((t) => t.id === toolId);
+    const toolsList = ALL_TOOLS.map((t) => ({ id: t.id, name: new t.Tool().name }));
 
     const viewOptions: ToolViewOptions = {
       toolId,
@@ -344,20 +365,22 @@ export class WorkerSuite {
 
     const tipsData = getToolInfo(toolId);
     if (tipsData.useCases.length || tipsData.tips.length) {
-      contentEl.appendChild(createTipsPanel({
-        toolId,
-        data: tipsData,
-        moduleId: this.moduleId,
-        allTools: ALL_TOOLS,
-        onNavigate: (modId, tId) => router.navigate(modId, tId),
-      }));
+      contentEl.appendChild(
+        createTipsPanel({
+          toolId,
+          data: tipsData,
+          moduleId: this.moduleId,
+          allTools: ALL_TOOLS,
+          onNavigate: (modId, tId) => router.navigate(modId, tId),
+        }),
+      );
     }
 
     this.toolInstances.set(toolId, { tool, view, initialized: false });
   }
 
   private hideTool(): void {
-    this.toolInstances.forEach(instance => instance.view.hide());
+    this.toolInstances.forEach((instance) => instance.view.hide());
     if (this.gridView) this.gridView.style.display = '';
     this.activeToolId = null;
   }
@@ -1261,23 +1284,28 @@ export class WorkerSuite {
       }
 
       /* Split */
-      .pdf-split-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0; }
-      .pdf-thumb {
+      .pdf-split-hint { font-size: var(--text-sm); color: var(--text-muted); margin-bottom: var(--space-3); }
+      .pdf-split-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-3); margin: var(--space-3) 0; }
+      .pdf-split-card {
         position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
         padding: var(--space-2); border: 2px solid transparent;
         border-radius: var(--radius-md); cursor: pointer; transition: all 150ms ease;
+        background: var(--bg-deep);
       }
-      .pdf-thumb:hover { border-color: var(--border-subtle); background: var(--bg-deep); }
-      .pdf-thumb--selected { border-color: var(--accent); background: var(--accent-dim); }
-      .pdf-thumb-canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .pdf-thumb-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
-      .pdf-thumb-check {
-        position: absolute; top: 6px; left: 6px;
-        accent-color: var(--accent); z-index: 2;
-        width: 16px; height: 16px; cursor: pointer;
+      .pdf-split-card:hover { border-color: var(--border-subtle); }
+      .pdf-split-card--selected { border-color: var(--accent); background: var(--accent-dim); }
+      .pdf-split-card canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); max-width: 100%; height: auto; }
+      .pdf-split-card-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); }
+      .pdf-split-card-check {
+        position: absolute; top: 8px; right: 8px;
+        width: 22px; height: 22px; border-radius: 50%;
+        background: var(--accent); color: white;
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transform: scale(0.5); transition: all 150ms ease;
+        pointer-events: none;
       }
-      .pdf-select-actions { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
-      .pdf-split-info { font-size: var(--text-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
+      .pdf-split-card-check svg { width: 14px; height: 14px; }
+      .pdf-split-card--selected .pdf-split-card-check { opacity: 1; transform: scale(1); }
 
       /* Compress */
       .pdf-compress-info {
@@ -1291,9 +1319,6 @@ export class WorkerSuite {
       .pdf-stat-value { font-size: var(--text-lg); font-family: var(--font-mono); color: var(--text-primary); font-weight: 600; }
       .pdf-stat-value--accent { color: var(--accent); }
       .pdf-stat-arrow { font-size: var(--text-xl); color: var(--text-ghost); }
-
-      /* Protect */
-      .pdf-protect-controls { display: flex; flex-direction: column; gap: var(--space-3); }
 
       /* Sign */
       .pdf-sign-layout { display: grid; grid-template-columns: 1fr 300px; gap: var(--space-4); align-items: start; }
@@ -1340,17 +1365,55 @@ export class WorkerSuite {
         border-radius: var(--radius-md); background: white; cursor: crosshair; touch-action: none;
       }
       .pdf-sign-type { display: flex; flex-direction: column; gap: var(--space-2); }
-
-      /* To Images */
-      .pdf-images-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
-      .pdf-images-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-      .pdf-image-thumb {
-        display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
-        padding: var(--space-2); background: var(--bg-deep);
-        border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+      .pdf-sign-placed {
+        position: absolute; cursor: pointer;
+        border: 2px solid transparent; border-radius: 2px;
+        transition: border-color 150ms; pointer-events: auto; z-index: 1;
       }
-      .pdf-image-thumb canvas { border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-      .pdf-image-thumb-label { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); text-align: center; }
+      .pdf-sign-placed:hover { border-color: var(--border-subtle); }
+      .pdf-sign-placed--active { border-color: var(--accent); z-index: 2; }
+      .pdf-sign-sig-count { font-size: var(--text-xs); color: var(--text-muted); font-family: var(--font-mono); margin: var(--space-2) 0; }
+      .pdf-sign-actions { display: flex; gap: var(--space-2); align-items: center; }
+      .pdf-sign-default-preview {
+        max-width: 100%; max-height: 100px; border: 2px solid var(--accent);
+        border-radius: var(--radius-md); background: white; padding: var(--space-3);
+        display: block; margin-bottom: var(--space-2);
+      }
+      .pdf-sig-overlay-btn {
+        position: absolute; width: 22px; height: 22px;
+        border: none; border-radius: 50%; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; z-index: 3; padding: 0; line-height: 1;
+      }
+      .pdf-sig-overlay-btn--remove {
+        top: -11px; right: -11px;
+        background: var(--color-error, #ef4444); color: white;
+      }
+      .pdf-sig-overlay-btn--done {
+        bottom: -11px; right: -11px;
+        background: var(--accent); color: white;
+      }
+      .pdf-sign-done-panel {
+        display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+        padding: var(--space-6) var(--space-4); text-align: center;
+      }
+      .pdf-sign-done-header { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+      .pdf-sign-done-header h3 { font-size: var(--text-lg); color: var(--text-primary); margin: 0; }
+      .pdf-sign-done-filename { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); word-break: break-all; }
+      .pdf-sign-done-downloads { width: 100%; max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-1); }
+      .pdf-sign-done-item {
+        display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+        background: var(--bg-deep); border-radius: var(--radius-sm); font-size: var(--text-sm);
+        cursor: pointer; transition: background 150ms; text-align: left;
+      }
+      .pdf-sign-done-item:hover { background: var(--bg-surface); }
+      .pdf-sign-done-item--disabled { opacity: 0.5; cursor: default; }
+      .pdf-sign-done-item--disabled:hover { background: var(--bg-deep); }
+      .pdf-sign-done-item-icon { flex-shrink: 0; color: var(--text-muted); }
+      .pdf-sign-done-item-info { flex: 1; min-width: 0; }
+      .pdf-sign-done-item-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+      .pdf-sign-done-item-meta { font-size: var(--text-xs); color: var(--text-muted); }
+      .pdf-sign-done-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
 
       /* Metadata */
       .pdf-metadata-info {
@@ -1363,57 +1426,6 @@ export class WorkerSuite {
       .pdf-info-value { font-size: var(--text-sm); font-family: var(--font-mono); color: var(--text-primary); }
       .pdf-metadata-fields { display: flex; flex-direction: column; gap: var(--space-3); }
 
-      /* ── PDF Preview (shared) ── */
-      .pdf-preview-canvas {
-        max-width: 100%;
-        max-height: 400px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-hairline);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        display: block;
-        margin-bottom: var(--space-3);
-        background: white;
-      }
-      .pdf-merge-thumb {
-        width: 40px;
-        height: 52px;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--border-hairline);
-        object-fit: cover;
-        flex-shrink: 0;
-        background: white;
-      }
-      .pdf-split-preview {
-        margin: var(--space-3) 0;
-        text-align: center;
-      }
-      .pdf-split-preview canvas {
-        max-width: 100%;
-        max-height: 500px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-hairline);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        background: white;
-      }
-      .pdf-images-preview {
-        margin: var(--space-3) 0;
-        text-align: center;
-      }
-      .pdf-images-preview canvas {
-        max-width: 100%;
-        max-height: 500px;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-hairline);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        background: white;
-      }
-      .pdf-preview-label {
-        display: block;
-        font-size: var(--text-xs);
-        color: var(--text-muted);
-        font-family: var(--font-mono);
-        margin-top: var(--space-1);
-      }
       .pdf-sign-page-nav {
         display: flex;
         align-items: center;
@@ -1428,6 +1440,52 @@ export class WorkerSuite {
         font-size: var(--text-sm);
         color: var(--text-secondary);
       }
+
+      /* ── QR Generator ── */
+      .qrg-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); align-items: start; }
+      .qrg-controls { display: flex; flex-direction: column; gap: var(--space-3); }
+      .qrg-ec-toggle { display: flex; gap: var(--space-1); }
+      .qrg-ec--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .qrg-color-row { display: flex; gap: var(--space-3); }
+      .qrg-color-field { display: flex; flex-direction: column; gap: 2px; }
+      .qrg-color-label { font-size: var(--text-xs); color: var(--text-muted); }
+      .qrg-color-input { width: 36px; height: 28px; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); cursor: pointer; background: transparent; }
+      .qrg-sizes { display: flex; gap: var(--space-1); }
+      .qrg-size--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .qrg-preview { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+      .qrg-canvas { width: 100%; max-width: 320px; aspect-ratio: 1; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: #fff; }
+      .qrg-info { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+      @media (max-width: 768px) { .qrg-layout { grid-template-columns: 1fr; } }
+
+      /* ── Markdown Table ── */
+      .mdt-layout { display: flex; flex-direction: column; gap: var(--space-4); }
+      .mdt-table-wrap { min-height: 80px; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); padding: var(--space-2); background: var(--bg-deep); }
+      .mdt-empty { color: var(--text-muted); font-size: var(--text-sm); text-align: center; padding: var(--space-4); }
+      .mdt-table-scroll { overflow-x: auto; }
+      .mdt-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+      .mdt-table th { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 2px solid var(--border-hairline); color: var(--text-primary); font-weight: 600; }
+      .mdt-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-hairline); color: var(--text-secondary); }
+      .mdt-table-info { font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-2); text-align: right; }
+      .mdt-mode-toggle { display: flex; gap: var(--space-1); }
+      .mdt-mode--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+
+      /* ── Chart Creator ── */
+      .cc-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-4); align-items: start; }
+      .cc-controls { display: flex; flex-direction: column; gap: var(--space-3); }
+      .cc-chart-types { display: flex; gap: var(--space-1); }
+      .cc-type--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .cc-schemes { display: flex; flex-direction: column; gap: var(--space-1); }
+      .cc-scheme-btn { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-start; }
+      .cc-scheme--active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+      .cc-scheme-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+      .cc-preview { display: flex; flex-direction: column; gap: var(--space-3); }
+      .cc-canvas { width: 100%; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: #1a1a1a; }
+      .cc-data-preview { font-size: var(--text-xs); }
+      .cc-data-scroll { overflow-x: auto; }
+      .cc-data-table { width: 100%; border-collapse: collapse; }
+      .cc-data-table th { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border-hairline); color: var(--text-muted); font-weight: normal; }
+      .cc-data-table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border-hairline); color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--text-xs); }
+      @media (max-width: 768px) { .cc-layout { grid-template-columns: 1fr; } }
     `;
     document.head.appendChild(style);
   }
@@ -1437,7 +1495,10 @@ export class WorkerSuite {
       events.off('route:change', this._routeHandler);
     }
     this.toolbar?.destroy();
-    this.toolInstances.forEach(({ view, tool }) => { tool.destroy?.(); view.destroy(); });
+    this.toolInstances.forEach(({ view, tool }) => {
+      tool.destroy?.();
+      view.destroy();
+    });
     this.toolInstances.clear();
     this.workspace.innerHTML = '';
   }

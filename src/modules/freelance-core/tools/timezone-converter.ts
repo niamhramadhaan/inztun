@@ -2,10 +2,22 @@ import { Toast } from '../../../components/Toast';
 import { db } from '../../../core/db';
 
 const POPULAR_ZONES = [
-  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-  'America/Sao_Paulo', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-  'Europe/Moscow', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai',
-  'Asia/Tokyo', 'Asia/Seoul', 'Australia/Sydney', 'Pacific/Auckland',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+  'Pacific/Auckland',
 ];
 
 export class TimezoneConverter {
@@ -33,7 +45,9 @@ export class TimezoneConverter {
           </div>
         </div>
         <div class="tz-grid" id="tz-grid">
-          ${[0, 1, 2, 3].map(i => `
+          ${[0, 1, 2, 3]
+            .map(
+              (i) => `
             <div class="tz-card" id="tz-card-${i}">
               <select class="input tz-select" id="tz-zone-${i}" style="font-size:var(--text-xs);">
                 ${POPULAR_ZONES.map((z, j) => `<option value="${z}" ${j === i ? 'selected' : ''}>${z.replace(/_/g, ' ')}</option>`).join('')}
@@ -41,7 +55,9 @@ export class TimezoneConverter {
               <div class="tz-time" id="tz-display-${i}">—</div>
               <div class="tz-offset" id="tz-offset-${i}">—</div>
             </div>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
         <div class="tool-actions">
           <button class="btn btn--ghost" id="tz-now">Use Current Time</button>
@@ -54,7 +70,7 @@ export class TimezoneConverter {
     this.timeInput = root.querySelector('#tz-time')!;
     this.zonesContainer = root.querySelector('#tz-grid')!;
 
-    const defaultLocale = await db.getPreference('defaultLocale', 'en-US') as string;
+    const defaultLocale = (await db.getPreference('defaultLocale', 'en-US')) as string;
     this.locale = defaultLocale || 'en-US';
 
     const now = new Date();
@@ -68,7 +84,7 @@ export class TimezoneConverter {
 
     const update = () => this.update();
     this.timeInput.addEventListener('input', update);
-    this.zoneSelects.forEach(s => s.addEventListener('change', update));
+    this.zoneSelects.forEach((s) => s.addEventListener('change', update));
 
     root.querySelector('#tz-now')!.addEventListener('click', () => {
       const n = new Date();
@@ -90,15 +106,19 @@ export class TimezoneConverter {
         const date = new Date(value);
         const formatter = new Intl.DateTimeFormat(this.locale, {
           timeZone: zone,
-          hour: 'numeric', minute: '2-digit', hour12: true,
-          weekday: 'short', month: 'short', day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
         });
         const offsetFormatter = new Intl.DateTimeFormat(this.locale, {
           timeZone: zone,
           timeZoneName: 'short',
         });
         const parts = offsetFormatter.formatToParts(date);
-        const tzPart = parts.find(p => p.type === 'timeZoneName');
+        const tzPart = parts.find((p) => p.type === 'timeZoneName');
         this.displayEls[i].textContent = formatter.format(date);
         const offsetEl = document.querySelector(`#tz-offset-${i}`) as HTMLElement;
         if (offsetEl) offsetEl.textContent = tzPart?.value || zone;

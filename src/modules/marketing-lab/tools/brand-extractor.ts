@@ -1,5 +1,6 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
+import { copyToClipboard, escapeHtml } from '../../../utils/image';
 
 interface BrandResult {
   name: string;
@@ -11,6 +12,7 @@ interface BrandResult {
   ogImage: string;
 }
 
+// ponytail: only outbound request in the app. uses public CORS proxy to bypass same-origin policy for URL analysis.
 const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 const COLOR_RE = /#([0-9a-f]{3,8})\b/gi;
@@ -70,7 +72,10 @@ export class BrandExtractor {
 
   private async extract(): Promise<void> {
     const url = this.urlInput.value.trim();
-    if (!url) { Toast.error('Enter a URL first'); return; }
+    if (!url) {
+      Toast.error('Enter a URL first');
+      return;
+    }
 
     let normalized = url;
     if (!/^https?:\/\//i.test(normalized)) normalized = 'https://' + normalized;
@@ -141,7 +146,9 @@ export class BrandExtractor {
 
   private findLogo(doc: Document, origin: string): string {
     // Images with "logo" in class, alt, id, or src
-    const candidates = doc.querySelectorAll('img[class*="logo" i], img[alt*="logo" i], img[id*="logo" i], img[src*="logo" i]');
+    const candidates = doc.querySelectorAll(
+      'img[class*="logo" i], img[alt*="logo" i], img[id*="logo" i], img[src*="logo" i]',
+    );
     for (const img of candidates) {
       const src = img.getAttribute('src') || '';
       if (src) return this.resolveUrl(src, origin);
@@ -213,15 +220,31 @@ export class BrandExtractor {
       const families = m[1].split(',');
       for (const f of families) {
         const clean = f.trim().replace(/['"]/g, '').split(/\s+/)[0];
-        if (clean && clean !== 'inherit' && clean !== 'initial' && clean !== 'var' && clean.length > 1) {
+        if (
+          clean &&
+          clean !== 'inherit' &&
+          clean !== 'initial' &&
+          clean !== 'var' &&
+          clean.length > 1
+        ) {
           fonts.add(clean);
         }
       }
     }
 
     // Filter generic families
-    const generic = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace']);
-    return [...fonts].filter(f => !generic.has(f.toLowerCase())).slice(0, 12);
+    const generic = new Set([
+      'serif',
+      'sans-serif',
+      'monospace',
+      'cursive',
+      'fantasy',
+      'system-ui',
+      'ui-serif',
+      'ui-sans-serif',
+      'ui-monospace',
+    ]);
+    return [...fonts].filter((f) => !generic.has(f.toLowerCase())).slice(0, 12);
   }
 
   private resolveUrl(href: string, origin: string): string {
@@ -241,8 +264,8 @@ export class BrandExtractor {
   private normalizeColor(c: string): string {
     if (c.startsWith('#')) {
       let h = c.slice(1);
-      if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
-      if (h.length === 4) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      if (h.length === 4) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
       if (h.length >= 6) return '#' + h.slice(0, 6).toLowerCase();
     }
     return c.toLowerCase();
@@ -258,8 +281,10 @@ export class BrandExtractor {
     const r = parseInt(h.slice(0, 2), 16) / 255;
     const g = parseInt(h.slice(2, 4), 16) / 255;
     const b = parseInt(h.slice(4, 6), 16) / 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h2 = 0, s = 0;
+    const max = Math.max(r, g, b),
+      min = Math.min(r, g, b);
+    let h2 = 0,
+      s = 0;
     const l = (max + min) / 2;
     if (max !== min) {
       const d = max - min;
@@ -272,17 +297,27 @@ export class BrandExtractor {
   }
 
   private renderResult(b: BrandResult): void {
-    const colorSwatches = b.colors.length > 0
-      ? b.colors.map(c => `
+    const colorSwatches =
+      b.colors.length > 0
+        ? b.colors
+            .map(
+              (c) => `
         <div class="mlc-swatch" style="background:${c}" data-color="${c}" title="Click to copy ${c}">
           <span class="mlc-swatch__label">${c}</span>
         </div>
-      `).join('')
-      : '<span class="mlbe-empty">No colors detected</span>';
+      `,
+            )
+            .join('')
+        : '<span class="mlbe-empty">No colors detected</span>';
 
-    const fontList = b.fonts.length > 0
-      ? b.fonts.map(f => `<span class="mlbe-font" data-font="${f}" title="Click to copy">${f}</span>`).join('')
-      : '<span class="mlbe-empty">No fonts detected</span>';
+    const fontList =
+      b.fonts.length > 0
+        ? b.fonts
+            .map(
+              (f) => `<span class="mlbe-font" data-font="${f}" title="Click to copy">${f}</span>`,
+            )
+            .join('')
+        : '<span class="mlbe-empty">No fonts detected</span>';
 
     const logoHtml = b.logo
       ? `<img src="${b.logo}" class="mlbe-logo-img" alt="Logo" onerror="this.style.display='none'">`
@@ -296,9 +331,9 @@ export class BrandExtractor {
       <div class="mlbe-card">
         <div class="mlbe-card__header">
           ${faviconHtml}
-          <div class="mlbe-card__title">${b.name || 'Unknown Brand'}</div>
+          <div class="mlbe-card__title">${escapeHtml(b.name || 'Unknown Brand')}</div>
         </div>
-        ${b.description ? `<p class="mlbe-card__desc">${b.description}</p>` : ''}
+        ${b.description ? `<p class="mlbe-card__desc">${escapeHtml(b.description)}</p>` : ''}
 
         <div class="mlbe-section">
           <div class="mlbe-section__title">Logo</div>
@@ -315,11 +350,15 @@ export class BrandExtractor {
           <div class="mlbe-fonts">${fontList}</div>
         </div>
 
-        ${b.ogImage ? `
+        ${
+          b.ogImage
+            ? `
         <div class="mlbe-section">
           <div class="mlbe-section__title">OG Image</div>
           <img src="${b.ogImage}" class="mlbe-og-img" alt="OG Image" onerror="this.style.display='none'">
-        </div>` : ''}
+        </div>`
+            : ''
+        }
 
         <div class="tool-actions">
           <button class="btn btn--ghost" id="mlbe-copy-css">Copy CSS Variables</button>
@@ -329,17 +368,17 @@ export class BrandExtractor {
     `;
 
     // Color click to copy
-    this.resultEl.querySelectorAll('.mlc-swatch').forEach(el => {
+    this.resultEl.querySelectorAll('.mlc-swatch').forEach((el) => {
       el.addEventListener('click', () => {
-        navigator.clipboard.writeText((el as HTMLElement).dataset.color!);
+        void copyToClipboard((el as HTMLElement).dataset.color!);
         Toast.copied('Color');
       });
     });
 
     // Font click to copy
-    this.resultEl.querySelectorAll('.mlbe-font').forEach(el => {
+    this.resultEl.querySelectorAll('.mlbe-font').forEach((el) => {
       el.addEventListener('click', () => {
-        navigator.clipboard.writeText((el as HTMLElement).dataset.font!);
+        void copyToClipboard((el as HTMLElement).dataset.font!);
         Toast.copied('Font');
       });
     });
@@ -347,17 +386,21 @@ export class BrandExtractor {
     // Copy CSS variables
     this.resultEl.querySelector('#mlbe-copy-css')?.addEventListener('click', () => {
       let css = ':root {\n';
-      b.colors.forEach((c, i) => { css += `  --brand-color-${i + 1}: ${c};\n`; });
-      b.fonts.forEach((f, i) => { css += `  --brand-font-${i + 1}: '${f}';\n`; });
+      b.colors.forEach((c, i) => {
+        css += `  --brand-color-${i + 1}: ${c};\n`;
+      });
+      b.fonts.forEach((f, i) => {
+        css += `  --brand-font-${i + 1}: '${f}';\n`;
+      });
       css += '}';
-      navigator.clipboard.writeText(css);
+      void copyToClipboard(css);
       Toast.copied('CSS Variables');
       logToolAction('brand-extractor', 'Copied brand CSS variables');
     });
 
     // Copy JSON
     this.resultEl.querySelector('#mlbe-copy-json')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(JSON.stringify(b, null, 2));
+      void copyToClipboard(JSON.stringify(b, null, 2));
       Toast.copied('JSON');
       logToolAction('brand-extractor', 'Copied brand JSON');
     });

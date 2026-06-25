@@ -168,7 +168,10 @@ export class ShortcutGuide {
     for (const group of SHORTCUT_GROUPS) {
       bodyHtml += `<div class="sg-group"><div class="sg-group__title">${group.title}</div>`;
       for (const s of group.shortcuts) {
-        const keys = s.keys.split('+').map(k => `<span class="sg-key">${k.trim()}</span>`).join('');
+        const keys = s.keys
+          .split('+')
+          .map((k) => `<span class="sg-key">${k.trim()}</span>`)
+          .join('');
         bodyHtml += `<div class="sg-row"><span class="sg-row__desc">${s.description}</span><span class="sg-row__keys">${keys}</span></div>`;
       }
       bodyHtml += '</div>';

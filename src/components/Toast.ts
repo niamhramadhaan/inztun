@@ -1,13 +1,14 @@
 import type { ToastType } from '../types/index';
+import { escapeHtml } from '../utils/image';
 
 export class Toast {
   private static container: HTMLDivElement | null = null;
 
   private static init(): void {
-    if (this.container) return;
-    this.container = document.createElement('div');
-    this.container.className = 'toast-container';
-    document.body.appendChild(this.container);
+    if (Toast.container) return;
+    Toast.container = document.createElement('div');
+    Toast.container.className = 'toast-container';
+    document.body.appendChild(Toast.container);
 
     const style = document.createElement('style');
     style.textContent = `
@@ -134,7 +135,7 @@ export class Toast {
   }
 
   static show(message: string, type: ToastType = 'success', duration = 2500): void {
-    this.init();
+    Toast.init();
 
     const icons: Record<ToastType, string> = {
       success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -146,10 +147,10 @@ export class Toast {
     toast.className = `toast toast--${type}`;
     toast.innerHTML = `
       <span class="toast__icon">${icons[type] || icons.info}</span>
-      <span class="toast__message">${message}</span>
+      <span class="toast__message">${escapeHtml(message)}</span>
     `;
 
-    this.container!.appendChild(toast);
+    Toast.container!.appendChild(toast);
 
     setTimeout(() => {
       toast.classList.add('toast--exit');
@@ -158,23 +159,23 @@ export class Toast {
   }
 
   static success(message: string, duration?: number): void {
-    this.show(message, 'success', duration);
+    Toast.show(message, 'success', duration);
   }
 
   static error(message: string, duration?: number): void {
-    this.show(message, 'error', duration);
+    Toast.show(message, 'error', duration);
   }
 
   static info(message: string, duration?: number): void {
-    this.show(message, 'info', duration);
+    Toast.show(message, 'info', duration);
   }
 
   static copied(what = 'Copied'): void {
-    this.success(`${what} to clipboard`);
+    Toast.success(`${what} to clipboard`);
   }
 
   static progress(message: string, current: number, total: number): HTMLDivElement {
-    this.init();
+    Toast.init();
 
     const toast = document.createElement('div');
     toast.className = 'toast toast--progress';
@@ -182,12 +183,12 @@ export class Toast {
     toast.innerHTML = `
       <span class="toast__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
       <div style="flex:1;">
-        <span class="toast__message">${message}</span>
+      <span class="toast__message">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>
         <div class="toast__progress-bar"><div class="toast__progress-fill" style="width:${pct}%"></div></div>
       </div>
     `;
 
-    this.container!.appendChild(toast);
+    Toast.container!.appendChild(toast);
     return toast;
   }
 

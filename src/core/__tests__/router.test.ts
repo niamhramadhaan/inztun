@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Route } from '../../types/index';
 
 function parseRouteHash(hash: string): Route {
@@ -20,11 +20,17 @@ describe('Router hash parsing', () => {
   });
 
   it('should parse module and tool', () => {
-    expect(parseRouteHash('#/workers-suite/json-formatter')).toEqual({ module: 'workers-suite', tool: 'json-formatter' });
+    expect(parseRouteHash('#/workers-suite/json-formatter')).toEqual({
+      module: 'workers-suite',
+      tool: 'json-formatter',
+    });
   });
 
   it('should handle hash without leading #', () => {
-    expect(parseRouteHash('/playground/typing-test')).toEqual({ module: 'playground', tool: 'typing-test' });
+    expect(parseRouteHash('/playground/typing-test')).toEqual({
+      module: 'playground',
+      tool: 'typing-test',
+    });
   });
 
   it('should handle hash with just #/', () => {

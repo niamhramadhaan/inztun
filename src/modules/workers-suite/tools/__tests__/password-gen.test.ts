@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PasswordGenerator } from '../password-gen';
 
 describe('PasswordGenerator', () => {
@@ -38,9 +38,10 @@ describe('PasswordGenerator', () => {
   it('should return empty string for empty charset', () => {
     const charset = '';
     const length = 10;
-    const password = charset.length > 0
-      ? Array.from(new Uint32Array(length), (x) => charset[x % charset.length]).join('')
-      : '';
+    const password =
+      charset.length > 0
+        ? Array.from(new Uint32Array(length), (x) => charset[x % charset.length]).join('')
+        : '';
     expect(password).toBe('');
   });
 });

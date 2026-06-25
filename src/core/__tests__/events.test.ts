@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../events';
 
 describe('EventBus', () => {
@@ -56,7 +56,9 @@ describe('EventBus', () => {
     const bus = new EventBus();
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    bus.on('test', () => { throw new Error('fail'); });
+    bus.on('test', () => {
+      throw new Error('fail');
+    });
     bus.emit('test');
 
     expect(consoleSpy).toHaveBeenCalled();

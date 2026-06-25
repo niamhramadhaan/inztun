@@ -1,6 +1,16 @@
 import { Toast } from '../../../components/Toast';
 import { logToolAction } from '../../../core/activity';
-import { loadImage, canvasToBlob, downloadBlob, downloadZip, createMultiDropZone, bindClipboardPaste, getFitSize, formatBytes, getExtFromMime } from '../../../utils/image';
+import {
+  bindClipboardPaste,
+  canvasToBlob,
+  createMultiDropZone,
+  downloadBlob,
+  downloadZip,
+  formatBytes,
+  getExtFromMime,
+  getFitSize,
+  loadImage,
+} from '../../../utils/image';
 
 type ResizeMode = 'px' | 'pct' | 'fit';
 
@@ -125,13 +135,17 @@ export class ImageResize {
 
     this.widthInput.addEventListener('input', () => {
       if (this.lockCheckbox.checked && this.aspectRatio) {
-        this.heightInput.value = String(Math.round(parseInt(this.widthInput.value || '0') / this.aspectRatio));
+        this.heightInput.value = String(
+          Math.round(parseInt(this.widthInput.value || '0') / this.aspectRatio),
+        );
       }
       this.resize();
     });
     this.heightInput.addEventListener('input', () => {
       if (this.lockCheckbox.checked && this.aspectRatio) {
-        this.widthInput.value = String(Math.round(parseInt(this.heightInput.value || '0') * this.aspectRatio));
+        this.widthInput.value = String(
+          Math.round(parseInt(this.heightInput.value || '0') * this.aspectRatio),
+        );
       }
       this.resize();
     });
@@ -156,8 +170,11 @@ export class ImageResize {
   }
 
   private async handleFiles(files: File[]): Promise<void> {
-    const images = files.filter(f => f.type.startsWith('image/'));
-    if (!images.length) { Toast.error('No image files found'); return; }
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (!images.length) {
+      Toast.error('No image files found');
+      return;
+    }
     this.files = images;
     this.originalImage = await loadImage(images[0]);
     this.aspectRatio = this.originalImage.width / this.originalImage.height;
@@ -179,36 +196,45 @@ export class ImageResize {
     this.actionsEl.style.display = '';
     const dlAll = this.actionsEl.querySelector('#imgr-download-all') as HTMLElement;
     dlAll.style.display = this.files.length > 1 ? '' : 'none';
-    (this.actionsEl.querySelector('#imgr-download') as HTMLElement).style.display = this.files.length === 1 ? '' : 'none';
+    (this.actionsEl.querySelector('#imgr-download') as HTMLElement).style.display =
+      this.files.length === 1 ? '' : 'none';
   }
 
   private renderFileList(): void {
     this.fileListEl.style.display = '';
     this.fileListEl.innerHTML = `
       <div class="imgc-batch-header"><span>${this.files.length} files</span></div>
-      ${this.files.map((f, i) => `
+      ${this.files
+        .map(
+          (f, i) => `
         <div class="imgc-batch-item">
           <span class="imgc-batch-item__name">${f.name}</span>
           <span class="imgc-batch-item__size">${formatBytes(f.size)}</span>
           <span class="imgc-batch-item__status" id="imgr-status-${i}">pending</span>
         </div>
-      `).join('')}
+      `,
+        )
+        .join('')}
     `;
   }
 
   private getTargetSize(img: HTMLImageElement): { w: number; h: number } {
     const mode = this.modeSelect.value as ResizeMode;
     if (mode === 'px') {
-      return { w: parseInt(this.widthInput.value) || img.width, h: parseInt(this.heightInput.value) || img.height };
+      return {
+        w: parseInt(this.widthInput.value) || img.width,
+        h: parseInt(this.heightInput.value) || img.height,
+      };
     }
     if (mode === 'pct') {
       const pct = parseInt(this.pctInput.value) || 100;
-      return { w: Math.round(img.width * pct / 100), h: Math.round(img.height * pct / 100) };
+      return { w: Math.round((img.width * pct) / 100), h: Math.round((img.height * pct) / 100) };
     }
     // fit
     const maxW = parseInt(this.fitWInput.value) || 1920;
     const maxH = parseInt(this.fitHInput.value) || 1080;
-    return getFitSize(img.width, img.height, maxW, maxH);
+    const fit = getFitSize(img.width, img.height, maxW, maxH);
+    return { w: fit.width, h: fit.height };
   }
 
   private resize(): void {
@@ -218,7 +244,9 @@ export class ImageResize {
     const ratio = Math.min(max / w, max / h, 1);
     this.canvas.width = Math.round(w * ratio);
     this.canvas.height = Math.round(h * ratio);
-    this.canvas.getContext('2d')!.drawImage(this.originalImage, 0, 0, this.canvas.width, this.canvas.height);
+    this.canvas
+      .getContext('2d')!
+      .drawImage(this.originalImage, 0, 0, this.canvas.width, this.canvas.height);
     this.sizeEl.textContent = `${w} × ${h} px`;
   }
 
@@ -226,10 +254,12 @@ export class ImageResize {
     if (!this.files[0] || !this.originalImage) return;
     const { w, h } = this.getTargetSize(this.originalImage);
     const offscreen = document.createElement('canvas');
-    offscreen.width = w; offscreen.height = h;
+    offscreen.width = w;
+    offscreen.height = h;
     offscreen.getContext('2d')!.drawImage(this.originalImage, 0, 0, w, h);
     const ext = this.files[0].name.split('.').pop()?.toLowerCase() || 'png';
-    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
+    const mime =
+      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
     const blob = await canvasToBlob(offscreen, mime);
     downloadBlob(blob, this.files[0].name.replace(/\.[^.]+$/, '') + `-${w}x${h}.${ext}`);
     Toast.success('Downloaded');
@@ -246,12 +276,21 @@ export class ImageResize {
         const img = await loadImage(this.files[i]);
         const { w, h } = this.getTargetSize(img);
         const offscreen = document.createElement('canvas');
-        offscreen.width = w; offscreen.height = h;
+        offscreen.width = w;
+        offscreen.height = h;
         offscreen.getContext('2d')!.drawImage(img, 0, 0, w, h);
         const ext = this.files[i].name.split('.').pop()?.toLowerCase() || 'png';
-        const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
+        const mime =
+          ext === 'jpg' || ext === 'jpeg'
+            ? 'image/jpeg'
+            : ext === 'webp'
+              ? 'image/webp'
+              : 'image/png';
         const blob = await canvasToBlob(offscreen, mime);
-        results.push({ name: this.files[i].name.replace(/\.[^.]+$/, `-${w}x${h}.${ext}`), data: blob });
+        results.push({
+          name: this.files[i].name.replace(/\.[^.]+$/, `-${w}x${h}.${ext}`),
+          data: blob,
+        });
         if (statusEl) statusEl.textContent = '✓';
       } catch {
         if (statusEl) statusEl.textContent = '✗ error';
