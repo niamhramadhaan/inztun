@@ -54,13 +54,13 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 | Category | Tools |
 |----------|-------|
-| **Text & Writing** | Lorem Ipsum, Text Case Converter, Character Counter, Scratchpad |
-| **Encoding & Decoding** | Base64, URL Encoder |
-| **Data & Format** | JSON Formatter, MD Table Converter, Chart Creator |
-| **Markdown** | Markdown Preview (GFM), Markdown to HTML |
-| **Generators** | UUID, Hash (SHA-256/SHA-1), Password, QR Code |
-| **PDF Tools** | Merge, Split, Compress, Sign, Metadata Editor |
-| **Developer Utilities** | Regex Tester, Color Converter, CSS Unit Converter |
+| **Text & Writing** | ¶ Lorem Ipsum, Aa Text Case Converter, # Character Counter, ✎ Scratchpad |
+| **Encoding & Decoding** | ⇄ Base64, ⌘ URL Encoder |
+| **Data & Format** | {} JSON Formatter, ▦ MD Table Converter, ▤ Chart Creator |
+| **Markdown** | ◉ Markdown Preview (GFM), ◎ Markdown to HTML |
+| **Generators** | ∞ UUID, ♯ Hash (SHA-256/SHA-1), ⚷ Password, ▣ QR Code |
+| **PDF Tools** | ⊕ Merge, ⊖ Split, ⊟ Compress, ✍ Sign, ☰ Metadata Editor |
+| **Developer Utilities** | .∗ Regex Tester, ◉ Color Converter, ↕ CSS Unit Converter |
 
 ---
 
@@ -73,11 +73,11 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 | Category | Tools |
 |----------|-------|
-| **Image Tools** | Crop, Resize, Compress, Convert, Filters, Metadata Viewer |
-| **Brand & Identity** | Brand Guidelines Generator, Logo Builder, Favicon Generator |
-| **Typography** | Font Pairer, Typography Scale |
-| **CSS & Layout** | CSS Gradient Builder, Border Radius Previewer, Spacing System |
-| **Accessibility** | Contrast Checker (WCAG AA/AAA) |
+| **Image Tools** | ⊏ Crop, ⤢ Resize, ⊟ Compress, ⇄ Convert, ◈ Filters, ☰ Metadata Viewer |
+| **Brand & Identity** | ✦ Brand Guidelines Generator, ◆ Logo Builder, ◇ Favicon Generator |
+| **Typography** | Aa Font Pairer, ↑ Typography Scale |
+| **CSS & Layout** | ▦ CSS Gradient Builder, ▢ Border Radius Previewer, ⊞ Spacing System |
+| **Accessibility** | ◐ Contrast Checker (WCAG AA/AAA) |
 
 ---
 
@@ -90,14 +90,14 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 | Tool | Description |
 |------|-------------|
-| UTM Builder | Campaign URL tagging with copy-ready links |
-| SEO Meta Generator | Title tags, descriptions, Open Graph tags |
-| OG Preview | See how links appear on social platforms |
-| Social Counter | Character limits for every platform |
-| Social Resizer | Crop images to platform-specific dimensions |
-| Social Scheduler | Content calendar with export to CSV |
-| Color Palette | Harmonies, schemes, and 60-30-10 rule builder |
-| Brand Extractor | Pull colors, fonts, and meta from any URL |
+| ⌘ UTM Builder | Campaign URL tagging with copy-ready links |
+| ◉ SEO Meta Generator | Title tags, descriptions, Open Graph tags |
+| ◫ OG Preview | See how links appear on social platforms |
+| # Social Counter | Character limits for every platform |
+| ⤢ Social Resizer | Crop images to platform-specific dimensions |
+| ▦ Social Scheduler | Content calendar with export to CSV |
+| ◈ Color Palette | Harmonies, schemes, and 60-30-10 rule builder |
+| ✦ Brand Extractor | Pull colors, fonts, and meta from any URL |
 
 ---
 
@@ -110,15 +110,15 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 | Tool | Description |
 |------|-------------|
-| Invoice Generator | Itemized invoices with tax calculations |
-| Time Tracker | Log hours per project with notes |
-| Expense Tracker | Business expenses by category |
-| Client Manager | Contact info, projects, and notes |
-| Project Manager | All projects across clients in one view |
-| Rate Calculator | Hourly and project-based pricing |
-| Tax Estimator | Federal tax brackets and effective rate |
-| Contract Templates | 8 templates (NDA, SOW, MSA, SLA, and more) |
-| Timezone Converter | Compare up to 4 time zones |
+| ＄ Invoice Generator | Itemized invoices with tax calculations |
+| ◷ Time Tracker | Log hours per project with notes |
+| ☰ Expense Tracker | Business expenses by category |
+| ⊙ Client Manager | Contact info, projects, and notes |
+| ▦ Project Manager | All projects across clients in one view |
+| ∓ Rate Calculator | Hourly and project-based pricing |
+| ℅ Tax Estimator | Federal tax brackets and effective rate |
+| ✎ Contract Templates | 8 templates (NDA, SOW, MSA, SLA, and more) |
+| ⊕ Timezone Converter | Compare up to 4 time zones |
 
 ---
 
@@ -131,9 +131,9 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 | Tool | Description |
 |------|-------------|
-| Typing Test | WPM and accuracy tracking |
-| Banner Generator | ASCII text banners for terminal and README |
-| Pixel Art | Draw pixel art on a grid with export |
+| ⌨ Typing Test | WPM and accuracy tracking |
+| ▣ Banner Generator | ASCII text banners for terminal and README |
+| ▦ Pixel Art | Draw pixel art on a grid with export |
 
 ---
 
