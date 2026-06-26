@@ -1,5 +1,5 @@
 # ✦ inztun
-
+<img width="2211" height="494" alt="image" src="https://github.com/user-attachments/assets/274fd0d3-e5ad-4ca3-b639-e679bffaa41b" />
 > **The Artisan's Operating System** — A privacy-first, client-side workspace for freelancers, marketers, and designers.
 
 <div align="center">
@@ -32,8 +32,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *Personal dashboard with activity tracking, favorites, and quick actions*
 
-<!-- SCREENSHOT: home/dashboard.png -->
-![Home Dashboard](screenshots/home/dashboard.png)
+<img width="2176" height="1290" alt="image" src="https://github.com/user-attachments/assets/18811ea0-13bc-462f-937b-c6859ef7799e" />
 
 | Feature | Description |
 |---------|-------------|
@@ -49,8 +48,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *21 developer utilities organized by category*
 
-<!-- SCREENSHOT: workers-suite/overview.png -->
-![Worker's Suite](screenshots/workers-suite/overview.png)
+<img width="2160" height="1295" alt="image" src="https://github.com/user-attachments/assets/5d842e28-cb7a-4167-9a09-9bdd6fa8b293" />
 
 | Category | Tools |
 |----------|-------|
@@ -68,8 +66,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *16 tools for visual design and brand identity*
 
-<!-- SCREENSHOT: design-studio/overview.png -->
-![Design Studio](screenshots/design-studio/overview.png)
+<img width="2152" height="1257" alt="image" src="https://github.com/user-attachments/assets/558f6b1f-9709-47f6-9142-5b95505360a2" />
 
 | Category | Tools |
 |----------|-------|
@@ -85,8 +82,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *8 tools for campaign tracking and social media*
 
-<!-- SCREENSHOT: marketing-lab/overview.png -->
-![Marketing Lab](screenshots/marketing-lab/overview.png)
+<img width="2118" height="1288" alt="image" src="https://github.com/user-attachments/assets/69f95b12-e032-4d9c-a091-75ae0805fe00" />
 
 | Tool | Description |
 |------|-------------|
@@ -105,8 +101,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *9 tools for managing your freelance business*
 
-<!-- SCREENSHOT: freelance-core/overview.png -->
-![Freelance Core](screenshots/freelance-core/overview.png)
+<img width="2153" height="1277" alt="image" src="https://github.com/user-attachments/assets/c325694d-22cd-4e54-95e7-f6113453143e" />
 
 | Tool | Description |
 |------|-------------|
@@ -126,8 +121,7 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 
 *3 creative and experimental tools*
 
-<!-- SCREENSHOT: playground/overview.png -->
-![Playground](screenshots/playground/overview.png)
+<img width="2141" height="1229" alt="image" src="https://github.com/user-attachments/assets/85542378-29e0-4eef-9cd6-1ab5d877f686" />
 
 | Tool | Description |
 |------|-------------|
@@ -149,6 +143,10 @@ The modern web is bloated with tracking, forced logins, and intrusive scripts.
 - **Tips & Use Cases** — Every tool has guidance
 - **IndexedDB Persistence** — Settings & preferences saved locally
 - **PWA** — Installable, works offline
+
+## ◈ Keyboard Shortcuts
+<img width="692" height="845" alt="image" src="https://github.com/user-attachments/assets/1386e7cc-99c3-48ea-99b4-017decc67262" />
+
 
 ---
 
